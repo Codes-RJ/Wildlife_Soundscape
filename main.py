@@ -1,19 +1,27 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import json
 import logging
+
 from datetime import datetime
 from typing import Any
 
 from config import CONFIG
 
-from localization import (
-    LocalizationEngine,
-)
-
 from server import (
     ReceiverServer,
+)
+
+
+# ======================================================================
+# MODULE LOGGER
+# ======================================================================
+
+
+logger = logging.getLogger(
+    __name__
 )
 
 
@@ -47,28 +55,49 @@ def _format_session_id(
     session_id: int | None,
 ) -> str:
     """
-    Format a session ID consistently for CLI output.
+    Format a session identifier consistently for CLI output.
     """
 
     if session_id is None:
-        return "NONE"
 
-    return f"0x{session_id:08X}"
+        return (
+            "NONE"
+        )
+
+    return (
+        f"0x{session_id:08X}"
+    )
 
 
 def _load_json(
     value: Any,
 ) -> Any | None:
     """
-    Safely decode JSON stored in SQLite.
+    Safely decode a JSON value read from SQLite.
 
-    Returns None when the value is unavailable or malformed.
+    Returns None when the stored value is unavailable or malformed.
     """
 
     if value is None:
+
         return None
 
+    if isinstance(
+        value,
+        (
+            dict,
+            list,
+            tuple,
+            int,
+            float,
+            bool,
+        ),
+    ):
+
+        return value
+
     try:
+
         return json.loads(
             value
         )
@@ -76,9 +105,46 @@ def _load_json(
     except (
         TypeError,
         ValueError,
-        json.JSONDecodeError,
     ):
+
         return None
+
+
+def _format_optional_float(
+    value: Any,
+    *,
+    precision: int = 3,
+    suffix: str = "",
+) -> str:
+    """
+    Safely format an optional numeric database/runtime value.
+    """
+
+    if value is None:
+
+        return (
+            "N/A"
+        )
+
+    try:
+
+        number = float(
+            value
+        )
+
+    except (
+        TypeError,
+        ValueError,
+    ):
+
+        return str(
+            value
+        )
+
+    return (
+        f"{number:.{precision}f}"
+        f"{suffix}"
+    )
 
 
 # ======================================================================
@@ -92,34 +158,58 @@ def print_classification_status(
     indent: str = "",
 ) -> None:
     """
-    Display configured and active classification state.
+    Display configured and actually active classifier state.
 
-    This distinguishes:
+    This intentionally distinguishes:
 
+        classification disabled
         configured backend
         active backend
-        disabled classification
         heuristic fallback
     """
 
     classification_config = (
-        CONFIG.classification
+        server.config.classification
     )
 
-    if not classification_config.enabled:
+    # ==================================================================
+    # DISABLED
+    # ==================================================================
+
+    if not (
+        classification_config.enabled
+    ):
 
         print(
-            f"{indent}Classification: DISABLED"
+            (
+                f"{indent}"
+                "Classification: DISABLED"
+            )
         )
 
         return
 
+    # ==================================================================
+    # CONFIGURED
+    # ==================================================================
+
+    configured_name = (
+        classification_config.backend
+        .strip()
+        .lower()
+    )
+
     print(
         (
-            f"{indent}Classification: ENABLED "
-            f"| configured={classification_config.backend}"
+            f"{indent}"
+            "Classification: ENABLED "
+            f"| configured={configured_name}"
         )
     )
+
+    # ==================================================================
+    # ACTIVE
+    # ==================================================================
 
     backend = (
         server.events.classifier_backend
@@ -129,8 +219,9 @@ def print_classification_status(
 
         print(
             (
-                f"{indent}                "
-                "active backend=NONE"
+                f"{indent}"
+                "                "
+                "active=NONE"
             )
         )
 
@@ -138,21 +229,17 @@ def print_classification_status(
 
     print(
         (
-            f"{indent}                "
+            f"{indent}"
+            "                "
             f"active={backend.name} "
             f"v{backend.version}"
         )
     )
 
-    configured_name = (
-        classification_config.backend
-        .strip()
-        .lower()
-    )
+    # ==================================================================
+    # FALLBACK
+    # ==================================================================
 
-    # Current operational backend is called heuristic_backend.
-    # If some other backend was requested but the factory returned the
-    # heuristic implementation, this indicates fallback.
     if (
         configured_name
         != "heuristic"
@@ -162,8 +249,9 @@ def print_classification_status(
 
         print(
             (
-                f"{indent}                "
-                f"fallback=heuristic "
+                f"{indent}"
+                "                "
+                "fallback=heuristic "
                 f"(requested={configured_name})"
             )
         )
@@ -178,12 +266,18 @@ def print_status(
     server: ReceiverServer,
 ) -> None:
     """
-    Print current receiver, node, DSP and classification state.
+    Print current receiver, node, synchronization, DSP and classifier
+    state.
     """
+
+    config = (
+        server.config
+    )
 
     print(
         "\n"
-        + "=" * 88
+        + "="
+        * 96
     )
 
     print(
@@ -209,7 +303,8 @@ def print_status(
     )
 
     print(
-        "=" * 88
+        "="
+        * 96
     )
 
     # ==================================================================
@@ -217,7 +312,7 @@ def print_status(
     # ==================================================================
 
     for node_id in sorted(
-        CONFIG.expected_nodes
+        config.expected_nodes
     ):
 
         connection = (
@@ -242,28 +337,62 @@ def print_status(
             snapshot.latest_heartbeat
         )
 
+        hello = (
+            snapshot.hello
+        )
+
         role = (
             "MASTER"
             if (
-                snapshot.hello
-                and snapshot.hello.master_node
+                hello is not None
+                and hello.master_node
             )
             else "SLAVE"
         )
 
         print(
             (
-                f"Node {node_id}: ONLINE {role} "
-                f"| packets={snapshot.packets_received} "
-                f"audio={snapshot.audio_packets_received} "
-                f"crc={snapshot.crc_errors} "
-                f"seq_gaps={snapshot.sequence_gaps} "
-                f"sample_gaps={snapshot.sample_gaps} "
-                f"clip={snapshot.clipped_packets} "
-                f"clock_fault={snapshot.clock_fault_packets} "
-                f"congest={snapshot.congested_packets}"
+                f"Node {node_id}: "
+                f"{'ONLINE' if snapshot.connected else 'DISCONNECTED'} "
+                f"{role} "
+                f"| session={_format_session_id(snapshot.session_id)}"
             )
         )
+
+        print(
+            (
+                "        "
+                f"packets={snapshot.packets_received} "
+                f"| audio={snapshot.audio_packets_received} "
+                f"| crc={snapshot.crc_errors} "
+                f"| protocol={snapshot.protocol_errors} "
+                f"| seq_gaps={snapshot.sequence_gaps} "
+                f"| seq_resets={snapshot.sequence_resets}"
+            )
+        )
+
+        print(
+            (
+                "        "
+                f"sample_gaps={snapshot.sample_gaps} "
+                f"| old/dup={snapshot.duplicate_or_old_packets} "
+                f"| clip={snapshot.clipped_packets} "
+                f"| clock_fault={snapshot.clock_fault_packets} "
+                f"| congest={snapshot.congested_packets}"
+            )
+        )
+
+        if hello is not None:
+
+            print(
+                (
+                    "        "
+                    f"fw={hello.firmware} "
+                    f"| {hello.sample_rate} Hz "
+                    f"| {hello.frames_per_packet} samples/packet "
+                    f"| sync_tol={hello.sync_tolerance_samples}"
+                )
+            )
 
         if heartbeat is not None:
 
@@ -271,12 +400,42 @@ def print_status(
                 (
                     "        "
                     f"RSSI={heartbeat.wifi_rssi} dBm "
-                    f"heap={heartbeat.free_heap} "
-                    f"I2Serr={heartbeat.i2s_errors} "
-                    f"queue={heartbeat.audio_queue_depth} "
-                    f"streaming={heartbeat.streaming}"
+                    f"| heap={heartbeat.free_heap} "
+                    f"| I2Serr={heartbeat.i2s_errors} "
+                    f"| dropped={heartbeat.dropped_audio_blocks} "
+                    f"| tx={heartbeat.transmitted_audio_blocks} "
+                    f"| queue={heartbeat.audio_queue_depth} "
+                    f"| streaming={heartbeat.streaming}"
                 )
             )
+
+            if (
+                heartbeat.bme_available
+                is not None
+            ):
+
+                print(
+                    (
+                        "        "
+                        f"BME280 available="
+                        f"{heartbeat.bme_available}"
+                    )
+                )
+
+            if (
+                heartbeat.sync_received
+                is not None
+            ):
+
+                print(
+                    (
+                        "        "
+                        f"SYNC received="
+                        f"{heartbeat.sync_received} "
+                        f"| clock healthy="
+                        f"{heartbeat.clock_healthy}"
+                    )
+                )
 
         environment = (
             snapshot.latest_environment
@@ -287,35 +446,73 @@ def print_status(
             print(
                 (
                     "        "
-                    f"ENV={environment.temperature_c:.1f} C, "
+                    f"ENV="
+                    f"{environment.temperature_c:.1f} C, "
                     f"{environment.humidity_percent:.1f}% RH, "
                     f"{environment.pressure_hpa:.1f} hPa"
                 )
             )
 
+        sync = (
+            snapshot.latest_sync
+        )
+
+        if sync is not None:
+
+            print(
+                (
+                    "        "
+                    f"SYNC id={sync.sync_id} "
+                    f"| sample={sync.sample_index} "
+                    f"| session="
+                    f"{_format_session_id(sync.session_id)}"
+                )
+            )
+
     # ==================================================================
-    # ALIGNMENT
+    # STREAM ALIGNMENT
     # ==================================================================
 
-    aligned = (
-        server.streams.latest_aligned_blocks()
-    )
+    try:
 
-    if aligned is not None:
+        aligned = (
+            server.streams.latest_aligned_blocks()
+        )
+
+    except Exception as exc:
+
+        aligned = (
+            None
+        )
 
         print(
             (
-                "Aligned latest block @ sample "
-                f"{aligned.target_sample_index}: "
-                f"offsets={aligned.offsets}"
+                "Aligned latest block: "
+                f"error ({exc})"
             )
         )
 
     else:
 
-        print(
-            "Aligned latest block: not available"
-        )
+        if aligned is not None:
+
+            print(
+                (
+                    "Aligned latest block "
+                    f"@ sample "
+                    f"{aligned.target_sample_index}: "
+                    f"offsets={aligned.offsets}"
+                )
+            )
+
+        else:
+
+            print(
+                (
+                    "Aligned latest block: "
+                    "not available"
+                )
+            )
 
     # ==================================================================
     # LATEST DSP
@@ -328,12 +525,14 @@ def print_status(
     if features is not None:
 
         print(
-            "-" * 88
+            "-"
+            * 96
         )
 
         snr_text = (
             f"{features.snr_db:.2f} dB"
-            if features.snr_db is not None
+            if features.snr_db
+            is not None
             else "N/A"
         )
 
@@ -350,10 +549,26 @@ def print_status(
         print(
             (
                 "            "
-                f"dominant={features.dominant_frequency_hz:.1f} Hz "
-                f"| centroid={features.spectral_centroid_hz:.1f} Hz "
-                f"| bandwidth={features.spectral_bandwidth_hz:.1f} Hz "
-                f"| rolloff={features.spectral_rolloff_hz:.1f} Hz"
+                f"dominant="
+                f"{features.dominant_frequency_hz:.1f} Hz "
+                f"| centroid="
+                f"{features.spectral_centroid_hz:.1f} Hz "
+                f"| bandwidth="
+                f"{features.spectral_bandwidth_hz:.1f} Hz "
+                f"| rolloff="
+                f"{features.spectral_rolloff_hz:.1f} Hz"
+            )
+        )
+
+        print(
+            (
+                "            "
+                f"ZCR="
+                f"{features.zero_crossing_rate:.5f} "
+                f"| flatness="
+                f"{features.spectral_flatness:.5f} "
+                f"| flux="
+                f"{features.spectral_flux:.5f}"
             )
         )
 
@@ -368,15 +583,18 @@ def print_status(
     if classification is not None:
 
         print(
-            "-" * 88
+            "-"
+            * 96
         )
 
         print(
             (
                 "LATEST CLASSIFICATION "
                 f"| {classification.label.value.upper()} "
-                f"| confidence={classification.confidence:.3f} "
-                f"| margin={classification.margin:.3f}"
+                f"| confidence="
+                f"{classification.confidence:.3f} "
+                f"| margin="
+                f"{classification.margin:.3f}"
             )
         )
 
@@ -385,24 +603,34 @@ def print_status(
             is not None
         ):
 
+            second_confidence = (
+                _format_optional_float(
+                    classification.second_confidence,
+                    precision=3,
+                )
+            )
+
             print(
                 (
                     "            "
-                    "second="
+                    f"second="
                     f"{classification.second_label.value.upper()} "
-                    f"({classification.second_confidence:.3f})"
+                    f"({second_confidence})"
                 )
             )
 
         print(
             (
                 "            "
-                f"classifier={classification.classifier_name} "
+                f"classifier="
+                f"{classification.classifier_name} "
                 f"v{classification.classifier_version}"
             )
         )
 
-        if classification.reasons:
+        if (
+            classification.reasons
+        ):
 
             print(
                 "            reasons:"
@@ -413,21 +641,31 @@ def print_status(
             ):
 
                 print(
-                    f"              - {reason}"
+                    (
+                        "              - "
+                        f"{reason}"
+                    )
                 )
 
-    elif not server.events.classification_enabled:
+    elif not (
+        server.events.classification_enabled
+    ):
 
         print(
-            "-" * 88
+            "-"
+            * 96
         )
 
         print(
-            "LATEST CLASSIFICATION | disabled"
+            (
+                "LATEST CLASSIFICATION "
+                "| disabled"
+            )
         )
 
     print(
-        "=" * 88
+        "="
+        * 96
     )
 
 
@@ -440,36 +678,58 @@ def print_event_row(
     row,
 ) -> None:
     """
-    Print one compact database event summary.
+    Print one compact SQLite event summary.
     """
 
-    position = (
-        "n/a"
-        if (
-            row["x_m"] is None
-            or row["y_m"] is None
+    # ==================================================================
+    # POSITION
+    # ==================================================================
+
+    if (
+        row["x_m"] is None
+        or row["y_m"] is None
+    ):
+
+        position = (
+            "n/a"
         )
-        else (
+
+    else:
+
+        position = (
             f"({row['x_m']:.3f}, "
             f"{row['y_m']:.3f}) m"
         )
-    )
+
+    # ==================================================================
+    # BEST NODE
+    # ==================================================================
 
     best_node = (
         "n/a"
-        if row["best_node_id"] is None
+        if row["best_node_id"]
+        is None
         else str(
             row["best_node_id"]
         )
     )
 
+    # ==================================================================
+    # SNR
+    # ==================================================================
+
     snr = (
         "n/a"
-        if row["snr_db"] is None
+        if row["snr_db"]
+        is None
         else (
             f"{row['snr_db']:.2f} dB"
         )
     )
+
+    # ==================================================================
+    # DOMINANT FREQUENCY
+    # ==================================================================
 
     dominant = (
         "n/a"
@@ -481,8 +741,14 @@ def print_event_row(
         )
     )
 
+    # ==================================================================
+    # CLASSIFICATION
+    # ==================================================================
+
     if (
-        row["classification_label"]
+        row[
+            "classification_label"
+        ]
         is None
     ):
 
@@ -493,25 +759,38 @@ def print_event_row(
     else:
 
         confidence = (
-            row["classification_confidence"]
+            row[
+                "classification_confidence"
+            ]
         )
 
         classification_text = (
-            row["classification_label"]
+            str(
+                row[
+                    "classification_label"
+                ]
+            )
             .upper()
         )
 
         if confidence is not None:
 
             classification_text += (
-                f" ({confidence:.3f})"
+                f" ({float(confidence):.3f})"
             )
+
+    # ==================================================================
+    # OUTPUT
+    # ==================================================================
 
     print(
         (
             f"DB#{row['id']} "
-            f"| session={_format_session_id(row['session_id'])} "
-            f"| samples={row['start_sample']}..{row['end_sample']} "
+            f"| session="
+            f"{_format_session_id(row['session_id'])} "
+            f"| samples="
+            f"{row['start_sample']}.."
+            f"{row['end_sample']} "
             f"| nodes={row['trigger_nodes']} "
             f"| best_node={best_node} "
             f"| SNR={snr} "
@@ -532,21 +811,39 @@ async def status_loop(
 ) -> None:
     """
     Periodically print receiver status.
+
+    A display error is logged rather than permanently terminating the
+    background status task.
     """
 
     while True:
 
         await asyncio.sleep(
-            CONFIG.print_status_every_s
+            server.config.print_status_every_s
         )
 
-        print_status(
-            server
-        )
+        try:
+
+            print_status(
+                server
+            )
+
+        except asyncio.CancelledError:
+
+            raise
+
+        except Exception:
+
+            logger.exception(
+                (
+                    "Periodic status display "
+                    "failed"
+                )
+            )
 
 
 # ======================================================================
-# MANUAL LOCALIZATION
+# LOCALIZATION DISPLAY
 # ======================================================================
 
 
@@ -554,7 +851,7 @@ def print_localization_result(
     result,
 ) -> None:
     """
-    Print one manual localization result.
+    Print one manual GCC-PHAT/TDOA localization result.
     """
 
     position = (
@@ -585,6 +882,10 @@ def print_localization_result(
         )
     )
 
+    print(
+        "Pairwise TDOA measurements:"
+    )
+
     for measurement in (
         result.measurements
     ):
@@ -600,14 +901,15 @@ def print_localization_result(
 
         print(
             (
-                f"  "
+                "  "
                 f"{measurement.node_a}"
                 f"->{measurement.node_b}: "
                 f"{measurement.delay_samples:+.3f} samples "
-                f"("
+                "("
                 f"{measurement.delay_seconds * 1e6:+.2f} us"
-                f"), "
-                f"peak_ratio={measurement.peak_ratio:.2f} "
+                "), "
+                f"peak_ratio="
+                f"{measurement.peak_ratio:.2f} "
                 f"{state}"
             )
         )
@@ -622,12 +924,13 @@ def print_event_details(
     row,
 ) -> None:
     """
-    Print complete database information for one acoustic event.
+    Print complete persisted information for one acoustic event.
     """
 
     print(
         "\n"
-        + "-" * 88
+        + "-"
+        * 96
     )
 
     print(
@@ -635,7 +938,8 @@ def print_event_details(
     )
 
     print(
-        "-" * 88
+        "-"
+        * 96
     )
 
     print_event_row(
@@ -685,7 +989,12 @@ def print_event_details(
         )
     )
 
-    if row["peak_rms_dbfs"] is not None:
+    if (
+        row[
+            "peak_rms_dbfs"
+        ]
+        is not None
+    ):
 
         print(
             (
@@ -706,7 +1015,9 @@ def print_event_details(
     # ==================================================================
 
     if (
-        row["temperature_c"]
+        row[
+            "temperature_c"
+        ]
         is not None
     ):
 
@@ -784,7 +1095,9 @@ def print_event_details(
             )
 
         if (
-            row["speed_of_sound_mps"]
+            row[
+                "speed_of_sound_mps"
+            ]
             is not None
         ):
 
@@ -800,7 +1113,9 @@ def print_event_details(
     # ==================================================================
 
     if (
-        row["duration_s"]
+        row[
+            "duration_s"
+        ]
         is not None
     ):
 
@@ -897,25 +1212,37 @@ def print_event_details(
                 "  SNR: "
                 + (
                     f"{row['snr_db']:.2f} dB"
-                    if row["snr_db"] is not None
+                    if row["snr_db"]
+                    is not None
                     else "N/A"
                 )
             )
         )
 
+        # --------------------------------------------------------------
+        # MFCC
+        # --------------------------------------------------------------
+
         mfcc_mean = (
             _load_json(
-                row["mfcc_mean_json"]
+                row[
+                    "mfcc_mean_json"
+                ]
             )
         )
 
         mfcc_std = (
             _load_json(
-                row["mfcc_std_json"]
+                row[
+                    "mfcc_std_json"
+                ]
             )
         )
 
-        if mfcc_mean is not None:
+        if (
+            mfcc_mean
+            is not None
+        ):
 
             print(
                 (
@@ -924,7 +1251,10 @@ def print_event_details(
                 )
             )
 
-        if mfcc_std is not None:
+        if (
+            mfcc_std
+            is not None
+        ):
 
             print(
                 (
@@ -944,7 +1274,9 @@ def print_event_details(
     # ==================================================================
 
     if (
-        row["classification_label"]
+        row[
+            "classification_label"
+        ]
         is not None
     ):
 
@@ -955,7 +1287,7 @@ def print_event_details(
         print(
             (
                 "  Label: "
-                f"{row['classification_label'].upper()}"
+                f"{str(row['classification_label']).upper()}"
             )
         )
 
@@ -973,6 +1305,10 @@ def print_event_details(
                 )
             )
 
+        # --------------------------------------------------------------
+        # SECOND CANDIDATE
+        # --------------------------------------------------------------
+
         if (
             row[
                 "classification_second_label"
@@ -987,9 +1323,11 @@ def print_event_details(
             )
 
             second_text = (
-                row[
-                    "classification_second_label"
-                ]
+                str(
+                    row[
+                        "classification_second_label"
+                    ]
+                )
                 .upper()
             )
 
@@ -999,7 +1337,7 @@ def print_event_details(
             ):
 
                 second_text += (
-                    f" ({second_confidence:.3f})"
+                    f" ({float(second_confidence):.3f})"
                 )
 
             print(
@@ -1009,8 +1347,14 @@ def print_event_details(
                 )
             )
 
+        # --------------------------------------------------------------
+        # DECISION MARGIN
+        # --------------------------------------------------------------
+
         if (
-            row["classification_margin"]
+            row[
+                "classification_margin"
+            ]
             is not None
         ):
 
@@ -1021,17 +1365,28 @@ def print_event_details(
                 )
             )
 
+        # --------------------------------------------------------------
+        # CLASSIFIER IDENTITY
+        # --------------------------------------------------------------
+
         classifier_name = (
-            row["classifier_name"]
+            row[
+                "classifier_name"
+            ]
         )
 
         classifier_version = (
-            row["classifier_version"]
+            row[
+                "classifier_version"
+            ]
         )
 
-        if classifier_name is not None:
+        if (
+            classifier_name
+            is not None
+        ):
 
-            classifier_text = (
+            classifier_text = str(
                 classifier_name
             )
 
@@ -1088,35 +1443,27 @@ def print_event_details(
                 ValueError,
             ):
 
-                ranked_scores = (
-                    list(
-                        scores.items()
-                    )
+                ranked_scores = list(
+                    scores.items()
                 )
 
             for (
                 label,
                 score,
-            ) in ranked_scores:
+            ) in (
+                ranked_scores
+            ):
 
-                try:
-
-                    score_text = (
-                        f"{float(score):.3f}"
+                score_text = (
+                    _format_optional_float(
+                        score,
+                        precision=3,
                     )
-
-                except (
-                    TypeError,
-                    ValueError,
-                ):
-
-                    score_text = str(
-                        score
-                    )
+                )
 
                 print(
                     (
-                        f"    "
+                        "    "
                         f"{str(label).upper():<14}"
                         f"{score_text}"
                     )
@@ -1136,7 +1483,10 @@ def print_event_details(
 
         if isinstance(
             reasons,
-            list,
+            (
+                list,
+                tuple,
+            ),
         ):
 
             print(
@@ -1146,7 +1496,10 @@ def print_event_details(
             for reason in reasons:
 
                 print(
-                    f"    - {reason}"
+                    (
+                        "    - "
+                        f"{reason}"
+                    )
                 )
 
     else:
@@ -1160,7 +1513,9 @@ def print_event_details(
     # ==================================================================
 
     if (
-        row["event_directory"]
+        row[
+            "event_directory"
+        ]
         is not None
     ):
 
@@ -1172,7 +1527,8 @@ def print_event_details(
         )
 
     print(
-        "-" * 88
+        "-"
+        * 96
     )
 
 
@@ -1219,6 +1575,10 @@ def print_commands() -> None:
     )
 
     print(
+        "  help"
+    )
+
+    print(
         "  quit"
     )
 
@@ -1235,21 +1595,34 @@ async def command_loop(
     Interactive receiver command loop.
     """
 
-    localizer = LocalizationEngine(
-        server.streams,
-        CONFIG.localization,
-    )
-
     print_commands()
 
     while True:
 
-        raw_command = (
-            await asyncio.to_thread(
-                input,
-                "> ",
+        # ==============================================================
+        # READ COMMAND
+        # ==============================================================
+
+        try:
+
+            raw_command = (
+                await asyncio.to_thread(
+                    input,
+                    "> ",
+                )
             )
-        ).strip()
+
+        except EOFError:
+
+            print(
+                "\nInput stream closed."
+            )
+
+            return
+
+        raw_command = (
+            raw_command.strip()
+        )
 
         if not raw_command:
 
@@ -1268,7 +1641,10 @@ async def command_loop(
         # START
         # ==============================================================
 
-        if command == "start":
+        if (
+            command
+            == "start"
+        ):
 
             if (
                 server.active_session_id
@@ -1299,24 +1675,38 @@ async def command_loop(
                     )
                 )
 
+            except asyncio.CancelledError:
+
+                raise
+
+            except Exception as exc:
+
                 print(
                     (
-                        "Started session "
-                        f"{_format_session_id(session_id)}"
+                        "START failed: "
+                        f"{exc}"
                     )
                 )
 
-            except RuntimeError as exc:
+                continue
 
-                print(
-                    f"START failed: {exc}"
+            print(
+                (
+                    "Started session "
+                    f"{_format_session_id(session_id)}"
                 )
+            )
+
+            continue
 
         # ==============================================================
         # STOP
         # ==============================================================
 
-        elif command == "stop":
+        if (
+            command
+            == "stop"
+        ):
 
             if (
                 server.active_session_id
@@ -1324,45 +1714,115 @@ async def command_loop(
             ):
 
                 print(
-                    "No acquisition session is active"
+                    (
+                        "No acquisition session "
+                        "is active"
+                    )
                 )
 
                 continue
 
-            await server.stop_acquisition()
+            try:
+
+                await server.stop_acquisition()
+
+            except asyncio.CancelledError:
+
+                raise
+
+            except Exception as exc:
+
+                print(
+                    (
+                        "STOP completed with an error: "
+                        f"{exc}"
+                    )
+                )
+
+                continue
 
             print(
                 "Acquisition stopped"
             )
 
+            continue
+
         # ==============================================================
         # PING
         # ==============================================================
 
-        elif command == "ping":
+        if (
+            command
+            == "ping"
+        ):
 
-            await server.ping_all()
+            try:
+
+                await server.ping_all()
+
+            except asyncio.CancelledError:
+
+                raise
+
+            except Exception as exc:
+
+                print(
+                    (
+                        "PING failed: "
+                        f"{exc}"
+                    )
+                )
+
+            else:
+
+                print(
+                    "PING requested"
+                )
+
+            continue
 
         # ==============================================================
         # STATUS
         # ==============================================================
 
-        elif command == "status":
+        if (
+            command
+            == "status"
+        ):
 
-            print_status(
-                server
-            )
+            try:
+
+                print_status(
+                    server
+                )
+
+            except Exception as exc:
+
+                print(
+                    (
+                        "Status display failed: "
+                        f"{exc}"
+                    )
+                )
+
+            continue
 
         # ==============================================================
         # MANUAL LOCALIZATION
         # ==============================================================
 
-        elif command == "locate":
+        if (
+            command
+            == "locate"
+        ):
 
             try:
 
+                # Reuse the exact LocalizationEngine already owned by
+                # EventPipeline instead of constructing a second engine.
                 result = (
-                    localizer.locate_latest()
+                    server.events.localizer
+                    .locate_latest()
                 )
 
             except Exception as exc:
@@ -1391,43 +1851,88 @@ async def command_loop(
                 result
             )
 
+            continue
+
         # ==============================================================
         # RECENT EVENTS
         # ==============================================================
 
-        elif command == "events":
+        if (
+            command
+            == "events"
+        ):
 
-            rows = (
-                server.events.database
-                .recent_events(
-                    10
+            try:
+
+                rows = (
+                    server.events.database
+                    .recent_events(
+                        10
+                    )
                 )
-            )
+
+            except Exception as exc:
+
+                print(
+                    (
+                        "Unable to read events: "
+                        f"{exc}"
+                    )
+                )
+
+                continue
 
             if not rows:
 
                 print(
-                    "No detected events stored yet"
+                    (
+                        "No detected events "
+                        "stored yet"
+                    )
                 )
 
                 continue
 
             for row in rows:
 
-                print_event_row(
-                    row
+                try:
+
+                    print_event_row(
+                        row
+                    )
+
+                except Exception as exc:
+
+                    print(
+                        (
+                            "Unable to display "
+                            f"event row: {exc}"
+                        )
+                    )
+
+            continue
+
+        # ==============================================================
+        # ONE DATABASE EVENT
+        # ==============================================================
+
+        if (
+            command
+            == "event"
+        ):
+
+            if (
+                len(
+                    parts
                 )
-
-        # ==============================================================
-        # ONE EVENT
-        # ==============================================================
-
-        elif command == "event":
-
-            if len(parts) != 2:
+                != 2
+            ):
 
                 print(
-                    "Usage: event <database_id>"
+                    (
+                        "Usage: "
+                        "event <database_id>"
+                    )
                 )
 
                 continue
@@ -1435,31 +1940,55 @@ async def command_loop(
             try:
 
                 database_id = int(
-                    parts[1]
+                    parts[
+                        1
+                    ]
                 )
 
             except ValueError:
 
                 print(
-                    "Usage: event <database_id>"
+                    (
+                        "Usage: "
+                        "event <database_id>"
+                    )
                 )
 
                 continue
 
-            if database_id <= 0:
+            if (
+                database_id
+                <= 0
+            ):
 
                 print(
-                    "Database event ID must be greater than 0"
+                    (
+                        "Database event ID must "
+                        "be greater than 0"
+                    )
                 )
 
                 continue
 
-            row = (
-                server.events.database
-                .get_event(
-                    database_id
+            try:
+
+                row = (
+                    server.events.database
+                    .get_event(
+                        database_id
+                    )
                 )
-            )
+
+            except Exception as exc:
+
+                print(
+                    (
+                        "Database lookup failed: "
+                        f"{exc}"
+                    )
+                )
+
+                continue
 
             if row is None:
 
@@ -1472,19 +2001,51 @@ async def command_loop(
 
                 continue
 
-            print_event_details(
-                row
-            )
+            try:
+
+                print_event_details(
+                    row
+                )
+
+            except Exception as exc:
+
+                print(
+                    (
+                        "Unable to display event: "
+                        f"{exc}"
+                    )
+                )
+
+            continue
+
+        # ==============================================================
+        # HELP
+        # ==============================================================
+
+        if (
+            command
+            in {
+                "help",
+                "?",
+            }
+        ):
+
+            print_commands()
+
+            continue
 
         # ==============================================================
         # QUIT
         # ==============================================================
 
-        elif command in {
-            "quit",
-            "exit",
-            "q",
-        }:
+        if (
+            command
+            in {
+                "quit",
+                "exit",
+                "q",
+            }
+        ):
 
             return
 
@@ -1492,15 +2053,12 @@ async def command_loop(
         # UNKNOWN COMMAND
         # ==============================================================
 
-        else:
-
-            print(
-                (
-                    "Unknown command. Use: "
-                    "start | stop | ping | status | locate | "
-                    "events | event <db_id> | quit"
-                )
+        print(
+            (
+                "Unknown command. "
+                "Type 'help' for commands."
             )
+        )
 
 
 # ======================================================================
@@ -1512,8 +2070,12 @@ def print_startup_info(
     server: ReceiverServer,
 ) -> None:
     """
-    Display configured receiver architecture at startup.
+    Display the configured receiver architecture at startup.
     """
+
+    config = (
+        server.config
+    )
 
     print(
         "\nWildlife Soundscape Receiver"
@@ -1522,24 +2084,33 @@ def print_startup_info(
     print(
         (
             "Listening on "
-            f"{CONFIG.network.host}:"
-            f"{CONFIG.network.port}"
+            f"{config.network.host}:"
+            f"{config.network.port}"
         )
     )
 
     print(
         (
             "Expected nodes: "
-            f"{sorted(CONFIG.expected_nodes)}"
+            f"{sorted(config.expected_nodes)}"
         )
     )
 
     print(
         (
             "Audio: "
-            f"{CONFIG.audio.sample_rate} Hz "
-            f"| {CONFIG.audio.frames_per_block} samples/block "
+            f"{config.audio.sample_rate} Hz "
+            f"| {config.audio.frames_per_block} samples/block "
+            f"| {config.audio.block_duration_s * 1000.0:.2f} ms/block "
             "| PCM16 mono"
+        )
+    )
+
+    print(
+        (
+            "Per-node stream buffer: "
+            f"{config.audio.buffer_seconds:.1f} s "
+            f"| {config.audio.blocks_in_buffer} blocks"
         )
     )
 
@@ -1548,7 +2119,9 @@ def print_startup_info(
             "Event detection: "
             + (
                 "ENABLED"
-                if CONFIG.detection.enabled
+                if (
+                    config.detection.enabled
+                )
                 else "DISABLED"
             )
         )
@@ -1557,9 +2130,27 @@ def print_startup_info(
     print(
         (
             "Localization: "
-            f"GCC-PHAT/TDOA "
+            "GCC-PHAT/TDOA "
             f"| reference node="
-            f"{CONFIG.localization.reference_node}"
+            f"{config.localization.reference_node} "
+            f"| window="
+            f"{config.localization.window_samples} samples "
+            f"| interpolation="
+            f"{config.localization.interpolation}x"
+        )
+    )
+
+    print(
+        (
+            "Environmental sound-speed correction: "
+            + (
+                "ENABLED"
+                if (
+                    config.localization
+                    .use_environmental_speed
+                )
+                else "DISABLED"
+            )
         )
     )
 
@@ -1568,7 +2159,7 @@ def print_startup_info(
     )
 
     if (
-        CONFIG.classification.enabled
+        config.classification.enabled
     ):
 
         print(
@@ -1577,13 +2168,47 @@ def print_startup_info(
                 + (
                     "ENABLED"
                     if (
-                        CONFIG.classification
+                        config.classification
                         .provide_model_audio
                     )
                     else "DISABLED"
                 )
             )
         )
+
+    print(
+        (
+            "Continuous WAV recording: "
+            + (
+                "ENABLED"
+                if (
+                    config.audio.record_wav
+                )
+                else "DISABLED"
+            )
+        )
+    )
+
+    print(
+        (
+            "Event WAV storage: "
+            + (
+                "ENABLED"
+                if (
+                    config.persistence
+                    .save_event_wav
+                )
+                else "DISABLED"
+            )
+        )
+    )
+
+    print(
+        (
+            "Database: "
+            f"{config.persistence.database_path}"
+        )
+    )
 
 
 # ======================================================================
@@ -1593,31 +2218,55 @@ def print_startup_info(
 
 async def main_async() -> None:
     """
-    Initialize and run the laptop-side receiver application.
+    Initialize and run the laptop receiver application.
     """
 
     configure_logging()
 
-    server = ReceiverServer(
-        CONFIG
-    )
-
-    await server.start()
-
-    print_startup_info(
-        server
-    )
-
-    status_task = (
-        asyncio.create_task(
-            status_loop(
-                server
-            ),
-            name="receiver-status-loop",
+    server = (
+        ReceiverServer(
+            CONFIG
         )
     )
 
+    status_task: (
+        asyncio.Task[None]
+        | None
+    ) = None
+
     try:
+
+        # ==============================================================
+        # TCP SERVER
+        # ==============================================================
+
+        await server.start()
+
+        # ==============================================================
+        # STARTUP INFORMATION
+        # ==============================================================
+
+        print_startup_info(
+            server
+        )
+
+        # ==============================================================
+        # BACKGROUND STATUS
+        # ==============================================================
+
+        status_task = (
+            asyncio.create_task(
+                status_loop(
+                    server
+                ),
+                name=
+                    "receiver-status-loop",
+            )
+        )
+
+        # ==============================================================
+        # INTERACTIVE CLI
+        # ==============================================================
 
         await command_loop(
             server
@@ -1625,42 +2274,53 @@ async def main_async() -> None:
 
     finally:
 
-        status_task.cancel()
-
-        try:
-
-            await status_task
-
-        except asyncio.CancelledError:
-
-            pass
-
-        # --------------------------------------------------------------
-        # Stop acquisition only when a session remains active.
-        # --------------------------------------------------------------
+        # ==============================================================
+        # STATUS TASK
+        # ==============================================================
 
         if (
-            server.active_session_id
+            status_task
             is not None
         ):
 
-            try:
+            status_task.cancel()
 
-                await server.stop_acquisition()
+            with contextlib.suppress(
+                asyncio.CancelledError
+            ):
 
-            except Exception:
+                await status_task
 
-                logging.getLogger(
-                    __name__
-                ).exception(
-                    "Failed to stop acquisition during shutdown"
+        # ==============================================================
+        # SERVER / ACQUISITION SHUTDOWN
+        # ==============================================================
+        #
+        # ReceiverServer.close() already owns acquisition shutdown.
+        #
+        # Calling stop_acquisition() separately here would duplicate that
+        # lifecycle operation.
+        # ==============================================================
+
+        try:
+
+            await server.close()
+
+        except asyncio.CancelledError:
+
+            raise
+
+        except Exception:
+
+            logger.exception(
+                (
+                    "Receiver shutdown "
+                    "encountered an error"
                 )
-
-        await server.close()
+            )
 
 
 # ======================================================================
-# ENTRY POINT
+# APPLICATION ENTRY POINT
 # ======================================================================
 
 

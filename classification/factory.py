@@ -12,6 +12,58 @@ logger = logging.getLogger(__name__)
 
 
 # ======================================================================
+# BACKEND NAMES
+# ======================================================================
+
+
+HEURISTIC_BACKEND = "heuristic"
+
+PRETRAINED_BACKEND = "pretrained"
+
+BIRDNET_BACKEND = "birdnet"
+
+ENSEMBLE_BACKEND = "ensemble"
+
+
+IMPLEMENTED_BACKENDS = frozenset(
+    {
+        HEURISTIC_BACKEND,
+    }
+)
+
+
+RESERVED_BACKENDS = frozenset(
+    {
+        PRETRAINED_BACKEND,
+        BIRDNET_BACKEND,
+        ENSEMBLE_BACKEND,
+    }
+)
+
+
+KNOWN_BACKENDS = (
+    IMPLEMENTED_BACKENDS
+    | RESERVED_BACKENDS
+)
+
+
+# ======================================================================
+# HEURISTIC BACKEND CREATION
+# ======================================================================
+
+
+def _create_heuristic_backend() -> HeuristicClassifierBackend:
+    """
+    Construct the current operational baseline classifier.
+
+    Keeping construction in one helper prevents fallback and explicit
+    heuristic selection from drifting into slightly different behavior.
+    """
+
+    return HeuristicClassifierBackend()
+
+
+# ======================================================================
 # CLASSIFIER BACKEND FACTORY
 # ======================================================================
 
@@ -20,46 +72,89 @@ def create_classifier_backend(
     config: ClassificationConfig,
 ) -> ClassifierBackend | None:
     """
-    Create the acoustic-classification backend selected in configuration.
-
-    Parameters
-    ----------
-    config:
-        Classification configuration from AppConfig.
+    Construct the acoustic-classification backend selected by
+    ClassificationConfig.
 
     Returns
     -------
     ClassifierBackend | None
-        Configured classifier backend.
 
-        None is returned when classification is disabled.
+        None
+            Classification is disabled.
+
+        ClassifierBackend
+            Operational configured backend, or the heuristic fallback
+            when a reserved backend is requested and fallback is enabled.
+
 
     Current implementation
     ----------------------
     heuristic
-        Uses the transparent DSP-feature-based heuristic baseline.
+
+        Transparent DSP-feature-based broad acoustic classifier.
+
 
     Reserved future backends
     ------------------------
     pretrained
-        Generic trained/pretrained bioacoustic model.
+
+        Generic trained/pretrained acoustic model.
 
     birdnet
-        BirdNET-specific adapter.
+
+        BirdNET-specific integration.
 
     ensemble
+
         Combination of multiple classifier backends.
+
 
     Fallback behavior
     -----------------
-    Future backends may exist in configuration before their concrete
-    implementation is added.
+    Reserved backends may already appear in configuration before their
+    implementations are added.
 
-    If fallback_to_heuristic is True, such a backend automatically
-    falls back to HeuristicClassifierBackend.
+    When:
 
-    Otherwise an explicit NotImplementedError is raised.
+        fallback_to_heuristic = True
+
+    the factory returns HeuristicClassifierBackend.
+
+    When:
+
+        fallback_to_heuristic = False
+
+    the factory raises NotImplementedError rather than pretending the
+    requested model exists.
     """
+
+    # ==================================================================
+    # CONFIGURATION TYPE
+    # ==================================================================
+
+    if not isinstance(
+        config,
+        ClassificationConfig,
+    ):
+
+        raise TypeError(
+            (
+                "config must be a "
+                "ClassificationConfig instance"
+            )
+        )
+
+    # ==================================================================
+    # CONFIGURATION VALIDATION
+    # ==================================================================
+    #
+    # AppConfig normally performs this already.
+    #
+    # Calling validate() again here makes the factory safe when used
+    # independently by tests, scripts or future tools.
+    # ==================================================================
+
+    config.validate()
 
     # ==================================================================
     # CLASSIFICATION DISABLED
@@ -87,17 +182,23 @@ def create_classifier_backend(
     # HEURISTIC BACKEND
     # ==================================================================
 
-    if backend_name == "heuristic":
+    if (
+        backend_name
+        == HEURISTIC_BACKEND
+    ):
 
         backend = (
-            HeuristicClassifierBackend()
+            _create_heuristic_backend()
         )
 
         logger.info(
             (
-                "Classification backend selected: "
-                "%s v%s"
+                "Classification backend selected "
+                "| requested=%s "
+                "| active=%s "
+                "| version=%s"
             ),
+            backend_name,
             backend.name,
             backend.version,
         )
@@ -105,60 +206,46 @@ def create_classifier_backend(
         return backend
 
     # ==================================================================
-    # PRETRAINED MODEL
+    # RESERVED FUTURE BACKENDS
     # ==================================================================
 
-    if backend_name == "pretrained":
+    if (
+        backend_name
+        in RESERVED_BACKENDS
+    ):
 
-        return _handle_unavailable_backend(
-            requested_backend=
-                backend_name,
+        return (
+            _handle_unavailable_backend(
+                requested_backend=
+                    backend_name,
 
-            config=
-                config,
-        )
-
-    # ==================================================================
-    # BIRDNET
-    # ==================================================================
-
-    if backend_name == "birdnet":
-
-        return _handle_unavailable_backend(
-            requested_backend=
-                backend_name,
-
-            config=
-                config,
-        )
-
-    # ==================================================================
-    # ENSEMBLE
-    # ==================================================================
-
-    if backend_name == "ensemble":
-
-        return _handle_unavailable_backend(
-            requested_backend=
-                backend_name,
-
-            config=
-                config,
+                config=
+                    config,
+            )
         )
 
     # ==================================================================
     # UNKNOWN BACKEND
     # ==================================================================
     #
-    # ClassificationConfig.validate() should normally catch this before
-    # the factory is reached. This guard remains here so the factory is
-    # safe when called independently.
+    # ClassificationConfig.validate() should normally make this branch
+    # unreachable.
+    #
+    # It remains intentionally defensive because configuration contracts
+    # can change independently in the future.
     # ==================================================================
+
+    known = ", ".join(
+        sorted(
+            KNOWN_BACKENDS
+        )
+    )
 
     raise ValueError(
         (
-            "Unsupported classification backend: "
-            f"'{config.backend}'"
+            "Unsupported classification backend "
+            f"'{config.backend}'. "
+            f"Known backends: {known}"
         )
     )
 
@@ -174,40 +261,91 @@ def _handle_unavailable_backend(
     config: ClassificationConfig,
 ) -> ClassifierBackend:
     """
-    Handle a configured backend whose implementation is not yet present.
+    Handle a recognized backend whose implementation does not yet exist.
 
-    This lets configuration reserve future backend names without
-    pretending that those models are already implemented.
+    This intentionally distinguishes:
+
+        configured backend
+            what the user requested
+
+    from:
+
+        active backend
+            what is actually running
+
+    This prevents research logs or the dashboard from implying that
+    BirdNET/pretrained inference occurred when the heuristic fallback was
+    actually used.
     """
 
-    if not config.fallback_to_heuristic:
+    requested_backend = (
+        str(
+            requested_backend
+        )
+        .strip()
+        .lower()
+    )
+
+    if (
+        requested_backend
+        not in RESERVED_BACKENDS
+    ):
+
+        raise ValueError(
+            (
+                "_handle_unavailable_backend() "
+                "received a backend that is not "
+                "reserved/unavailable: "
+                f"'{requested_backend}'"
+            )
+        )
+
+    # ==================================================================
+    # FALLBACK DISABLED
+    # ==================================================================
+
+    if not (
+        config.fallback_to_heuristic
+    ):
 
         raise NotImplementedError(
             (
                 "Classification backend "
-                f"'{requested_backend}' is configured but has not "
-                "been implemented yet, and heuristic fallback is "
-                "disabled."
+                f"'{requested_backend}' is configured "
+                "but has not been implemented yet, "
+                "and heuristic fallback is disabled."
             )
         )
 
+    # ==================================================================
+    # FALLBACK WARNING
+    # ==================================================================
+
     logger.warning(
         (
-            "Classification backend '%s' is not implemented yet. "
-            "Falling back to the heuristic classifier."
+            "Classification backend '%s' "
+            "is recognized but not implemented. "
+            "Falling back to the heuristic backend."
         ),
         requested_backend,
     )
 
+    # ==================================================================
+    # CREATE FALLBACK
+    # ==================================================================
+
     backend = (
-        HeuristicClassifierBackend()
+        _create_heuristic_backend()
     )
 
     logger.info(
         (
-            "Classification fallback backend: "
-            "%s v%s"
+            "Classification fallback selected "
+            "| requested=%s "
+            "| active=%s "
+            "| version=%s"
         ),
+        requested_backend,
         backend.name,
         backend.version,
     )
