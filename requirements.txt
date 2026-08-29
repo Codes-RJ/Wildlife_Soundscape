@@ -1,0 +1,17 @@
+# ================================================================
+# Wildlife Soundscape Mapping & Behavior Analysis System
+# Core Python Backend Dependencies
+# ================================================================
+
+# Numerical computing
+numpy>=2.0,<3.0
+
+# Signal processing, filtering and numerical optimization
+scipy>=1.14,<2.0
+
+# Acoustic DSP:
+# STFT, MFCC, Mel spectrograms and spectral features
+librosa>=0.11,<2.0
+
+# Automated testing
+pytest>=8,<10
