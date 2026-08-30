@@ -43,6 +43,22 @@ Cross-session research aggregation can later be implemented using
 explicit session-aware exposure accounting.
 
 
+Partial-report policy
+---------------------
+ResearchAnalyticsReport deliberately permits:
+
+    activity = None
+    spatial = None
+
+because limited datasets may still produce useful partial analytics.
+
+The dashboard must therefore never assume that temporal or spatial
+analysis is always available.
+
+Unavailable analytical sections are displayed explicitly rather than
+replaced with invented zero-valued scientific results.
+
+
 Scientific interpretation
 -------------------------
 The dashboard describes detected acoustic-event patterns.
@@ -89,13 +105,18 @@ from analytics.activity import (
     build_activity_bins,
 )
 
+
 from analytics.models import (
+    ActivitySummary,
     ResearchAnalyticsReport,
+    SpatialSummary,
 )
+
 
 from config import (
     AppConfig,
 )
+
 
 from dashboard.audio_view import (
     build_preview_wav_bytes,
@@ -104,9 +125,11 @@ from dashboard.audio_view import (
     discover_event_audio_files,
 )
 
+
 from dashboard.data_access import (
     DashboardDataAccess,
 )
+
 
 from dashboard.plots import (
     activity_summary_metrics,
@@ -117,6 +140,16 @@ from dashboard.plots import (
     build_environmental_timeseries,
     build_localization_scatter,
     build_spatial_occupancy_heatmap,
+)
+
+
+# ======================================================================
+# DISPLAY CONSTANTS
+# ======================================================================
+
+
+UNAVAILABLE_TEXT = (
+    "—"
 )
 
 
@@ -144,7 +177,7 @@ def _display_session_id(
     ):
 
         return (
-            "—"
+            UNAVAILABLE_TEXT
         )
 
     if not (
@@ -192,12 +225,28 @@ def _session_option_label(
         )
     ).strip()
 
+    if not (
+        label
+    ):
+
+        label = (
+            "Session"
+        )
+
     started_at = str(
         session.get(
             "started_at",
             "",
         )
     ).strip()
+
+    if not (
+        started_at
+    ):
+
+        started_at = (
+            "unknown start"
+        )
 
     state = (
         "Active"
@@ -219,6 +268,90 @@ def _session_option_label(
 
 
 # ======================================================================
+# REPORT ACTIVITY
+# ======================================================================
+
+
+def _report_activity(
+    report: ResearchAnalyticsReport,
+) -> ActivitySummary | None:
+    """
+    Return validated optional activity summary.
+    """
+
+    activity = (
+        report.activity
+    )
+
+    if (
+        activity
+        is None
+    ):
+
+        return (
+            None
+        )
+
+    if not isinstance(
+        activity,
+        ActivitySummary,
+    ):
+
+        raise TypeError(
+            (
+                "ResearchAnalyticsReport.activity "
+                "must be ActivitySummary or None."
+            )
+        )
+
+    return (
+        activity
+    )
+
+
+# ======================================================================
+# REPORT SPATIAL
+# ======================================================================
+
+
+def _report_spatial(
+    report: ResearchAnalyticsReport,
+) -> SpatialSummary | None:
+    """
+    Return validated optional spatial summary.
+    """
+
+    spatial = (
+        report.spatial
+    )
+
+    if (
+        spatial
+        is None
+    ):
+
+        return (
+            None
+        )
+
+    if not isinstance(
+        spatial,
+        SpatialSummary,
+    ):
+
+        raise TypeError(
+            (
+                "ResearchAnalyticsReport.spatial "
+                "must be SpatialSummary or None."
+            )
+        )
+
+    return (
+        spatial
+    )
+
+
+# ======================================================================
 # REPORT OVERVIEW
 # ======================================================================
 
@@ -233,13 +366,56 @@ def _render_report_overview(
 ) -> None:
     """
     Render primary research summary metrics.
+
+    Missing optional analytics sections are displayed as unavailable.
+
+    They are not silently converted into scientific zero values.
     """
 
-    metrics = (
-        activity_summary_metrics(
-            report.activity
+    if not isinstance(
+        report,
+        ResearchAnalyticsReport,
+    ):
+
+        raise TypeError(
+            (
+                "report must be a "
+                "ResearchAnalyticsReport."
+            )
+        )
+
+    activity = (
+        _report_activity(
+            report
         )
     )
+
+    spatial = (
+        _report_spatial(
+            report
+        )
+    )
+
+    # ==================================================================
+    # ACTIVITY METRICS
+    # ==================================================================
+
+    if (
+        activity
+        is not None
+    ):
+
+        metrics = (
+            activity_summary_metrics(
+                activity
+            )
+        )
+
+    else:
+
+        metrics = (
+            None
+        )
 
     st.markdown(
         "### Research Overview"
@@ -249,9 +425,9 @@ def _render_report_overview(
         5
     )
 
-    # ==============================================================
+    # ==================================================================
     # SESSION
-    # ==============================================================
+    # ==================================================================
 
     with first_row[
         0
@@ -266,146 +442,267 @@ def _render_report_overview(
             ),
         )
 
-    # ==============================================================
+    # ==================================================================
     # EVENTS
-    # ==============================================================
+    # ==================================================================
 
     with first_row[
         1
     ]:
 
+        # --------------------------------------------------------------
+        # The report-level analytics window always carries event_count,
+        # even when the optional ActivitySummary is unavailable.
+        # --------------------------------------------------------------
+
+        if (
+            metrics
+            is not None
+        ):
+
+            detected_events = (
+                metrics[
+                    "total_events"
+                ]
+            )
+
+        else:
+
+            detected_events = (
+                report.window.event_count
+            )
+
         st.metric(
             "Detected Events",
-            metrics[
-                "total_events"
-            ],
+            detected_events,
         )
 
-    # ==============================================================
+    # ==================================================================
     # ACTIVE AUDIO
-    # ==============================================================
+    # ==================================================================
 
     with first_row[
         2
     ]:
 
+        if (
+            metrics
+            is None
+        ):
+
+            active_audio_text = (
+                UNAVAILABLE_TEXT
+            )
+
+        else:
+
+            active_audio_text = (
+                f"{metrics['total_active_duration_s']:.2f} s"
+            )
+
         st.metric(
             "Event Duration",
-            (
-                f"{metrics['total_active_duration_s']:.2f} s"
-            ),
+            active_audio_text,
         )
 
-    # ==============================================================
+    # ==================================================================
     # LOCALIZATION COVERAGE
-    # ==============================================================
+    # ==================================================================
 
     with first_row[
         3
     ]:
 
+        if (
+            spatial
+            is None
+        ):
+
+            localization_coverage = (
+                UNAVAILABLE_TEXT
+            )
+
+        else:
+
+            localization_coverage = (
+                f"{spatial.localization_coverage * 100.0:.1f}%"
+            )
+
         st.metric(
             "Localization Coverage",
-            (
-                f"{report.spatial.localization_coverage * 100.0:.1f}%"
-            ),
+            localization_coverage,
         )
 
-    # ==============================================================
+    # ==================================================================
     # CLASSES
-    # ==============================================================
+    # ==================================================================
 
     with first_row[
         4
     ]:
 
+        if (
+            metrics
+            is None
+        ):
+
+            class_count = (
+                UNAVAILABLE_TEXT
+            )
+
+        else:
+
+            class_count = (
+                metrics[
+                    "classified_classes"
+                ]
+            )
+
         st.metric(
             "Acoustic Classes",
-            metrics[
-                "classified_classes"
-            ],
+            class_count,
         )
+
+    # ==================================================================
+    # SECOND ROW
+    # ==================================================================
 
     second_row = st.columns(
         4
     )
 
-    # ==============================================================
+    # ==================================================================
     # MEAN EVENT DURATION
-    # ==============================================================
+    # ==================================================================
 
     with second_row[
         0
     ]:
 
+        if (
+            metrics
+            is None
+        ):
+
+            mean_duration = (
+                UNAVAILABLE_TEXT
+            )
+
+        else:
+
+            mean_duration = (
+                f"{metrics['mean_event_duration_s']:.3f} s"
+            )
+
         st.metric(
             "Mean Event Duration",
-            (
-                f"{metrics['mean_event_duration_s']:.3f} s"
-            ),
+            mean_duration,
         )
 
-    # ==============================================================
+    # ==================================================================
     # PEAK ACTIVITY HOUR
-    # ==============================================================
+    # ==================================================================
 
     with second_row[
         1
     ]:
 
-        peak_hour = (
-            metrics[
-                "peak_activity_hour"
-            ]
-        )
+        if (
+            metrics
+            is None
+        ):
 
-        st.metric(
-            "Peak Activity Hour",
-            (
+            peak_hour_text = (
+                UNAVAILABLE_TEXT
+            )
+
+        else:
+
+            peak_hour = (
+                metrics[
+                    "peak_activity_hour"
+                ]
+            )
+
+            peak_hour_text = (
                 f"{peak_hour:02d}:00"
 
                 if peak_hour
                 is not None
 
-                else "—"
-            ),
+                else UNAVAILABLE_TEXT
+            )
+
+        st.metric(
+            "Peak Activity Hour",
+            peak_hour_text,
         )
 
-    # ==============================================================
+    # ==================================================================
     # LOCALIZED EVENTS
-    # ==============================================================
+    # ==================================================================
 
     with second_row[
         2
     ]:
 
+        if (
+            spatial
+            is None
+        ):
+
+            localized_events_text = (
+                UNAVAILABLE_TEXT
+            )
+
+        else:
+
+            localized_events_text = (
+                f"{spatial.localized_event_count}"
+                f" / "
+                f"{spatial.total_event_count}"
+            )
+
         st.metric(
             "Localized Events",
-            (
-                f"{report.spatial.localized_event_count}"
-                f" / "
-                f"{report.spatial.total_event_count}"
-            ),
+            localized_events_text,
         )
 
-    # ==============================================================
+    # ==================================================================
     # HOTSPOT
-    # ==============================================================
+    # ==================================================================
 
     with second_row[
         3
     ]:
 
+        if (
+            spatial
+            is None
+        ):
+
+            hotspot_text = (
+                UNAVAILABLE_TEXT
+            )
+
+        elif (
+            spatial.hotspot_cell_id
+            is None
+        ):
+
+            hotspot_text = (
+                UNAVAILABLE_TEXT
+            )
+
+        else:
+
+            hotspot_text = (
+                spatial.hotspot_cell_id
+            )
+
         st.metric(
             "Acoustic Hotspot",
-            (
-                report.spatial.hotspot_cell_id
-
-                if report.spatial.hotspot_cell_id
-                is not None
-
-                else "—"
-            ),
+            hotspot_text,
         )
 
 
@@ -460,42 +757,70 @@ def _render_activity_section(
 ) -> None:
     """
     Render temporal activity and acoustic-class analysis.
+
+    The temporal event-bin visualization can still be generated from
+    normalized event rows even when the optional aggregate
+    ActivitySummary is unavailable.
+
+    Class-distribution metrics require ActivitySummary and are therefore
+    shown only when that analytics result exists.
     """
 
     st.markdown(
         "## Temporal Acoustic Activity"
     )
 
-    # ==============================================================
-    # BUILD ACTIVITY BINS
-    # ==============================================================
-
-    activity_bins = (
-        build_activity_bins(
-            event_rows,
-
-            bucket_seconds=
-                config
-                .analytics
-                .bucket_seconds,
-
-            sample_rate=
-                config
-                .audio
-                .sample_rate,
-
-            timestamp_key=
-                "event_time",
+    activity = (
+        _report_activity(
+            report
         )
     )
+
+    # ==================================================================
+    # BUILD ACTIVITY BINS
+    # ==================================================================
+
+    try:
+
+        activity_bins = (
+            build_activity_bins(
+                event_rows,
+
+                bucket_seconds=
+                    config
+                    .analytics
+                    .bucket_seconds,
+
+                sample_rate=
+                    config
+                    .audio
+                    .sample_rate,
+
+                timestamp_key=
+                    "event_time",
+            )
+        )
+
+    except Exception as exc:
+
+        st.warning(
+            (
+                "Temporal activity bins could "
+                f"not be generated: {exc}"
+            )
+        )
+
+        activity_bins = (
+            ()
+        )
 
     left_column, right_column = st.columns(
         2
     )
 
-    # ==============================================================
+    # ==================================================================
     # ACTIVITY TIMELINE
-    # ==============================================================
+    # ==================================================================
 
     with left_column:
 
@@ -516,30 +841,47 @@ def _render_activity_section(
                 True,
         )
 
-    # ==============================================================
+    # ==================================================================
     # CLASS DISTRIBUTION
-    # ==============================================================
+    # ==================================================================
 
     with right_column:
 
-        figure = (
-            build_class_distribution(
-                report.activity
+        if (
+            activity
+            is None
+        ):
+
+            st.info(
+                (
+                    "Aggregate acoustic-class activity "
+                    "statistics are unavailable for "
+                    "this report."
+                )
             )
-        )
 
-        st.plotly_chart(
-            figure,
-            use_container_width=
-                True,
-        )
+        else:
 
-    # ==============================================================
+            figure = (
+                build_class_distribution(
+                    activity
+                )
+            )
+
+            st.plotly_chart(
+                figure,
+                use_container_width=
+                    True,
+            )
+
+    # ==================================================================
     # CLASS SUMMARY TABLE
-    # ==============================================================
+    # ==================================================================
 
     if (
-        report.activity.class_summaries
+        activity
+        is not None
+        and activity.class_summaries
     ):
 
         st.markdown(
@@ -565,7 +907,7 @@ def _render_activity_section(
             }
 
             for summary
-            in report.activity.class_summaries
+            in activity.class_summaries
         ]
 
         st.dataframe(
@@ -622,9 +964,9 @@ def _render_environment_section(
 
         return
 
-    # ==============================================================
+    # ==================================================================
     # ENVIRONMENTAL TIME SERIES
-    # ==============================================================
+    # ==================================================================
 
     figure = (
         build_environmental_timeseries(
@@ -646,9 +988,9 @@ def _render_environment_section(
             True,
     )
 
-    # ==============================================================
+    # ==================================================================
     # CORRELATION MATRIX
-    # ==============================================================
+    # ==================================================================
 
     st.markdown(
         "#### Environment ↔ Acoustic Activity Associations"
@@ -674,9 +1016,9 @@ def _render_environment_section(
             True,
     )
 
-    # ==============================================================
+    # ==================================================================
     # ASSOCIATION TABLE
-    # ==============================================================
+    # ==================================================================
 
     if (
         report.environmental_associations
@@ -726,10 +1068,11 @@ def _render_environment_section(
 
         st.caption(
             (
-                "Significance flags currently use the "
-                "configured raw alpha threshold. "
-                "Multiple-comparison correction should "
-                "be applied in formal hypothesis testing."
+                "Significance flags currently describe "
+                "the result carried by the analytics "
+                "association object. Formal multi-test "
+                "interpretation should use the project's "
+                "configured statistical methodology."
             )
         )
 
@@ -752,6 +1095,11 @@ def _render_spatial_section(
 ) -> None:
     """
     Render localization and aggregate acoustic spatial patterns.
+
+    Individual x/y estimates can still be plotted from event rows when a
+    SpatialSummary is unavailable.
+
+    Aggregate occupancy and transition analysis require SpatialSummary.
     """
 
     st.markdown(
@@ -766,13 +1114,19 @@ def _render_spatial_section(
         )
     )
 
+    spatial = (
+        _report_spatial(
+            report
+        )
+    )
+
     left_column, right_column = st.columns(
         2
     )
 
-    # ==============================================================
+    # ==================================================================
     # INDIVIDUAL LOCALIZATION ESTIMATES
-    # ==============================================================
+    # ==================================================================
 
     with left_column:
 
@@ -798,39 +1152,68 @@ def _render_spatial_section(
                 True,
         )
 
-    # ==============================================================
+    # ==================================================================
     # OCCUPANCY MAP
-    # ==============================================================
+    # ==================================================================
 
     with right_column:
 
-        figure = (
-            build_spatial_occupancy_heatmap(
-                report.spatial,
+        if (
+            spatial
+            is None
+        ):
 
-                node_positions=
-                    config
-                    .localization
-                    .node_positions,
+            st.info(
+                (
+                    "Aggregate spatial occupancy "
+                    "analysis is unavailable for "
+                    "this report."
+                )
             )
-        )
 
-        st.plotly_chart(
-            figure,
-            use_container_width=
-                True,
-        )
+        else:
 
-    # ==============================================================
+            figure = (
+                build_spatial_occupancy_heatmap(
+                    spatial,
+
+                    node_positions=
+                        config
+                        .localization
+                        .node_positions,
+                )
+            )
+
+            st.plotly_chart(
+                figure,
+                use_container_width=
+                    True,
+            )
+
+    # ==================================================================
     # TRANSITIONS
-    # ==============================================================
+    # ==================================================================
 
     st.markdown(
         "#### Acoustic-Location Transitions"
     )
 
+    if (
+        spatial
+        is None
+    ):
+
+        st.info(
+            (
+                "Spatial transition analysis is "
+                "unavailable for this report."
+            )
+        )
+
+        return
+
     if not (
-        report.spatial.transitions
+        spatial.transitions
     ):
 
         st.info(
@@ -840,34 +1223,34 @@ def _render_spatial_section(
             )
         )
 
-    else:
+        return
 
-        transition_rows = [
-            {
-                "source_cell":
-                    transition.source_cell_id,
+    transition_rows = [
+        {
+            "source_cell":
+                transition.source_cell_id,
 
-                "destination_cell":
-                    transition.destination_cell_id,
+            "destination_cell":
+                transition.destination_cell_id,
 
-                "count":
-                    transition.transition_count,
+            "count":
+                transition.transition_count,
 
-                "conditional_probability":
-                    transition.probability,
-            }
+            "conditional_probability":
+                transition.probability,
+        }
 
-            for transition
-            in report.spatial.transitions
-        ]
+        for transition
+        in spatial.transitions
+    ]
 
-        st.dataframe(
-            transition_rows,
-            use_container_width=
-                True,
-            hide_index=
-                True,
-        )
+    st.dataframe(
+        transition_rows,
+        use_container_width=
+            True,
+        hide_index=
+            True,
+    )
 
 
 # ======================================================================
@@ -943,6 +1326,80 @@ def _render_behavior_section(
 
 
 # ======================================================================
+# EVENT ROW HELPERS
+# ======================================================================
+
+
+def _event_id(
+    event: dict[
+        str,
+        Any,
+    ],
+) -> Any:
+    """
+    Resolve event identity from current or export-style row naming.
+
+    Dashboard database rows currently commonly use:
+
+        id
+
+    while research export rows may use:
+
+        event_id
+    """
+
+    if (
+        event.get(
+            "id"
+        )
+        is not None
+    ):
+
+        return (
+            event.get(
+                "id"
+            )
+        )
+
+    return (
+        event.get(
+            "event_id",
+            "?",
+        )
+    )
+
+
+def _event_time(
+    event: dict[
+        str,
+        Any,
+    ],
+) -> Any:
+    """
+    Resolve preferred scientific event timestamp.
+
+    Priority
+    --------
+    1. event_time
+    2. created_at
+    3. database_created_at
+    """
+
+    return (
+        event.get(
+            "event_time"
+        )
+        or event.get(
+            "created_at"
+        )
+        or event.get(
+            "database_created_at"
+        )
+        or "unknown time"
+    )
+
+
+# ======================================================================
 # EVENT AUDIO LABEL
 # ======================================================================
 
@@ -958,9 +1415,8 @@ def _event_selector_label(
     """
 
     event_id = (
-        event.get(
-            "id",
-            "?"
+        _event_id(
+            event
         )
     )
 
@@ -972,13 +1428,9 @@ def _event_selector_label(
     )
 
     event_time = (
-        event.get(
-            "event_time"
+        _event_time(
+            event
         )
-        or event.get(
-            "created_at"
-        )
-        or "unknown time"
     )
 
     return (
@@ -1021,9 +1473,9 @@ def _render_audio_inspector(
 
         return
 
-    # --------------------------------------------------------------
+    # ------------------------------------------------------------------
     # Newest event first in selector.
-    # --------------------------------------------------------------
+    # ------------------------------------------------------------------
 
     selectable_events = list(
         reversed(
@@ -1051,19 +1503,32 @@ def _render_audio_inspector(
 
         return
 
-    # ==============================================================
+    # ==================================================================
     # DISCOVER NODE WAV FILES
-    # ==============================================================
+    # ==================================================================
 
-    audio_files = (
-        discover_event_audio_files(
-            selected_event,
+    try:
 
-            expected_nodes=
-                config
-                .expected_nodes,
+        audio_files = (
+            discover_event_audio_files(
+                selected_event,
+
+                expected_nodes=
+                    config
+                    .expected_nodes,
+            )
         )
-    )
+
+    except Exception as exc:
+
+        st.warning(
+            (
+                "Unable to inspect persisted event "
+                f"audio files: {exc}"
+            )
+        )
+
+        return
 
     if not (
         audio_files
@@ -1078,9 +1543,9 @@ def _render_audio_inspector(
 
         return
 
-    # ==============================================================
+    # ==================================================================
     # NODE SELECTOR
-    # ==============================================================
+    # ==================================================================
 
     selected_audio = st.selectbox(
         "Select microphone node",
@@ -1149,9 +1614,9 @@ def _render_audio_inspector(
             ),
         )
 
-    # ==============================================================
+    # ==================================================================
     # AUDIO PREVIEW
-    # ==============================================================
+    # ==================================================================
 
     try:
 
@@ -1181,9 +1646,9 @@ def _render_audio_inspector(
             )
         )
 
-    # ==============================================================
+    # ==================================================================
     # WAVEFORM / SPECTROGRAM
-    # ==============================================================
+    # ==================================================================
 
     left_column, right_column = st.columns(
         2
@@ -1345,9 +1810,9 @@ def render_analysis_view(
     session at a time.
     """
 
-    # ==============================================================
+    # ==================================================================
     # VALIDATION
-    # ==============================================================
+    # ==================================================================
 
     if not isinstance(
         data_access,
@@ -1379,9 +1844,9 @@ def render_analysis_view(
             "config must be an AppConfig."
         )
 
-    # ==============================================================
+    # ==================================================================
     # HEADER
-    # ==============================================================
+    # ==================================================================
 
     st.title(
         "Wildlife Soundscape Research Analysis"
@@ -1408,9 +1873,9 @@ def render_analysis_view(
 
         return
 
-    # ==============================================================
+    # ==================================================================
     # LOAD SESSIONS
-    # ==============================================================
+    # ==================================================================
 
     try:
 
@@ -1442,9 +1907,9 @@ def render_analysis_view(
 
         return
 
-    # ==============================================================
+    # ==================================================================
     # SESSION SELECTOR
-    # ==============================================================
+    # ==================================================================
 
     selected_session = st.selectbox(
         "Acquisition session",
@@ -1489,9 +1954,24 @@ def render_analysis_view(
 
         return
 
-    # ==============================================================
+    if not (
+        0
+        <= session_id
+        <= 0xFFFFFFFF
+    ):
+
+        st.error(
+            (
+                "Selected session identifier is "
+                "outside the Protocol-v4 uint32 range."
+            )
+        )
+
+        return
+
+    # ==================================================================
     # ANALYSIS OPTIONS
-    # ==============================================================
+    # ==================================================================
 
     option_columns = st.columns(
         2
@@ -1524,9 +2004,9 @@ def render_analysis_view(
             )
         )
 
-    # ==============================================================
+    # ==================================================================
     # LOAD EVENT DATA
-    # ==============================================================
+    # ==================================================================
 
     try:
 
@@ -1548,9 +2028,9 @@ def render_analysis_view(
 
         return
 
-    # ==============================================================
+    # ==================================================================
     # ENVIRONMENTAL OBSERVATION BINS
-    # ==============================================================
+    # ==================================================================
 
     environmental_rows: list[
         dict[
@@ -1585,9 +2065,9 @@ def render_analysis_view(
                 []
             )
 
-    # ==============================================================
+    # ==================================================================
     # COMPLETE ANALYTICS REPORT
-    # ==============================================================
+    # ==================================================================
 
     try:
 
@@ -1616,9 +2096,23 @@ def render_analysis_view(
 
         return
 
-    # ==============================================================
+    if not isinstance(
+        report,
+        ResearchAnalyticsReport,
+    ):
+
+        st.error(
+            (
+                "Research analytics returned an "
+                "unexpected report type."
+            )
+        )
+
+        return
+
+    # ==================================================================
     # OVERVIEW
-    # ==============================================================
+    # ==================================================================
 
     _render_report_overview(
         report,
@@ -1633,9 +2127,9 @@ def render_analysis_view(
 
     st.divider()
 
-    # ==============================================================
+    # ==================================================================
     # ACTIVITY
-    # ==============================================================
+    # ==================================================================
 
     _render_activity_section(
         event_rows=
@@ -1650,9 +2144,9 @@ def render_analysis_view(
 
     st.divider()
 
-    # ==============================================================
+    # ==================================================================
     # ENVIRONMENT
-    # ==============================================================
+    # ==================================================================
 
     if (
         include_environment
@@ -1671,9 +2165,9 @@ def render_analysis_view(
 
         st.divider()
 
-    # ==============================================================
+    # ==================================================================
     # SPATIAL
-    # ==============================================================
+    # ==================================================================
 
     _render_spatial_section(
         event_rows=
@@ -1688,9 +2182,9 @@ def render_analysis_view(
 
     st.divider()
 
-    # ==============================================================
+    # ==================================================================
     # BEHAVIOR INDICATORS
-    # ==============================================================
+    # ==================================================================
 
     _render_behavior_section(
         report
@@ -1698,9 +2192,9 @@ def render_analysis_view(
 
     st.divider()
 
-    # ==============================================================
+    # ==================================================================
     # AUDIO INSPECTION
-    # ==============================================================
+    # ==================================================================
 
     _render_audio_inspector(
         event_rows=
@@ -1712,9 +2206,9 @@ def render_analysis_view(
 
     st.divider()
 
-    # ==============================================================
+    # ==================================================================
     # EXPORT
-    # ==============================================================
+    # ==================================================================
 
     _render_report_export(
         report,

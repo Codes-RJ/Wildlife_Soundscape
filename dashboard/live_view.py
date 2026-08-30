@@ -17,10 +17,10 @@ It displays:
     acquisition state
     recent persisted acoustic events
     latest classification
-    recent localization estimates
+    recent accepted localization estimates
     latest event environmental context
     recent event table
-    lightweight health/status information
+    lightweight persistence/status information
 
 
 Important architecture distinction
@@ -38,8 +38,40 @@ It does not directly inspect:
     instantaneous node heartbeat packets
     network packet queues
 
-Those can be added later through a dedicated runtime-status interface if
-required.
+Those can later be exposed through a dedicated runtime-status interface.
+
+
+Localization-validity policy
+----------------------------
+A localization is considered accepted only when:
+
+    localization_success == True
+
+and both:
+
+    x_m
+    y_m
+
+are finite.
+
+Numeric coordinates alone do not imply successful localization because
+the solver may retain a candidate position even when the solution fails
+its acceptance criteria.
+
+
+Timestamp note
+--------------
+The lightweight ``recent_events()`` query contains database insertion
+time:
+
+    created_at
+
+rather than the reconstructed scientific ``event_time``.
+
+The research analysis page uses reconstructed acquisition timestamps.
+
+This live page intentionally remains lightweight and database-backed.
+
 
 Performance policy
 ------------------
@@ -74,10 +106,6 @@ from __future__ import annotations
 
 import math
 
-from datetime import (
-    datetime,
-)
-
 from typing import (
     Any,
 )
@@ -100,9 +128,11 @@ from config import (
     AppConfig,
 )
 
+
 from dashboard.data_access import (
     DashboardDataAccess,
 )
+
 
 from dashboard.plots import (
     build_localization_scatter,
@@ -115,6 +145,11 @@ from dashboard.plots import (
 # ======================================================================
 
 
+UNAVAILABLE_TEXT = (
+    "—"
+)
+
+
 LIVE_EVENT_TABLE_COLUMNS = (
     "id",
     "created_at",
@@ -122,6 +157,7 @@ LIVE_EVENT_TABLE_COLUMNS = (
     "classification_confidence",
     "peak_rms_dbfs",
     "best_node_id",
+    "localization_success",
     "x_m",
     "y_m",
     "localization_residual_m",
@@ -204,7 +240,9 @@ def _int_or_none(
     ):
 
         return (
-            None
+            int(
+                value
+            )
         )
 
     try:
@@ -231,7 +269,7 @@ def _int_or_none(
 def _display_text(
     value: Any,
     *,
-    fallback: str = "—",
+    fallback: str = UNAVAILABLE_TEXT,
 ) -> str:
     """
     Convert optional value to concise dashboard text.
@@ -290,7 +328,7 @@ def _display_float(
     ):
 
         return (
-            "—"
+            UNAVAILABLE_TEXT
         )
 
     return (
@@ -323,7 +361,7 @@ def _display_confidence(
     ):
 
         return (
-            "—"
+            UNAVAILABLE_TEXT
         )
 
     return (
@@ -355,7 +393,7 @@ def _display_session_id(
     ):
 
         return (
-            "—"
+            UNAVAILABLE_TEXT
         )
 
     if not (
@@ -395,6 +433,8 @@ def _session_state(
 
         stopped_at populated
             -> STOPPED
+
+    This does not prove that ESP32 nodes are currently connected.
     """
 
     if (
@@ -423,6 +463,124 @@ def _session_state(
 
 
 # ======================================================================
+# LOCALIZATION SUCCESS
+# ======================================================================
+
+
+def _localization_succeeded(
+    event: dict[
+        str,
+        Any,
+    ],
+) -> bool:
+    """
+    Return True only for an accepted localization result.
+
+    A valid localization requires:
+
+        localization_success == True
+        finite x_m
+        finite y_m
+
+    Numeric coordinates alone are insufficient because an unsuccessful
+    solver result may still contain a candidate position.
+    """
+
+    success_value = (
+        event.get(
+            "localization_success"
+        )
+    )
+
+    if isinstance(
+        success_value,
+        bool,
+    ):
+
+        success = (
+            success_value
+        )
+
+    else:
+
+        success_integer = (
+            _int_or_none(
+                success_value
+            )
+        )
+
+        success = (
+            success_integer
+            == 1
+        )
+
+    if not (
+        success
+    ):
+
+        return (
+            False
+        )
+
+    x_m = (
+        _finite_float_or_none(
+            event.get(
+                "x_m"
+            )
+        )
+    )
+
+    y_m = (
+        _finite_float_or_none(
+            event.get(
+                "y_m"
+            )
+        )
+    )
+
+    return (
+        x_m
+        is not None
+        and y_m
+        is not None
+    )
+
+
+# ======================================================================
+# ACCEPTED LOCALIZATIONS
+# ======================================================================
+
+
+def _accepted_localization_events(
+    events: list[
+        dict[
+            str,
+            Any,
+        ]
+    ],
+) -> list[
+    dict[
+        str,
+        Any,
+    ]
+]:
+    """
+    Return only events containing accepted localization solutions.
+    """
+
+    return [
+        event
+
+        for event
+        in events
+
+        if _localization_succeeded(
+            event
+        )
+    ]
+
+
+# ======================================================================
 # RECENT LOCALIZATION COVERAGE
 # ======================================================================
 
@@ -440,8 +598,8 @@ def _recent_localization_coverage(
     float,
 ]:
     """
-    Calculate lightweight localization coverage over recent displayed
-    events.
+    Calculate lightweight accepted-localization coverage over recent
+    displayed events.
 
     This is NOT the full research localization-coverage metric unless
     the recent-event list happens to include the entire dataset.
@@ -465,39 +623,17 @@ def _recent_localization_coverage(
         )
 
     localized = (
-        0
+        sum(
+            1
+
+            for event
+            in events
+
+            if _localization_succeeded(
+                event
+            )
+        )
     )
-
-    for event in (
-        events
-    ):
-
-        x_m = (
-            _finite_float_or_none(
-                event.get(
-                    "x_m"
-                )
-            )
-        )
-
-        y_m = (
-            _finite_float_or_none(
-                event.get(
-                    "y_m"
-                )
-            )
-        )
-
-        if (
-            x_m
-            is not None
-            and y_m
-            is not None
-        ):
-
-            localized += (
-                1
-            )
 
     coverage = (
         localized
@@ -585,16 +721,18 @@ def _render_latest_event_metrics(
     Render detailed scalar information for the latest persisted event.
     """
 
-    # ==============================================================
-    # CLASSIFICATION
-    # ==============================================================
-
     st.markdown(
         "#### Latest Event"
     )
 
-    classification_columns = st.columns(
-        4
+    # ==================================================================
+    # CLASSIFICATION
+    # ==================================================================
+
+    classification_columns = (
+        st.columns(
+            4
+        )
     )
 
     with classification_columns[
@@ -655,12 +793,20 @@ def _render_latest_event_metrics(
             ),
         )
 
-    # ==============================================================
+    # ==================================================================
     # LOCALIZATION
-    # ==============================================================
+    # ==================================================================
 
-    localization_columns = st.columns(
-        4
+    localization_columns = (
+        st.columns(
+            4
+        )
+    )
+
+    localization_valid = (
+        _localization_succeeded(
+            event
+        )
     )
 
     with localization_columns[
@@ -668,15 +814,13 @@ def _render_latest_event_metrics(
     ]:
 
         st.metric(
-            "X Position",
-            _display_float(
-                event.get(
-                    "x_m"
-                ),
-                decimals=
-                    3,
-                suffix=
-                    " m",
+            "Localization",
+            (
+                "Accepted"
+
+                if localization_valid
+
+                else "Unavailable / Rejected"
             ),
         )
 
@@ -685,15 +829,21 @@ def _render_latest_event_metrics(
     ]:
 
         st.metric(
-            "Y Position",
-            _display_float(
-                event.get(
-                    "y_m"
-                ),
-                decimals=
-                    3,
-                suffix=
-                    " m",
+            "X Position",
+            (
+                _display_float(
+                    event.get(
+                        "x_m"
+                    ),
+                    decimals=
+                        3,
+                    suffix=
+                        " m",
+                )
+
+                if localization_valid
+
+                else UNAVAILABLE_TEXT
             ),
         )
 
@@ -702,20 +852,59 @@ def _render_latest_event_metrics(
     ]:
 
         st.metric(
-            "Residual",
-            _display_float(
-                event.get(
-                    "localization_residual_m"
-                ),
-                decimals=
-                    4,
-                suffix=
-                    " m",
+            "Y Position",
+            (
+                _display_float(
+                    event.get(
+                        "y_m"
+                    ),
+                    decimals=
+                        3,
+                    suffix=
+                        " m",
+                )
+
+                if localization_valid
+
+                else UNAVAILABLE_TEXT
             ),
         )
 
     with localization_columns[
         3
+    ]:
+
+        st.metric(
+            "Residual",
+            (
+                _display_float(
+                    event.get(
+                        "localization_residual_m"
+                    ),
+                    decimals=
+                        4,
+                    suffix=
+                        " m",
+                )
+
+                if localization_valid
+
+                else UNAVAILABLE_TEXT
+            ),
+        )
+
+    # ==================================================================
+    # SOURCE / ENVIRONMENT
+    # ==================================================================
+
+    source_environment_columns = (
+        st.columns(
+            4
+        )
+    )
+
+    with source_environment_columns[
+        0
     ]:
 
         st.metric(
@@ -727,16 +916,8 @@ def _render_latest_event_metrics(
             ),
         )
 
-    # ==============================================================
-    # ENVIRONMENT
-    # ==============================================================
-
-    environment_columns = st.columns(
-        3
-    )
-
-    with environment_columns[
-        0
+    with source_environment_columns[
+        1
     ]:
 
         st.metric(
@@ -752,8 +933,8 @@ def _render_latest_event_metrics(
             ),
         )
 
-    with environment_columns[
-        1
+    with source_environment_columns[
+        2
     ]:
 
         st.metric(
@@ -769,8 +950,8 @@ def _render_latest_event_metrics(
             ),
         )
 
-    with environment_columns[
-        2
+    with source_environment_columns[
+        3
     ]:
 
         st.metric(
@@ -814,8 +995,10 @@ def _render_session_overview(
         localized,
         total,
         localization_coverage,
-    ) = _recent_localization_coverage(
-        events
+    ) = (
+        _recent_localization_coverage(
+            events
+        )
     )
 
     state = (
@@ -824,12 +1007,14 @@ def _render_session_overview(
         )
     )
 
-    # ==============================================================
+    # ==================================================================
     # TOP METRICS
-    # ==============================================================
+    # ==================================================================
 
-    columns = st.columns(
-        5
+    columns = (
+        st.columns(
+            5
+        )
     )
 
     with columns[
@@ -857,7 +1042,7 @@ def _render_session_overview(
                 if session
                 is not None
 
-                else "—"
+                else UNAVAILABLE_TEXT
             ),
         )
 
@@ -891,13 +1076,13 @@ def _render_session_overview(
                 if total
                 > 0
 
-                else "—"
+                else UNAVAILABLE_TEXT
             ),
         )
 
-    # ==============================================================
+    # ==================================================================
     # SESSION DETAILS
-    # ==============================================================
+    # ==================================================================
 
     if (
         session
@@ -956,20 +1141,30 @@ def _render_recent_event_visualizations(
     config: AppConfig,
 ) -> None:
     """
-    Render recent event timeline and localization scatter.
+    Render recent persistence timeline and accepted localization scatter.
     """
 
     st.markdown(
         "### Recent Acoustic Activity"
     )
 
-    left_column, right_column = st.columns(
-        2
+    st.caption(
+        (
+            "The live timeline uses persisted event timestamps. "
+            "Scientific reconstructed acquisition timestamps are "
+            "used by the Research Analysis page."
+        )
     )
 
-    # ==============================================================
+    left_column, right_column = (
+        st.columns(
+            2
+        )
+    )
+
+    # ==================================================================
     # TIMELINE
-    # ==============================================================
+    # ==================================================================
 
     with left_column:
 
@@ -990,15 +1185,21 @@ def _render_recent_event_visualizations(
                 True,
         )
 
-    # ==============================================================
-    # LOCALIZATION
-    # ==============================================================
+    # ==================================================================
+    # ACCEPTED LOCALIZATIONS ONLY
+    # ==================================================================
+
+    accepted_localizations = (
+        _accepted_localization_events(
+            events
+        )
+    )
 
     with right_column:
 
         scatter = (
             build_localization_scatter(
-                events,
+                accepted_localizations,
 
                 node_positions=
                     config
@@ -1091,16 +1292,24 @@ def _render_database_status(
             database_path.exists()
         )
 
-        file_size = (
-            database_path.stat().st_size
+        try:
 
-            if (
-                exists
-                and database_path.is_file()
+            file_size = (
+                database_path.stat().st_size
+
+                if (
+                    exists
+                    and database_path.is_file()
+                )
+
+                else 0
             )
 
-            else 0
-        )
+        except OSError:
+
+            file_size = (
+                0
+            )
 
         st.write(
             {
@@ -1134,9 +1343,9 @@ def _render_live_content(
     Perform one lightweight live-view render cycle.
     """
 
-    # ==============================================================
+    # ==================================================================
     # READ SNAPSHOT
-    # ==============================================================
+    # ==================================================================
 
     try:
 
@@ -1160,11 +1369,49 @@ def _render_live_content(
 
         return
 
+    if not isinstance(
+        snapshot,
+        dict,
+    ):
+
+        st.error(
+            (
+                "Dashboard snapshot returned an "
+                "unexpected data type."
+            )
+        )
+
+        return
+
     session = (
         snapshot.get(
             "latest_session"
         )
     )
+
+    if (
+        session
+        is not None
+        and not isinstance(
+            session,
+            dict,
+        )
+    ):
+
+        try:
+
+            session = dict(
+                session
+            )
+
+        except (
+            TypeError,
+            ValueError,
+        ):
+
+            session = (
+                None
+            )
 
     events = (
         snapshot.get(
@@ -1178,9 +1425,58 @@ def _render_live_content(
         list,
     ):
 
-        events = list(
-            events
-        )
+        try:
+
+            events = list(
+                events
+            )
+
+        except TypeError:
+
+            events = (
+                []
+            )
+
+    normalized_events: list[
+        dict[
+            str,
+            Any,
+        ]
+    ] = []
+
+    for event in (
+        events
+    ):
+
+        if isinstance(
+            event,
+            dict,
+        ):
+
+            normalized_events.append(
+                event
+            )
+
+            continue
+
+        try:
+
+            normalized_events.append(
+                dict(
+                    event
+                )
+            )
+
+        except (
+            TypeError,
+            ValueError,
+        ):
+
+            continue
+
+    events = (
+        normalized_events
+    )
 
     latest_event = (
         snapshot.get(
@@ -1188,9 +1484,33 @@ def _render_live_content(
         )
     )
 
-    # ==============================================================
+    if (
+        latest_event
+        is not None
+        and not isinstance(
+            latest_event,
+            dict,
+        )
+    ):
+
+        try:
+
+            latest_event = dict(
+                latest_event
+            )
+
+        except (
+            TypeError,
+            ValueError,
+        ):
+
+            latest_event = (
+                None
+            )
+
+    # ==================================================================
     # OVERVIEW
-    # ==============================================================
+    # ==================================================================
 
     _render_session_overview(
         session=
@@ -1202,9 +1522,9 @@ def _render_live_content(
 
     st.divider()
 
-    # ==============================================================
+    # ==================================================================
     # NO SESSION
-    # ==============================================================
+    # ==================================================================
 
     if (
         session
@@ -1218,9 +1538,9 @@ def _render_live_content(
             )
         )
 
-    # ==============================================================
+    # ==================================================================
     # LATEST EVENT
-    # ==============================================================
+    # ==================================================================
 
     if (
         latest_event
@@ -1242,9 +1562,9 @@ def _render_live_content(
 
     st.divider()
 
-    # ==============================================================
+    # ==================================================================
     # VISUALIZATIONS
-    # ==============================================================
+    # ==================================================================
 
     _render_recent_event_visualizations(
         events=
@@ -1256,17 +1576,17 @@ def _render_live_content(
 
     st.divider()
 
-    # ==============================================================
+    # ==================================================================
     # TABLE
-    # ==============================================================
+    # ==================================================================
 
     _render_recent_event_table(
         events
     )
 
-    # ==============================================================
+    # ==================================================================
     # DATABASE INFORMATION
-    # ==============================================================
+    # ==================================================================
 
     _render_database_status(
         data_access
@@ -1286,11 +1606,13 @@ def _render_manual_refresh_control(
     Render fallback/manual dashboard refresh control.
     """
 
-    control_columns = st.columns(
-        [
-            1,
-            4,
-        ]
+    control_columns = (
+        st.columns(
+            [
+                1,
+                4,
+            ]
+        )
     )
 
     with control_columns[
@@ -1364,16 +1686,13 @@ def render_live_view(
 
         run_every = refresh_interval_s
 
-    This refreshes the live panel without intentionally running the
-    research analytics page.
-
     On Streamlit versions without fragment support, the view remains
     functional through the manual Refresh button.
     """
 
-    # ==============================================================
+    # ==================================================================
     # VALIDATION
-    # ==============================================================
+    # ==================================================================
 
     if not isinstance(
         data_access,
@@ -1405,9 +1724,9 @@ def render_live_view(
             "config must be an AppConfig."
         )
 
-    # ==============================================================
+    # ==================================================================
     # PAGE HEADER
-    # ==============================================================
+    # ==================================================================
 
     st.title(
         "Live Wildlife Soundscape Monitor"
@@ -1417,16 +1736,14 @@ def render_live_view(
         (
             "Database-backed view of recently persisted "
             "acoustic events, classifications and "
-            "localization estimates."
+            "accepted localization estimates."
         )
     )
 
-    # --------------------------------------------------------------
-    # Important wording:
-    #
-    # An open session does not by itself prove that every ESP32 is
-    # currently healthy or connected.
-    # --------------------------------------------------------------
+    # ------------------------------------------------------------------
+    # An open persisted session does not prove that every ESP32 is
+    # currently connected or healthy.
+    # ------------------------------------------------------------------
 
     st.info(
         (
@@ -1437,9 +1754,9 @@ def render_live_view(
         )
     )
 
-    # ==============================================================
+    # ==================================================================
     # AUTO REFRESH CAPABILITY
-    # ==============================================================
+    # ==================================================================
 
     fragment_factory = getattr(
         st,
@@ -1448,7 +1765,9 @@ def render_live_view(
     )
 
     auto_refresh_active = bool(
-        config.dashboard.auto_refresh
+        config
+        .dashboard
+        .auto_refresh
         and callable(
             fragment_factory
         )
@@ -1461,18 +1780,13 @@ def render_live_view(
 
     st.divider()
 
-    # ==============================================================
+    # ==================================================================
     # FRAGMENT AUTO-REFRESH
-    # ==============================================================
+    # ==================================================================
 
     if (
         auto_refresh_active
     ):
-
-        # ----------------------------------------------------------
-        # Define the fragment locally so its refresh interval can use
-        # the current validated configuration.
-        # ----------------------------------------------------------
 
         @fragment_factory(
             run_every=
@@ -1494,9 +1808,9 @@ def render_live_view(
 
         return
 
-    # ==============================================================
+    # ==================================================================
     # NON-FRAGMENT FALLBACK
-    # ==============================================================
+    # ==================================================================
 
     _render_live_content(
         data_access=

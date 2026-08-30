@@ -1,0 +1,286 @@
+# ======================================================================
+# Wildlife Soundscape Mapping & Behavior Analysis System
+# Development Dependencies
+# ======================================================================
+#
+# PURPOSE
+# -------
+# This file installs everything required for:
+#
+#   development
+#   automated testing
+#   coverage analysis
+#   linting
+#   static type checking
+#   repository-quality validation
+#
+#
+# INSTALL
+# -------
+#
+#   python -m pip install -r requirements-dev.txt
+#
+#
+# IMPORTANT
+# ---------
+# Runtime/application dependencies remain defined in:
+#
+#   requirements.txt
+#
+# Optional BirdNET dependencies are intentionally NOT included here.
+# BirdNET will remain an independent optional dependency group because
+# its ML/runtime requirements are significantly heavier than the core
+# research system.
+#
+# ======================================================================
+
+
+# ======================================================================
+# 1. CORE PROJECT DEPENDENCIES
+# ======================================================================
+#
+# Install the complete normal application environment first.
+# ======================================================================
+
+-r requirements.txt
+
+
+# ======================================================================
+# 2. AUTOMATED TESTING
+# ======================================================================
+#
+# pytest
+# ------
+# Main test runner used by:
+#
+#   unit tests
+#   integration tests
+#   calibration tests
+#   analytics tests
+#   export tests
+#   future regression tests
+#
+# NOTE:
+# pytest currently also exists in requirements.txt.
+#
+# During final dependency cleanup we may move pytest completely into
+# this development file. Keeping the explicit requirement here is safe
+# and documents that pytest is fundamentally a development dependency.
+# ======================================================================
+
+pytest>=8,<10
+
+
+# ======================================================================
+# 3. TEST COVERAGE
+# ======================================================================
+#
+# pytest-cov integrates coverage.py directly with pytest.
+#
+# Example:
+#
+#   pytest --cov=. --cov-report=term-missing
+#
+# HTML report:
+#
+#   pytest --cov=. --cov-report=html
+#
+# Output:
+#
+#   htmlcov/
+#
+# which is already excluded by .gitignore.
+# ======================================================================
+
+pytest-cov>=5,<8
+
+
+# ======================================================================
+# 4. LINTING / CODE QUALITY
+# ======================================================================
+#
+# Ruff provides fast static checks for:
+#
+#   unused imports
+#   undefined names
+#   suspicious code
+#   import problems
+#   common Python mistakes
+#   style consistency
+#
+#
+# Example:
+#
+#   ruff check .
+#
+#
+# Automatic safe fixes:
+#
+#   ruff check . --fix
+#
+#
+# Formatting can also later be enabled through:
+#
+#   ruff format .
+#
+#
+# Final rule selection will be centralized in pyproject.toml.
+# ======================================================================
+
+ruff>=0.8,<1.0
+
+
+# ======================================================================
+# 5. STATIC TYPE CHECKING
+# ======================================================================
+#
+# mypy provides static checking for the strongly typed parts of the
+# Python architecture.
+#
+# Particularly valuable for:
+#
+#   protocol.py
+#   node.py
+#   stream_manager.py
+#   localization/
+#   calibration/
+#   classification/
+#   analytics/
+#   database interfaces
+#
+#
+# Example:
+#
+#   mypy .
+#
+#
+# Third-party scientific libraries do not always expose perfect type
+# information, so the final mypy policy will initially remain practical
+# rather than maximally strict.
+# ======================================================================
+
+mypy>=1.11,<2.0
+
+
+# ======================================================================
+# 6. OPTIONAL TYPE INFORMATION FOR COMMON LIBRARIES
+# ======================================================================
+#
+# typing_extensions supplies newer typing constructs on Python versions
+# where they may not yet exist natively.
+#
+# Even though the current development target is Python 3.13, keeping this
+# available improves compatibility with tooling and third-party packages.
+# ======================================================================
+
+typing_extensions>=4.12,<5.0
+
+
+# ======================================================================
+# 7. TEST EXECUTION TIMEOUTS
+# ======================================================================
+#
+# Integration tests involving:
+#
+#   TCP sockets
+#   simulator nodes
+#   asynchronous tasks
+#   StreamManager waits
+#
+# should never hang indefinitely.
+#
+#
+# Example:
+#
+#   pytest --timeout=30
+#
+#
+# A repository-wide default can later be placed in pyproject.toml.
+# ======================================================================
+
+pytest-timeout>=2.3,<3.0
+
+
+# ======================================================================
+# 8. ASYNC TEST SUPPORT
+# ======================================================================
+#
+# Several networking and orchestration components use asynchronous
+# execution patterns.
+#
+# pytest-asyncio provides proper pytest support for async test functions.
+#
+#
+# Example:
+#
+#   @pytest.mark.asyncio
+#   async def test_server(...):
+#       ...
+#
+# ======================================================================
+
+pytest-asyncio>=0.24,<2.0
+
+
+# ======================================================================
+# 9. PROPERTY-BASED TESTING
+# ======================================================================
+#
+# Hypothesis is particularly useful for interfaces where boundary cases
+# matter more than a small set of manually selected values.
+#
+# High-value future targets include:
+#
+#   protocol header parsing
+#   CRC handling
+#   packet-size validation
+#   sampleIndex boundaries
+#   TDOA sign conventions
+#   localization geometry
+#   calibration pair orientation
+#   analytics normalization
+#
+#
+# It is not required by the runtime application.
+# ======================================================================
+
+hypothesis>=6.115,<7.0
+
+
+# ======================================================================
+# 10. TEST PROCESS / RESOURCE MONITORING
+# ======================================================================
+#
+# psutil can support future integration/performance tests involving:
+#
+#   process memory
+#   CPU usage
+#   TCP process diagnostics
+#   resource monitoring
+#
+# It is useful for engineering benchmarks but not required by the normal
+# application runtime.
+# ======================================================================
+
+psutil>=6,<8
+
+
+# ======================================================================
+# 11. PACKAGING / BUILD SUPPORT
+# ======================================================================
+#
+# build provides standard Python project build tooling if the repository
+# is later packaged through pyproject.toml.
+#
+# Example:
+#
+#   python -m build
+#
+# ======================================================================
+
+build>=1.2,<2.0
+
+
+# ======================================================================
+# 12. END OF DEVELOPMENT DEPENDENCIES
+# ======================================================================

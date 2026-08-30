@@ -1,0 +1,594 @@
+# ======================================================================
+# Wildlife Soundscape Mapping & Behavior Analysis System
+# pyproject.toml
+# ======================================================================
+#
+# PURPOSE
+# -------
+# Central configuration for:
+#
+#   pytest
+#   pytest-asyncio
+#   pytest-timeout
+#   Ruff
+#   mypy
+#   coverage.py / pytest-cov
+#
+#
+# IMPORTANT
+# ---------
+# This repository is currently an application/research prototype rather
+# than a distributable Python package.
+#
+# Therefore this file intentionally does NOT yet define:
+#
+#   [project]
+#   package metadata
+#   package publishing information
+#   console-script entry points
+#
+# Those can be added later if the project is formally packaged.
+#
+# ======================================================================
+
+
+# ======================================================================
+# PYTEST
+# ======================================================================
+
+[tool.pytest.ini_options]
+
+
+# ----------------------------------------------------------------------
+# TEST DISCOVERY
+# ----------------------------------------------------------------------
+#
+# Only the tests/ directory is searched by default.
+#
+# pytest automatically discovers:
+#
+#   test_*.py
+#
+# This is why files such as:
+#
+#   lest_integration_smoke.py
+#
+# must eventually be renamed to:
+#
+#   test_integration_smoke.py
+#
+# ----------------------------------------------------------------------
+
+testpaths = [
+    "tests",
+]
+
+python_files = [
+    "test_*.py",
+]
+
+python_classes = [
+    "Test*",
+]
+
+python_functions = [
+    "test_*",
+]
+
+
+# ----------------------------------------------------------------------
+# PYTHON PATH
+# ----------------------------------------------------------------------
+#
+# Tests import project modules directly from the repository root:
+#
+#   import config
+#   import protocol
+#   from localization.engine import LocalizationEngine
+#
+# ----------------------------------------------------------------------
+
+pythonpath = [
+    ".",
+]
+
+
+# ----------------------------------------------------------------------
+# GENERAL PYTEST BEHAVIOR
+# ----------------------------------------------------------------------
+#
+# -ra
+#     Show additional summary information for skipped, failed, xfailed,
+#     xpassed and errored tests.
+#
+# --strict-markers
+#     Prevent accidental misspelling of pytest markers.
+#
+# --strict-config
+#     Treat invalid pytest configuration as an error.
+#
+# We intentionally do NOT force:
+#
+#   -q
+#
+# here because verbosity should remain a command-line choice.
+# ----------------------------------------------------------------------
+
+addopts = [
+    "-ra",
+    "--strict-markers",
+    "--strict-config",
+]
+
+
+# ----------------------------------------------------------------------
+# ASYNCIO
+# ----------------------------------------------------------------------
+#
+# Some network/server/integration tests may use async functions.
+#
+# auto mode avoids requiring @pytest.mark.asyncio on every async test
+# while still allowing explicit markers where useful.
+# ----------------------------------------------------------------------
+
+asyncio_mode = "auto"
+
+
+# ----------------------------------------------------------------------
+# TEST TIMEOUT
+# ----------------------------------------------------------------------
+#
+# Network, simulator and synchronization tests must never hang forever.
+#
+# Individual tests may override this value when necessary.
+# ----------------------------------------------------------------------
+
+timeout = 30
+
+
+# ----------------------------------------------------------------------
+# CUSTOM TEST MARKERS
+# ----------------------------------------------------------------------
+#
+# Example:
+#
+#   pytest -m "not hardware"
+#
+#   pytest -m integration
+#
+# ----------------------------------------------------------------------
+
+markers = [
+    "unit: Fast isolated unit test.",
+    "integration: Multi-module integration test.",
+    "network: Test involving TCP, sockets, or network orchestration.",
+    "simulator: Test involving synthetic ESP32 node simulation.",
+    "hardware: Test requiring real ESP32 or sensor hardware.",
+    "slow: Test expected to take substantially longer than normal unit tests.",
+    "birdnet: Test requiring the optional BirdNET runtime/model.",
+    "calibration: Test related to TDOA or localization calibration.",
+    "analytics: Test related to research analytics.",
+]
+
+
+# ======================================================================
+# RUFF
+# ======================================================================
+
+[tool.ruff]
+
+
+# ----------------------------------------------------------------------
+# PYTHON TARGET
+# ----------------------------------------------------------------------
+#
+# Current recommended development environment:
+#
+#   Python 3.13
+#
+# ----------------------------------------------------------------------
+
+target-version = "py313"
+
+
+# ----------------------------------------------------------------------
+# LINE LENGTH
+# ----------------------------------------------------------------------
+#
+# The existing project uses intentionally expanded technical formatting.
+#
+# Ruff is initially used primarily as a correctness/linting tool rather
+# than as an automatic formatter.
+# ----------------------------------------------------------------------
+
+line-length = 88
+
+
+# ----------------------------------------------------------------------
+# EXCLUDED DIRECTORIES
+# ----------------------------------------------------------------------
+
+extend-exclude = [
+    ".git",
+    ".venv",
+    "venv",
+    "__pycache__",
+    ".pytest_cache",
+    ".mypy_cache",
+    ".ruff_cache",
+    "htmlcov",
+    "build",
+    "dist",
+
+    "data/database",
+    "data/events",
+    "data/recordings",
+    "data/exports",
+    "data/calibration",
+    "data/datasets",
+    "data/simulator",
+]
+
+
+# ======================================================================
+# RUFF LINT RULES
+# ======================================================================
+
+[tool.ruff.lint]
+
+
+# ----------------------------------------------------------------------
+# INITIAL RULE SET
+# ----------------------------------------------------------------------
+#
+# The first repository-wide lint pass should focus on correctness rather
+# than triggering a huge style-only rewrite.
+#
+#
+# E4
+#     Import-related pycodestyle errors.
+#
+# E7
+#     Statement-related errors.
+#
+# E9
+#     Runtime/syntax-style errors detected by pycodestyle.
+#
+# F
+#     Pyflakes:
+#
+#         undefined names
+#         unused imports
+#         duplicate definitions
+#         invalid references
+#
+# B
+#     flake8-bugbear:
+#
+#         likely bugs
+#         dangerous defaults
+#         suspicious constructs
+#
+#
+# More aggressive rule groups such as:
+#
+#   UP
+#   SIM
+#   PERF
+#   C4
+#   RUF
+#
+# can be enabled after the first compatibility/refactoring cycle.
+# ----------------------------------------------------------------------
+
+select = [
+    "E4",
+    "E7",
+    "E9",
+    "F",
+    "B",
+]
+
+
+# ----------------------------------------------------------------------
+# INTENTIONAL EXCEPTIONS
+# ----------------------------------------------------------------------
+#
+# E501 is not selected because line-length enforcement is not currently
+# being used as a project correctness requirement.
+# ----------------------------------------------------------------------
+
+ignore = []
+
+
+# ----------------------------------------------------------------------
+# PER-FILE EXCEPTIONS
+# ----------------------------------------------------------------------
+
+[tool.ruff.lint.per-file-ignores]
+
+
+# Tests may intentionally use assertions and test-specific patterns.
+"tests/**/*.py" = []
+
+
+# ======================================================================
+# MYPY
+# ======================================================================
+
+[tool.mypy]
+
+
+# ----------------------------------------------------------------------
+# PYTHON VERSION
+# ----------------------------------------------------------------------
+
+python_version = "3.13"
+
+
+# ----------------------------------------------------------------------
+# IMPORT HANDLING
+# ----------------------------------------------------------------------
+#
+# Scientific Python and optional ML dependencies may not always expose
+# complete typing information.
+#
+# Missing third-party stubs should therefore not block the first static
+# analysis pass.
+# ----------------------------------------------------------------------
+
+ignore_missing_imports = true
+
+
+# ----------------------------------------------------------------------
+# TYPE-CHECKING DEPTH
+# ----------------------------------------------------------------------
+#
+# Existing functions without explicit annotations are still checked
+# internally where possible.
+# ----------------------------------------------------------------------
+
+check_untyped_defs = true
+
+
+# ----------------------------------------------------------------------
+# OPTIONAL VALUES
+# ----------------------------------------------------------------------
+#
+# Prevent:
+#
+#   def function(value: str = None):
+#
+# from being silently interpreted as:
+#
+#   str | None
+#
+# Explicit Optional/union typing is preferred.
+# ----------------------------------------------------------------------
+
+no_implicit_optional = true
+
+
+# ----------------------------------------------------------------------
+# WARNINGS
+# ----------------------------------------------------------------------
+
+warn_unused_configs = true
+
+warn_redundant_casts = true
+
+warn_unused_ignores = true
+
+warn_unreachable = true
+
+
+# ----------------------------------------------------------------------
+# INITIAL STRICTNESS POLICY
+# ----------------------------------------------------------------------
+#
+# The project already uses extensive typing, but enabling mypy's complete
+# strict mode immediately would likely generate significant noise from:
+#
+#   NumPy
+#   SciPy
+#   librosa
+#   Streamlit
+#   Plotly
+#   optional BirdNET APIs
+#   dynamic SQLite dictionaries
+#
+# The initial policy therefore catches useful errors without requiring
+# every dynamic boundary to be redesigned at once.
+# ----------------------------------------------------------------------
+
+disallow_untyped_defs = false
+
+disallow_incomplete_defs = false
+
+disallow_any_generics = false
+
+warn_return_any = false
+
+
+# ----------------------------------------------------------------------
+# PACKAGE / MODULE RESOLUTION
+# ----------------------------------------------------------------------
+
+namespace_packages = true
+
+explicit_package_bases = true
+
+
+# ----------------------------------------------------------------------
+# DISPLAY
+# ----------------------------------------------------------------------
+
+pretty = true
+
+show_error_codes = true
+
+show_column_numbers = true
+
+
+# ----------------------------------------------------------------------
+# EXCLUDED GENERATED/RUNTIME AREAS
+# ----------------------------------------------------------------------
+
+exclude = [
+    '^data/',
+    '^\.venv/',
+    '^venv/',
+    '^build/',
+    '^dist/',
+]
+
+
+# ======================================================================
+# COVERAGE
+# ======================================================================
+
+[tool.coverage.run]
+
+
+# ----------------------------------------------------------------------
+# BRANCH COVERAGE
+# ----------------------------------------------------------------------
+#
+# Branch coverage distinguishes:
+#
+#   if condition = true
+#
+# from:
+#
+#   if condition = false
+#
+# which is particularly useful for:
+#
+#   protocol validation
+#   classifier fallback
+#   calibration enabled/disabled behavior
+#   session error handling
+#   event detector state transitions
+# ----------------------------------------------------------------------
+
+branch = true
+
+
+# ----------------------------------------------------------------------
+# SOURCE
+# ----------------------------------------------------------------------
+#
+# Measure Python code from the repository.
+# ----------------------------------------------------------------------
+
+source = [
+    ".",
+]
+
+
+# ----------------------------------------------------------------------
+# PARALLEL EXECUTION SUPPORT
+# ----------------------------------------------------------------------
+
+parallel = true
+
+
+# ----------------------------------------------------------------------
+# FILES OMITTED FROM COVERAGE
+# ----------------------------------------------------------------------
+
+omit = [
+    "tests/*",
+    "tests/**/*",
+
+    ".venv/*",
+    ".venv/**/*",
+
+    "venv/*",
+    "venv/**/*",
+
+    "build/*",
+    "build/**/*",
+
+    "dist/*",
+    "dist/**/*",
+]
+
+
+# ======================================================================
+# COVERAGE REPORT
+# ======================================================================
+
+[tool.coverage.report]
+
+
+# ----------------------------------------------------------------------
+# DISPLAY
+# ----------------------------------------------------------------------
+
+show_missing = true
+
+skip_empty = true
+
+precision = 2
+
+
+# ----------------------------------------------------------------------
+# COVERAGE FAILURE THRESHOLD
+# ----------------------------------------------------------------------
+#
+# No arbitrary repository-wide coverage percentage is enforced yet.
+#
+# A meaningful threshold should be chosen only after:
+#
+#   1. the final compatibility audit,
+#   2. the expanded test suite,
+#   3. baseline coverage measurement.
+#
+# Setting a target such as 80% before measuring the actual architecture
+# would be cosmetic rather than engineering-driven.
+# ----------------------------------------------------------------------
+
+
+# ----------------------------------------------------------------------
+# LINES EXCLUDED FROM COVERAGE
+# ----------------------------------------------------------------------
+
+exclude_also = [
+    "def __repr__",
+    "if self\\.debug:",
+    "if settings\\.DEBUG",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if 0:",
+    "if False:",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+    "@(abc\\.)?abstractmethod",
+]
+
+
+# ======================================================================
+# COVERAGE HTML OUTPUT
+# ======================================================================
+
+[tool.coverage.html]
+
+directory = "htmlcov"
+
+
+# ======================================================================
+# COVERAGE XML OUTPUT
+# ======================================================================
+#
+# Useful later for CI systems and automated code-quality services.
+# ======================================================================
+
+[tool.coverage.xml]
+
+output = "coverage.xml"
+
+
+# ======================================================================
+# END
+# ======================================================================

@@ -38,12 +38,39 @@ This module handles:
     normalized research event rows
     normalized environmental telemetry
     environmental observation bins
-    complete ResearchAnalyticsReport generation
+    complete single-session ResearchAnalyticsReport generation
 
-This module does NOT:
 
-    write database records
-    modify acquisition sessions
+Research-session policy
+-----------------------
+A complete ResearchAnalyticsReport is intentionally restricted to one
+acquisition session.
+
+This prevents:
+
+    transitions between events from different acquisition sessions
+
+    downtime between sessions being interpreted as observed inactivity
+
+    environmental observations from unrelated acquisition periods being
+    treated as one continuous ecological observation window
+
+    discontinuous sample timelines being interpreted as one acquisition
+
+Cross-session research should instead be implemented explicitly using:
+
+    per-session reports
+        ↓
+    exposure-aware aggregation
+
+rather than by concatenating event streams before behavioral/spatial
+analysis.
+
+
+This module does NOT
+--------------------
+    write event records
+    start or stop acquisition sessions
     process DSP
     classify audio
     localize audio
@@ -67,9 +94,11 @@ from datetime import (
     datetime,
 )
 
+
 from pathlib import (
     Path,
 )
+
 
 from typing import (
     Any,
@@ -86,14 +115,17 @@ from analytics.models import (
     ResearchAnalyticsReport,
 )
 
+
 from analytics.service import (
     build_research_analytics_report,
 )
+
 
 from config import (
     AppConfig,
     CONFIG,
 )
+
 
 from database import (
     EventDatabase,
@@ -252,6 +284,45 @@ def _optional_session_id(
 
 
 # ======================================================================
+# REQUIRED SESSION ID VALIDATION
+# ======================================================================
+
+
+def _required_session_id(
+    value: int,
+) -> int:
+    """
+    Validate one mandatory Protocol-v4 acquisition-session identifier.
+
+    Complete research reports require an explicit session because the
+    spatial-transition and temporal-analysis layers assume one continuous
+    observation period.
+    """
+
+    result = (
+        _optional_session_id(
+            value
+        )
+    )
+
+    if (
+        result
+        is None
+    ):
+
+        raise ValueError(
+            (
+                "session_id is required for "
+                "single-session research analysis."
+            )
+        )
+
+    return (
+        result
+    )
+
+
+# ======================================================================
 # OPTIONAL POSITIVE INTEGER
 # ======================================================================
 
@@ -312,7 +383,7 @@ def _optional_positive_int(
 
 class DashboardDataAccess:
     """
-    Read-only data service used by dashboard views.
+    Read-oriented data service used by dashboard views.
 
     Parameters
     ----------
@@ -329,13 +400,13 @@ class DashboardDataAccess:
         is opened.
 
 
-    Design
-    ------
-    The object is intentionally lightweight.
+    Database lifecycle note
+    -----------------------
+    EventDatabase uses short-lived SQLite connections.
 
-    EventDatabase itself uses short-lived SQLite connections, therefore
-    this class can safely be retained by the Streamlit application
-    without keeping one persistent SQLite connection open.
+    Constructing EventDatabase may initialize or migrate the SQLite
+    schema, but this dashboard service itself does not create, modify or
+    delete research event records.
     """
 
     # ==================================================================
@@ -434,10 +505,12 @@ class DashboardDataAccess:
                 .session_list_limit
             )
 
-        limit = _optional_positive_int(
-            limit,
-            name=
-                "limit",
+        limit = (
+            _optional_positive_int(
+                limit,
+                name=
+                    "limit",
+            )
         )
 
         rows = (
@@ -447,8 +520,10 @@ class DashboardDataAccess:
             )
         )
 
-        return rows_to_dicts(
-            rows
+        return (
+            rows_to_dicts(
+                rows
+            )
         )
 
     # ==================================================================
@@ -465,9 +540,11 @@ class DashboardDataAccess:
         Return the newest persisted acquisition session.
         """
 
-        rows = self.sessions(
-            limit=
-                1
+        rows = (
+            self.sessions(
+                limit=
+                    1
+            )
         )
 
         if not (
@@ -501,14 +578,14 @@ class DashboardDataAccess:
         """
         Return newest persisted acoustic events.
 
-        These rows use the legacy/current event query and therefore
-        contain:
+        These rows use the standard event query and contain:
 
             core event fields
             DSP features
             classifications
 
-        For research-time analysis use ``analytics_events()`` instead.
+        For scientific timeline analysis use ``analytics_events()``
+        instead.
         """
 
         if (
@@ -522,10 +599,12 @@ class DashboardDataAccess:
                 .recent_events_limit
             )
 
-        limit = _optional_positive_int(
-            limit,
-            name=
-                "limit",
+        limit = (
+            _optional_positive_int(
+                limit,
+                name=
+                    "limit",
+            )
         )
 
         if (
@@ -544,8 +623,10 @@ class DashboardDataAccess:
             )
         )
 
-        return rows_to_dicts(
-            rows
+        return (
+            rows_to_dicts(
+                rows
+            )
         )
 
     # ==================================================================
@@ -602,8 +683,10 @@ class DashboardDataAccess:
                 None
             )
 
-        return row_to_dict(
-            row
+        return (
+            row_to_dict(
+                row
+            )
         )
 
     # ==================================================================
@@ -631,6 +714,15 @@ class DashboardDataAccess:
             event_end_time
 
         in addition to event, DSP and classification fields.
+
+
+        Low-level policy
+        ----------------
+        ``session_id`` remains optional here because this method is a
+        normalized data-retrieval primitive.
+
+        Callers performing behavioral/spatial research must maintain
+        explicit session boundaries.
         """
 
         session_id = (
@@ -639,7 +731,7 @@ class DashboardDataAccess:
             )
         )
 
-        return (
+        rows = (
             self.database
             .analytics_event_rows(
                 sample_rate=
@@ -657,6 +749,15 @@ class DashboardDataAccess:
                     end,
             )
         )
+
+        return [
+            row_to_dict(
+                row
+            )
+
+            for row
+            in rows
+        ]
 
     # ==================================================================
     # NORMALIZED TELEMETRY
@@ -722,7 +823,7 @@ class DashboardDataAccess:
                     )
                 )
 
-        return (
+        rows = (
             self.database
             .analytics_telemetry_rows(
                 sample_rate=
@@ -743,6 +844,15 @@ class DashboardDataAccess:
                     end,
             )
         )
+
+        return [
+            row_to_dict(
+                row
+            )
+
+            for row
+            in rows
+        ]
 
     # ==================================================================
     # ENVIRONMENTAL OBSERVATION BINS
@@ -773,19 +883,10 @@ class DashboardDataAccess:
         """
 
         session_id = (
-            _optional_session_id(
+            _required_session_id(
                 session_id
             )
         )
-
-        if (
-            session_id
-            is None
-        ):
-
-            raise ValueError(
-                "session_id is required."
-            )
 
         if (
             bucket_seconds
@@ -828,7 +929,7 @@ class DashboardDataAccess:
                 )
             )
 
-        return (
+        rows = (
             self.database
             .analytics_environmental_bins(
                 session_id=
@@ -855,6 +956,15 @@ class DashboardDataAccess:
             )
         )
 
+        return [
+            row_to_dict(
+                row
+            )
+
+            for row
+            in rows
+        ]
+
     # ==================================================================
     # ENVIRONMENTAL BINS ACROSS SESSIONS
     # ==================================================================
@@ -879,19 +989,10 @@ class DashboardDataAccess:
         ---------
         Bins are NEVER created across downtime between sessions.
 
-        Example:
+        This is a low-level research-data helper.
 
-            session A:
-                08:00 -> 10:00
-
-            system off:
-                10:00 -> 18:00
-
-            session B:
-                18:00 -> 20:00
-
-        The 10:00 -> 18:00 interval is not represented as wildlife
-        inactivity because the system was not acquiring data.
+        It does not imply that the returned rows should be treated as one
+        continuous wildlife observation session.
         """
 
         if (
@@ -905,9 +1006,41 @@ class DashboardDataAccess:
                 .bucket_seconds
             )
 
-        sessions = self.database.list_sessions(
-            limit=
-                None
+        if (
+            isinstance(
+                bucket_seconds,
+                bool,
+            )
+            or not isinstance(
+                bucket_seconds,
+                int,
+            )
+        ):
+
+            raise TypeError(
+                (
+                    "bucket_seconds must "
+                    "be an integer."
+                )
+            )
+
+        if (
+            bucket_seconds
+            <= 0
+        ):
+
+            raise ValueError(
+                (
+                    "bucket_seconds must "
+                    "be greater than 0."
+                )
+            )
+
+        sessions = (
+            self.database.list_sessions(
+                limit=
+                    None
+            )
         )
 
         result: list[
@@ -920,22 +1053,27 @@ class DashboardDataAccess:
         # --------------------------------------------------------------
         # list_sessions() returns newest first.
         #
-        # Reverse here so cross-session research observations are
-        # chronological.
+        # Reverse here so the returned bin collection is chronological.
         # --------------------------------------------------------------
 
         for session_row in reversed(
             sessions
         ):
 
-            session = row_to_dict(
-                session_row
+            session = (
+                row_to_dict(
+                    session_row
+                )
             )
 
-            session_id = int(
-                session[
-                    "session_id"
-                ]
+            session_id = (
+                _required_session_id(
+                    int(
+                        session[
+                            "session_id"
+                        ]
+                    )
+                )
             )
 
             bins = (
@@ -969,43 +1107,60 @@ class DashboardDataAccess:
     def research_report(
         self,
         *,
-        session_id: int | None = None,
+        session_id: int,
         start: datetime | str | None = None,
         end: datetime | str | None = None,
         include_environment: bool = True,
         generated_at: datetime | None = None,
     ) -> ResearchAnalyticsReport:
         """
-        Build the complete typed research analytics report.
+        Build one complete typed research analytics report.
 
-        Parameters
-        ----------
-        session_id
-            Optional session filter.
-
-            When omitted:
-                event analytics include all sessions.
-
-                environmental bins are generated separately within each
-                acquisition session and then concatenated.
+        A session identifier is mandatory.
 
 
-        include_environment
-            When False, environmental correlation analysis is skipped.
+        Why single-session analysis
+        ---------------------------
+        The analytics layer includes operations such as:
+
+            temporal binning
+            spatial transitions
+            activity concentration
+            behavior-related indicators
+
+        Those operations assume one coherent acquisition period.
+
+        Concatenating separate sessions before analytics could otherwise
+        create false conclusions such as:
+
+            last location in Session A
+                ->
+            first location in Session B
+
+        being interpreted as one acoustic-location transition.
 
 
-        Important
-        ---------
-        Event-time ordering across sessions relies on each session's
-        persisted laptop wall-clock anchor.
+        Cross-session research
+        ----------------------
+        Cross-session studies should instead compute independent
+        session-level reports and aggregate their outputs using explicit
+        exposure/session-aware methodology.
 
-        TDOA itself remains based exclusively on synchronized
-        sampleIndex/waveform timing and is unrelated to these dashboard
-        wall-clock timestamps.
+
+        Wall-clock note
+        ---------------
+        Dashboard wall-clock timestamps are reconstructed from:
+
+            session.started_at
+                +
+            sampleIndex / sample_rate
+
+        TDOA itself remains based exclusively on synchronized waveform
+        timing and is unrelated to these wall-clock timestamps.
         """
 
         session_id = (
-            _optional_session_id(
+            _required_session_id(
                 session_id
             )
         )
@@ -1022,24 +1177,42 @@ class DashboardDataAccess:
                 )
             )
 
-        # ==============================================================
+        if (
+            generated_at
+            is not None
+            and not isinstance(
+                generated_at,
+                datetime,
+            )
+        ):
+
+            raise TypeError(
+                (
+                    "generated_at must be "
+                    "datetime or None."
+                )
+            )
+
+        # ==================================================================
         # EVENTS
-        # ==============================================================
+        # ==================================================================
 
-        event_rows = self.analytics_events(
-            session_id=
-                session_id,
+        event_rows = (
+            self.analytics_events(
+                session_id=
+                    session_id,
 
-            start=
-                start,
+                start=
+                    start,
 
-            end=
-                end,
+                end=
+                    end,
+            )
         )
 
-        # ==============================================================
+        # ==================================================================
         # ENVIRONMENTAL OBSERVATION BINS
-        # ==============================================================
+        # ==================================================================
 
         environmental_rows: (
             list[
@@ -1059,10 +1232,7 @@ class DashboardDataAccess:
                 None
             )
 
-        elif (
-            session_id
-            is not None
-        ):
+        else:
 
             environmental_rows = (
                 self.environmental_bins(
@@ -1082,105 +1252,89 @@ class DashboardDataAccess:
                 )
             )
 
-        else:
-
-            environmental_rows = (
-                self
-                .environmental_bins_all_sessions(
-                    start=
-                        start,
-
-                    end=
-                        end,
-
-                    bucket_seconds=
-                        self.config
-                        .analytics
-                        .bucket_seconds,
-                )
-            )
-
-        # ==============================================================
+        # ==================================================================
         # ANALYTICS SERVICE
-        # ==============================================================
+        # ==================================================================
 
-        return build_research_analytics_report(
-            event_rows,
+        return (
+            build_research_analytics_report(
+                event_rows,
 
-            environmental_rows=
-                environmental_rows,
+                environmental_rows=
+                    environmental_rows,
 
-            sample_rate=
-                self.config
-                .audio
-                .sample_rate,
+                sample_rate=
+                    self.config
+                    .audio
+                    .sample_rate,
 
-            timestamp_key=
-                "event_time",
+                timestamp_key=
+                    "event_time",
 
-            bucket_seconds=
-                self.config
-                .analytics
-                .bucket_seconds,
+                bucket_seconds=
+                    self.config
+                    .analytics
+                    .bucket_seconds,
 
-            start=
-                start,
+                start=
+                    start,
 
-            end=
-                end,
+                end=
+                    end,
 
-            cell_size_m=
-                self.config
-                .analytics
-                .cell_size_m,
+                cell_size_m=
+                    self.config
+                    .analytics
+                    .cell_size_m,
 
-            max_grid_cells=
-                self.config
-                .analytics
-                .max_grid_cells,
+                max_grid_cells=
+                    self.config
+                    .analytics
+                    .max_grid_cells,
 
-            max_transition_gap_s=
-                self.config
-                .analytics
-                .max_transition_gap_s,
+                max_transition_gap_s=
+                    self.config
+                    .analytics
+                    .max_transition_gap_s,
 
-            same_class_transitions_only=
-                self.config
-                .analytics
-                .same_class_transitions_only,
+                same_class_transitions_only=
+                    self.config
+                    .analytics
+                    .same_class_transitions_only,
 
-            alpha=
-                self.config
-                .analytics
-                .environmental_alpha,
+                alpha=
+                    self.config
+                    .analytics
+                    .environmental_alpha,
 
-            environmental_min_samples=
-                self.config
-                .analytics
-                .environmental_min_samples,
+                environmental_min_samples=
+                    self.config
+                    .analytics
+                    .environmental_min_samples,
 
-            neutral_threshold=
-                self.config
-                .analytics
-                .neutral_threshold,
+                neutral_threshold=
+                    self.config
+                    .analytics
+                    .neutral_threshold,
 
-            min_activity_events=
-                self.config
-                .analytics
-                .min_activity_events,
+                min_activity_events=
+                    self.config
+                    .analytics
+                    .min_activity_events,
 
-            min_localized_events=
-                self.config
-                .analytics
-                .min_localized_events,
+                min_localized_events=
+                    self.config
+                    .analytics
+                    .min_localized_events,
 
-            min_transitions=
-                self.config
-                .analytics
-                .min_transitions,
+                min_transitions=
+                    self.config
+                    .analytics
+                    .min_transitions,
 
-            generated_at=
-                generated_at,
+                generated_at=
+                    generated_at,
+            )
         )
 
     # ==================================================================
@@ -1190,7 +1344,7 @@ class DashboardDataAccess:
     def research_report_dict(
         self,
         *,
-        session_id: int | None = None,
+        session_id: int,
         start: datetime | str | None = None,
         end: datetime | str | None = None,
         include_environment: bool = True,
@@ -1200,24 +1354,26 @@ class DashboardDataAccess:
         Any,
     ]:
         """
-        Return a JSON/export-ready research report dictionary.
+        Return one JSON/export-ready single-session research report.
         """
 
-        report = self.research_report(
-            session_id=
-                session_id,
+        report = (
+            self.research_report(
+                session_id=
+                    session_id,
 
-            start=
-                start,
+                start=
+                    start,
 
-            end=
-                end,
+                end=
+                    end,
 
-            include_environment=
-                include_environment,
+                include_environment=
+                    include_environment,
 
-            generated_at=
-                generated_at,
+                generated_at=
+                    generated_at,
+            )
         )
 
         return (
@@ -1239,20 +1395,22 @@ class DashboardDataAccess:
         """
         Return a lightweight dashboard overview.
 
-        Intended for the future live view.
-
         This deliberately avoids running the complete research analytics
         pipeline on every live refresh.
         """
 
-        sessions = self.sessions(
-            limit=
-                1
+        sessions = (
+            self.sessions(
+                limit=
+                    1
+            )
         )
 
-        events = self.recent_events(
-            limit=
-                recent_limit,
+        events = (
+            self.recent_events(
+                limit=
+                    recent_limit,
+            )
         )
 
         latest_session = (
@@ -1307,13 +1465,15 @@ def create_dashboard_data_access(
     config: AppConfig = CONFIG,
 ) -> DashboardDataAccess:
     """
-    Create the standard dashboard read service.
+    Create the standard dashboard data service.
 
-    Keeping construction in one helper will also make later Streamlit
-    resource caching straightforward.
+    Keeping construction in one helper also makes Streamlit resource
+    caching straightforward.
     """
 
-    return DashboardDataAccess(
-        config=
-            config
+    return (
+        DashboardDataAccess(
+            config=
+                config
+        )
     )

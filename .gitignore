@@ -1,24 +1,736 @@
-__pycache__/
-*.py[cod]
-.pytest_cache/
+# ======================================================================
+# WILDLIFE SOUNDSCAPE MAPPING & BEHAVIOR ANALYSIS SYSTEM
+# .gitignore
+# ======================================================================
+#
+# Repository policy:
+#
+#   COMMIT
+#   ------
+#   Source code
+#   Firmware
+#   Documentation
+#   Configuration templates
+#   Tests
+#   Empty runtime directory placeholders (.gitkeep)
+#
+#
+#   DO NOT COMMIT
+#   -------------
+#   Secrets
+#   Local Python environments
+#   Python caches
+#   Test caches
+#   Runtime SQLite databases
+#   Recorded WAV files
+#   Generated event directories
+#   Research exports
+#   Physical calibration results
+#   IDE-local state
+#   Logs
+#   Temporary files
+#   Downloaded ML model/runtime artifacts
+#
+# ======================================================================
+
+
+# ======================================================================
+# 1. ENVIRONMENT VARIABLES / SECRETS
+# ======================================================================
+#
+# Never commit credentials, tokens, Wi-Fi secrets, API keys or machine-
+# specific environment configuration.
+# ======================================================================
+
+.env
+.env.*
+!.env.example
+
+*.env
+
+secrets/
+secret/
+credentials/
+
+*.key
+*.pem
+*.p12
+*.pfx
+
+credentials.json
+secrets.json
+
+
+# ======================================================================
+# 2. PYTHON VIRTUAL ENVIRONMENTS
+# ======================================================================
+
 .venv/
 venv/
-.vscode/
+env/
+ENV/
+
+.virtualenv/
+
+
+# ======================================================================
+# 3. PYTHON BYTECODE / CACHE
+# ======================================================================
+
+__pycache__/
+*.py[cod]
+*$py.class
+
+*.pyc
+*.pyo
+*.pyd
+
+
+# ======================================================================
+# 4. PYTHON BUILD / DISTRIBUTION OUTPUT
+# ======================================================================
+
+build/
+dist/
+
+*.egg-info/
+.eggs/
+*.egg
+
+pip-wheel-metadata/
+
+wheels/
+
+
+# ======================================================================
+# 5. PYTHON PACKAGE TOOL CACHES
+# ======================================================================
+
+.pip-cache/
+pip-log.txt
+pip-delete-this-directory.txt
+
+
+# ======================================================================
+# 6. PYTEST
+# ======================================================================
+
+.pytest_cache/
+
+.coverage
+.coverage.*
+
+htmlcov/
+
+coverage.xml
+coverage.json
+
+test-results/
+pytest-report.xml
+
+
+# ======================================================================
+# 7. STATIC ANALYSIS / TYPE CHECKING / LINTING
+# ======================================================================
+
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+.pyright/
+
+.ruff_cache/
+
+.pyre/
+
+.hypothesis/
+
+
+# ======================================================================
+# 8. JUPYTER / NOTEBOOK LOCAL STATE
+# ======================================================================
+
+.ipynb_checkpoints/
+
+*.nbconvert.ipynb
+
+
+# ======================================================================
+# 9. VS CODE
+# ======================================================================
+#
+# The entire .vscode directory is intentionally NOT ignored because
+# useful repository-level tasks/extensions may eventually be committed.
+#
+# Only machine/user-specific files are ignored here.
+# ======================================================================
+
+.vscode/settings.json
+.vscode/launch.json
+
+.history/
+
+
+# ======================================================================
+# 10. JETBRAINS / INTELLIJ / PYCHARM
+# ======================================================================
+
 .idea/
 
-*.wav
-*.db
-*.sqlite
-*.sqlite3
+*.iml
+*.ipr
+*.iws
 
-data/recordings/*
-!data/recordings/.gitkeep
 
-data/events/*
-!data/events/.gitkeep
+# ======================================================================
+# 11. WINDOWS
+# ======================================================================
+
+Thumbs.db
+Thumbs.db:encryptable
+
+Desktop.ini
+
+$RECYCLE.BIN/
+
+*.lnk
+
+
+# ======================================================================
+# 12. macOS
+# ======================================================================
+
+.DS_Store
+.AppleDouble
+.LSOverride
+
+._*
+
+
+# ======================================================================
+# 13. LINUX / UNIX DESKTOP
+# ======================================================================
+
+*~
+.fuse_hidden*
+.directory
+
+.Trash-*
+.nfs*
+
+
+# ======================================================================
+# 14. GENERAL TEMPORARY FILES
+# ======================================================================
+
+*.tmp
+*.temp
+
+*.bak
+*.backup
+
+*.swp
+*.swo
+
+*.orig
+*.rej
+
+*.cache
+
+tmp/
+temp/
+
+
+# ======================================================================
+# 15. LOG FILES
+# ======================================================================
+
+*.log
+
+logs/
+log/
+
+
+# ======================================================================
+# 16. CRASH / DEBUG OUTPUT
+# ======================================================================
+
+*.dmp
+*.dump
+
+crash/
+crashes/
+
+
+# ======================================================================
+# 17. SQLITE DATABASES
+# ======================================================================
+#
+# Runtime databases are experimental outputs and should not be committed.
+#
+# The data/database directory itself is retained with .gitkeep.
+# ======================================================================
 
 data/database/*
 !data/database/.gitkeep
 
+
+# ======================================================================
+# 18. EVENT AUDIO OUTPUT
+# ======================================================================
+#
+# EventPipeline writes synchronized per-node WAV files here.
+#
+# Example:
+#
+#   data/events/<session>/event_000001/node_1.wav
+#
+# These can grow rapidly and should not enter Git history.
+# ======================================================================
+
+data/events/*
+!data/events/.gitkeep
+
+
+# ======================================================================
+# 19. RAW / CONTINUOUS RECORDINGS
+# ======================================================================
+#
+# StreamManager or experiment tooling may write synchronized session
+# recordings here.
+# ======================================================================
+
+data/recordings/*
+!data/recordings/.gitkeep
+
+
+# ======================================================================
+# 20. GENERATED RESEARCH EXPORTS
+# ======================================================================
+#
+# Generated CSV / JSON / JSONL datasets are runtime/research artifacts.
+#
+# Export tools:
+#
+#   tools/export_events.py
+#   tools/export_research_metrics.py
+# ======================================================================
+
 data/exports/*
 !data/exports/.gitkeep
+
+
+# ======================================================================
+# 21. PHYSICAL CALIBRATION RESULTS
+# ======================================================================
+#
+# Calibration algorithms are source code and ARE committed.
+#
+# Physical calibration output from a specific array installation is not.
+#
+# Calibration data depends on:
+#
+#   microphone hardware
+#   array geometry
+#   wiring
+#   acoustic environment
+#   measurement session
+#
+# It therefore should not silently become a universal repository default.
+# ======================================================================
+
+data/calibration/*
+!data/calibration/.gitkeep
+
+
+# ======================================================================
+# 22. OPTIONAL DATASET DIRECTORIES
+# ======================================================================
+#
+# Reserve common locations for later labeled datasets.
+#
+# Dataset source manifests/documentation may be committed separately,
+# but large raw media should not be placed in Git.
+# ======================================================================
+
+data/datasets/*
+!data/datasets/.gitkeep
+
+datasets/
+dataset/
+
+
+# ======================================================================
+# 23. AUDIO FILES OUTSIDE MANAGED DATA DIRECTORIES
+# ======================================================================
+#
+# Prevent accidental addition of large experiment recordings placed in
+# the repository root or arbitrary subdirectories.
+#
+# If a small audio fixture is intentionally required by automated tests,
+# explicitly un-ignore that fixture later.
+# ======================================================================
+
+*.wav
+*.wave
+
+*.flac
+*.mp3
+*.aac
+*.m4a
+*.ogg
+*.opus
+
+
+# ======================================================================
+# 24. VIDEO / LARGE MEDIA
+# ======================================================================
+
+*.mp4
+*.mkv
+*.avi
+*.mov
+*.webm
+
+
+# ======================================================================
+# 25. MACHINE-LEARNING MODEL ARTIFACTS
+# ======================================================================
+#
+# Optional pretrained model files should generally be downloaded by the
+# corresponding library rather than stored directly in this repository.
+#
+# This is particularly relevant for optional BirdNET/model backends.
+# ======================================================================
+
+*.onnx
+*.tflite
+*.pb
+*.pt
+*.pth
+*.ckpt
+*.h5
+*.hdf5
+
+models/downloaded/
+models/cache/
+
+model_cache/
+
+
+# ======================================================================
+# 26. BIRDNET / ML RUNTIME CACHES
+# ======================================================================
+#
+# Exact cache locations can vary by package/version/platform.
+# Common repository-local cache names are ignored defensively.
+# ======================================================================
+
+.birdnet/
+birdnet_cache/
+
+.onnx/
+onnx_cache/
+
+
+# ======================================================================
+# 27. NUMPY / SCIENTIFIC TEMPORARY OUTPUT
+# ======================================================================
+
+*.npy
+*.npz
+
+*.mat
+
+
+# ======================================================================
+# 28. GENERATED PLOTS / FIGURES
+# ======================================================================
+#
+# Research figures generated from experiments should normally be
+# reproducible from data and scripts rather than permanently committed.
+#
+# Documentation assets can be explicitly un-ignored later if desired.
+# ======================================================================
+
+data/plots/*
+!data/plots/.gitkeep
+
+data/figures/*
+!data/figures/.gitkeep
+
+
+# ======================================================================
+# 29. PROFILING / BENCHMARK OUTPUT
+# ======================================================================
+
+*.prof
+*.lprof
+
+profile/
+profiling/
+
+benchmarks/output/
+
+
+# ======================================================================
+# 30. ARDUINO / ESP32 LOCAL BUILD OUTPUT
+# ======================================================================
+
+build-esp32/
+arduino-build/
+
+*.elf
+*.bin
+*.hex
+*.map
+
+
+# ======================================================================
+# 31. PLATFORMIO
+# ======================================================================
+#
+# Not currently required by the project, but ignored defensively in case
+# firmware development later moves from Arduino IDE to PlatformIO.
+# ======================================================================
+
+.pio/
+
+.pioenvs/
+.piolibdeps/
+
+
+# ======================================================================
+# 32. ARDUINO IDE LOCAL STATE
+# ======================================================================
+
+*.ino.standard.hex
+*.ino.with_bootloader.standard.hex
+
+arduino_debug.exe
+arduino_debug.l4j.ini
+
+
+# ======================================================================
+# 33. C / C++ BUILD ARTIFACTS
+# ======================================================================
+
+*.o
+*.obj
+
+*.a
+*.lib
+
+*.so
+*.dll
+*.dylib
+
+*.exe
+
+
+# ======================================================================
+# 34. STREAMLIT LOCAL CONFIGURATION / SECRETS
+# ======================================================================
+#
+# Local Streamlit secrets must never be committed.
+#
+# A non-secret repository-level Streamlit config can later be explicitly
+# committed if required.
+# ======================================================================
+
+.streamlit/secrets.toml
+
+
+# ======================================================================
+# 35. LOCAL DATABASE JOURNAL / WAL FILES
+# ======================================================================
+
+*.db-journal
+*.db-shm
+*.db-wal
+
+*.sqlite-journal
+*.sqlite-shm
+*.sqlite-wal
+
+*.sqlite3-journal
+*.sqlite3-shm
+*.sqlite3-wal
+
+
+# ======================================================================
+# 36. DATABASE FILE TYPES OUTSIDE data/database
+# ======================================================================
+
+*.db
+*.sqlite
+*.sqlite3
+
+
+# ======================================================================
+# 37. GENERATED CSV / JSONL RESEARCH OUTPUT OUTSIDE data/exports
+# ======================================================================
+#
+# Do NOT globally ignore JSON because repository configuration or test
+# fixtures may legitimately use it.
+#
+# Generated CSV/JSONL files are ignored unless deliberately un-ignored.
+# ======================================================================
+
+*.csv
+*.jsonl
+*.ndjson
+
+
+# ======================================================================
+# 38. LOCAL RESEARCH SCRATCH DIRECTORIES
+# ======================================================================
+
+scratch/
+research_scratch/
+experiments/local/
+experiments/output/
+
+
+# ======================================================================
+# 39. LOCAL BACKUPS / ARCHIVES
+# ======================================================================
+
+*.zip
+*.7z
+*.rar
+*.tar
+*.tar.gz
+*.tgz
+
+
+# ======================================================================
+# 40. GENERATED DOCUMENTATION OUTPUT
+# ======================================================================
+
+site/
+
+docs/_build/
+
+
+# ======================================================================
+# 41. TYPE-CHECK / LANGUAGE SERVER LOCAL FILES
+# ======================================================================
+
+.pytype/
+
+.pyre_configuration.local
+
+
+# ======================================================================
+# 42. TASK / PROCESS PID FILES
+# ======================================================================
+
+*.pid
+*.pid.lock
+
+
+# ======================================================================
+# 43. COVERAGE / TEST DATABASES
+# ======================================================================
+
+test.db
+test.sqlite
+test.sqlite3
+
+tests/output/
+tests/artifacts/
+tests/tmp/
+tests/temp/
+
+
+# ======================================================================
+# 44. SIMULATOR GENERATED OUTPUT
+# ======================================================================
+
+data/simulator/*
+!data/simulator/.gitkeep
+
+
+# ======================================================================
+# 45. INTEGRATION-TEST GENERATED OUTPUT
+# ======================================================================
+#
+# Older integration tests generated directories such as:
+#
+#   data/events/integration_localization/
+#   data/recordings/integration_localization_sid_*/
+#
+# The general data-directory rules above already ignore them.
+#
+# These patterns make the intent explicit.
+# ======================================================================
+
+data/events/integration_*/
+data/events/test_*/
+
+data/recordings/integration_*/
+data/recordings/test_*/
+
+
+# ======================================================================
+# 46. ENVIRONMENT-SPECIFIC LOCAL CONFIG
+# ======================================================================
+#
+# If local machine overrides are introduced later, use names such as:
+#
+#   config.local.py
+#   config.local.json
+#
+# Base project config.py remains committed.
+# ======================================================================
+
+config.local.py
+config.local.json
+
+local_config.py
+local_config.json
+
+
+# ======================================================================
+# 47. LOCAL IP / NETWORK CONFIGURATION FILES
+# ======================================================================
+
+network.local.json
+wifi.local.json
+
+
+# ======================================================================
+# 48. OS / EDITOR LOCK FILES
+# ======================================================================
+
+.~lock.*
+
+*.lock~
+
+# NOTE:
+# Python dependency lock files should NOT automatically be ignored if
+# the project later adopts one intentionally.
+
+
+# ======================================================================
+# 49. PRESERVE REQUIRED DIRECTORY PLACEHOLDERS
+# ======================================================================
+#
+# These explicit rules protect repository directory structure.
+# ======================================================================
+
+!data/database/.gitkeep
+!data/events/.gitkeep
+!data/recordings/.gitkeep
+!data/exports/.gitkeep
+!data/calibration/.gitkeep
+!data/datasets/.gitkeep
+!data/plots/.gitkeep
+!data/figures/.gitkeep
+!data/simulator/.gitkeep
+
+
+# ======================================================================
+# END
+# ======================================================================

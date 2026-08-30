@@ -1,49 +1,144 @@
 from __future__ import annotations
 
+
+# ======================================================================
+# STANDARD LIBRARY
+# ======================================================================
+
+
 import logging
 import math
-from pathlib import Path
 import wave
 
+from pathlib import (
+    Path,
+)
+
+
+# ======================================================================
+# THIRD PARTY
+# ======================================================================
+
+
 import numpy as np
+
+
+# ======================================================================
+# CLASSIFICATION
+# ======================================================================
+
 
 from classification import (
     ClassificationInput,
     ClassificationResult,
     ClassifierBackend,
 )
-from classification.factory import create_classifier_backend
 
-from config import AppConfig
-from database import EventDatabase
+
+from classification.factory import (
+    create_classifier_backend,
+)
+
+
+# ======================================================================
+# CONFIGURATION
+# ======================================================================
+
+
+from config import (
+    AppConfig,
+)
+
+
+# ======================================================================
+# DATABASE
+# ======================================================================
+
+
+from database import (
+    EventDatabase,
+)
+
+
+# ======================================================================
+# DSP
+# ======================================================================
+
 
 from dsp.features import (
     AcousticFeatures,
     FeatureConfig,
     extract_acoustic_features,
 )
+
+
 from dsp.preprocessing import (
     PreprocessedAudio,
     PreprocessingConfig,
     preprocess_event_audio,
 )
 
+
+# ======================================================================
+# EVENT DETECTION
+# ======================================================================
+
+
 from event_detector import (
     AcousticEvent,
     MultiNodeEventDetector,
 )
+
+
+# ======================================================================
+# LOCALIZATION
+# ======================================================================
+
 
 from localization import (
     LocalizationEngine,
     LocalizationResult,
 )
 
-from models import AudioBlock
-from protocol import EnvironmentPayload
-from stream_manager import StreamManager
+
+# ======================================================================
+# CORE MODELS / PROTOCOL / STREAMS
+# ======================================================================
 
 
-logger = logging.getLogger(__name__)
+from models import (
+    AudioBlock,
+)
+
+
+from protocol import (
+    EnvironmentPayload,
+)
+
+
+from stream_manager import (
+    StreamManager,
+)
+
+
+# ======================================================================
+# LOGGER
+# ======================================================================
+
+
+logger = logging.getLogger(
+    __name__
+)
+
+
+# ======================================================================
+# PROTOCOL LIMITS
+# ======================================================================
+
+
+UINT32_MAX = (
+    0xFFFFFFFF
+)
 
 
 # ======================================================================
@@ -88,6 +183,7 @@ class EventPipeline:
                         ↓
                  SQLite database
 
+
     Classification architecture
     ---------------------------
     ClassificationInput intentionally permits:
@@ -95,24 +191,39 @@ class EventPipeline:
         features = AcousticFeatures | None
         model_audio = ndarray | None
 
-    Individual ClassifierBackend implementations determine which inputs
-    they require.
+    Each ClassifierBackend owns the validation of the inputs it actually
+    requires.
 
-    This means:
+    Examples:
 
-        heuristic backend
+        heuristic
             features required
-            waveform optional
+            waveform unnecessary
 
-        future waveform model
+        BirdNET
             waveform required
-            features optional
+            handcrafted features unnecessary
 
-        future ensemble
-            potentially both
+        ensemble
+            members validate independently
 
-    A failure in handcrafted feature extraction therefore does not
-    automatically prevent waveform-based classification.
+    This distinction is essential for ensemble graceful degradation.
+
+    For example, when an optional waveform model fails or its model input
+    is unavailable, a feature-based ensemble member can still classify
+    the event when the ensemble failure policy permits it.
+
+
+    Scientific data separation
+    --------------------------
+    Raw synchronized event WAV data remains independent from:
+
+        normalized model waveform
+        DSP features
+        classifier inference
+
+    Model preprocessing therefore does not modify the persisted source
+    recordings.
     """
 
     # ==================================================================
@@ -125,106 +236,292 @@ class EventPipeline:
         config: AppConfig,
         classifier_backend: ClassifierBackend | None = None,
     ) -> None:
-        self.streams = streams
-        self.config = config
+
+        # ==============================================================
+        # INPUT VALIDATION
+        # ==============================================================
+
+        if not isinstance(
+            streams,
+            StreamManager,
+        ):
+
+            raise TypeError(
+                (
+                    "streams must be a "
+                    "StreamManager instance."
+                )
+            )
+
+        if not isinstance(
+            config,
+            AppConfig,
+        ):
+
+            raise TypeError(
+                (
+                    "config must be an "
+                    "AppConfig instance."
+                )
+            )
+
+        if (
+            classifier_backend
+            is not None
+            and not isinstance(
+                classifier_backend,
+                ClassifierBackend,
+            )
+        ):
+
+            raise TypeError(
+                (
+                    "classifier_backend must be "
+                    "ClassifierBackend or None."
+                )
+            )
+
+        self.streams = (
+            streams
+        )
+
+        self.config = (
+            config
+        )
 
         # ==============================================================
         # EVENT DETECTOR
         # ==============================================================
 
-        self.detector = MultiNodeEventDetector(
-            config.audio,
-            config.detection,
-            tuple(sorted(config.expected_nodes)),
+        self.detector = (
+            MultiNodeEventDetector(
+                config.audio,
+                config.detection,
+                tuple(
+                    sorted(
+                        config.expected_nodes
+                    )
+                ),
+            )
         )
 
         # ==============================================================
         # LOCALIZATION
         # ==============================================================
 
-        self.localizer = LocalizationEngine(
-            streams,
-            config.localization,
+        self.localizer = (
+            LocalizationEngine(
+                streams,
+                config.localization,
+            )
         )
 
         # ==============================================================
         # DATABASE
         # ==============================================================
 
-        self.database = EventDatabase(
-            config.persistence.database_path
+        self.database = (
+            EventDatabase(
+                config
+                .persistence
+                .database_path
+            )
         )
 
         # ==============================================================
         # DSP PREPROCESSING
         # ==============================================================
 
-        self.preprocessing_config = PreprocessingConfig(
-            sample_rate=config.audio.sample_rate,
-            remove_dc=config.dsp.remove_dc,
-            bandpass_enabled=config.dsp.bandpass_enabled,
-            low_cutoff_hz=config.dsp.low_cutoff_hz,
-            high_cutoff_hz=config.dsp.high_cutoff_hz,
-            filter_order=config.dsp.filter_order,
-            normalize_for_model=config.dsp.normalize_for_model,
-            model_target_peak=config.dsp.model_target_peak,
+        self.preprocessing_config = (
+            PreprocessingConfig(
+                sample_rate=
+                    config
+                    .audio
+                    .sample_rate,
+
+                remove_dc=
+                    config
+                    .dsp
+                    .remove_dc,
+
+                bandpass_enabled=
+                    config
+                    .dsp
+                    .bandpass_enabled,
+
+                low_cutoff_hz=
+                    config
+                    .dsp
+                    .low_cutoff_hz,
+
+                high_cutoff_hz=
+                    config
+                    .dsp
+                    .high_cutoff_hz,
+
+                filter_order=
+                    config
+                    .dsp
+                    .filter_order,
+
+                normalize_for_model=
+                    config
+                    .dsp
+                    .normalize_for_model,
+
+                model_target_peak=
+                    config
+                    .dsp
+                    .model_target_peak,
+            )
         )
 
         # ==============================================================
         # DSP FEATURE EXTRACTION
         # ==============================================================
 
-        self.feature_config = FeatureConfig(
-            sample_rate=config.audio.sample_rate,
-            n_fft=config.dsp.n_fft,
-            hop_length=config.dsp.hop_length,
-            n_mfcc=config.dsp.n_mfcc,
-            n_mels=config.dsp.n_mels,
-            roll_percent=config.dsp.roll_percent,
-            mfcc_fmin_hz=config.dsp.mfcc_fmin_hz,
-            mfcc_fmax_hz=config.dsp.mfcc_fmax_hz,
+        self.feature_config = (
+            FeatureConfig(
+                sample_rate=
+                    config
+                    .audio
+                    .sample_rate,
+
+                n_fft=
+                    config
+                    .dsp
+                    .n_fft,
+
+                hop_length=
+                    config
+                    .dsp
+                    .hop_length,
+
+                n_mfcc=
+                    config
+                    .dsp
+                    .n_mfcc,
+
+                n_mels=
+                    config
+                    .dsp
+                    .n_mels,
+
+                roll_percent=
+                    config
+                    .dsp
+                    .roll_percent,
+
+                mfcc_fmin_hz=
+                    config
+                    .dsp
+                    .mfcc_fmin_hz,
+
+                mfcc_fmax_hz=
+                    config
+                    .dsp
+                    .mfcc_fmax_hz,
+            )
         )
 
         # ==============================================================
         # CLASSIFICATION BACKEND
         # ==============================================================
 
-        if classifier_backend is not None:
-            self.classifier_backend: ClassifierBackend | None = (
+        if (
+            classifier_backend
+            is not None
+        ):
+
+            self.classifier_backend: (
+                ClassifierBackend
+                | None
+            ) = (
                 classifier_backend
             )
+
         else:
-            self.classifier_backend = create_classifier_backend(
-                config.classification
+
+            self.classifier_backend = (
+                create_classifier_backend(
+                    config.classification
+                )
             )
 
         # ==============================================================
         # SESSION STATE
         # ==============================================================
 
-        self.active_session_id: int | None = None
-        self.active_session_label: str | None = None
+        self.active_session_id: (
+            int
+            | None
+        ) = (
+            None
+        )
 
-        self.completed_events = 0
+        self.active_session_label: (
+            str
+            | None
+        ) = (
+            None
+        )
 
-        self.last_event_db_id: int | None = None
-        self.last_best_node_id: int | None = None
-        self.last_features: AcousticFeatures | None = None
-        self.last_classification: ClassificationResult | None = None
+        # ==============================================================
+        # RUNTIME EVENT STATE
+        # ==============================================================
+
+        self.completed_events = (
+            0
+        )
+
+        self.last_event_db_id: (
+            int
+            | None
+        ) = (
+            None
+        )
+
+        self.last_best_node_id: (
+            int
+            | None
+        ) = (
+            None
+        )
+
+        self.last_features: (
+            AcousticFeatures
+            | None
+        ) = (
+            None
+        )
+
+        self.last_classification: (
+            ClassificationResult
+            | None
+        ) = (
+            None
+        )
 
     # ==================================================================
     # CLASSIFICATION STATE
     # ==================================================================
 
     @property
-    def classification_enabled(self) -> bool:
+    def classification_enabled(
+        self,
+    ) -> bool:
         """
-        Whether classification is currently enabled and has a backend.
+        Whether classification is enabled and an operational backend is
+        available.
         """
 
         return (
-            self.config.classification.enabled
-            and self.classifier_backend is not None
+            self.config
+            .classification
+            .enabled
+
+            and self.classifier_backend
+            is not None
         )
 
     # ==================================================================
@@ -239,65 +536,162 @@ class EventPipeline:
         """
         Start a new event-processing session.
 
-        Database session creation occurs before the in-memory pipeline is
-        marked active. Therefore a database failure cannot leave this
-        object appearing to have successfully started a session.
+        Session identifier
+        ------------------
+        Protocol v4 represents ``sessionId`` using uint32.
+
+        Therefore this method accepts:
+
+            1 .. 0xFFFFFFFF
+
+        only.
+
+
+        Persistence ordering
+        --------------------
+        Database session creation occurs before in-memory pipeline state
+        becomes active.
+
+        A persistence failure therefore cannot leave this EventPipeline
+        incorrectly marked as active.
         """
 
-        session_id = int(session_id)
-        label = str(label).strip()
+        # ==============================================================
+        # SESSION ID
+        # ==============================================================
 
-        if session_id <= 0:
-            raise ValueError(
-                "session_id must be greater than zero"
+        if (
+            isinstance(
+                session_id,
+                bool,
+            )
+            or not isinstance(
+                session_id,
+                int,
+            )
+        ):
+
+            raise TypeError(
+                (
+                    "session_id must be "
+                    "an integer."
+                )
             )
 
-        if not label:
+        if not (
+            1
+            <= session_id
+            <= UINT32_MAX
+        ):
+
             raise ValueError(
-                "session label cannot be empty"
+                (
+                    "session_id must lie between "
+                    "1 and 0xFFFFFFFF."
+                )
             )
 
-        if self.active_session_id is not None:
+        # ==============================================================
+        # LABEL
+        # ==============================================================
+
+        if not isinstance(
+            label,
+            str,
+        ):
+
+            raise TypeError(
+                (
+                    "session label must "
+                    "be a string."
+                )
+            )
+
+        label = (
+            label.strip()
+        )
+
+        if not (
+            label
+        ):
+
+            raise ValueError(
+                (
+                    "session label cannot "
+                    "be empty."
+                )
+            )
+
+        # ==============================================================
+        # EXISTING SESSION
+        # ==============================================================
+
+        if (
+            self.active_session_id
+            is not None
+        ):
+
             raise RuntimeError(
                 (
-                    "EventPipeline already has an active session "
+                    "EventPipeline already has "
+                    "an active session "
                     f"0x{self.active_session_id:08X}"
                 )
             )
 
-        # --------------------------------------------------------------
+        # ==============================================================
         # PERSIST SESSION FIRST
-        # --------------------------------------------------------------
+        # ==============================================================
 
         self.database.start_session(
             session_id,
             label,
         )
 
-        # --------------------------------------------------------------
+        # ==============================================================
         # ACTIVATE PIPELINE STATE
-        # --------------------------------------------------------------
+        # ==============================================================
 
-        self.active_session_id = session_id
-        self.active_session_label = label
+        self.active_session_id = (
+            session_id
+        )
 
-        self.completed_events = 0
+        self.active_session_label = (
+            label
+        )
 
-        self.last_event_db_id = None
-        self.last_best_node_id = None
-        self.last_features = None
-        self.last_classification = None
+        self.completed_events = (
+            0
+        )
+
+        self.last_event_db_id = (
+            None
+        )
+
+        self.last_best_node_id = (
+            None
+        )
+
+        self.last_features = (
+            None
+        )
+
+        self.last_classification = (
+            None
+        )
 
         self.detector.reset()
 
-        # --------------------------------------------------------------
+        # ==============================================================
         # LOG
-        # --------------------------------------------------------------
+        # ==============================================================
 
         if (
             self.classification_enabled
-            and self.classifier_backend is not None
+            and self.classifier_backend
+            is not None
         ):
+
             logger.info(
                 (
                     "Event pipeline session started "
@@ -309,7 +703,9 @@ class EventPipeline:
                 self.classifier_backend.name,
                 self.classifier_backend.version,
             )
+
         else:
+
             logger.info(
                 (
                     "Event pipeline session started "
@@ -319,22 +715,62 @@ class EventPipeline:
                 session_id,
             )
 
-    def stop_session(self) -> None:
+    # ==================================================================
+    # STOP SESSION
+    # ==================================================================
+
+    def stop_session(
+        self,
+    ) -> None:
         """
         Stop the current event-processing session.
+
+        Calling this method while no session is active is safe.
 
         Runtime state is cleared even if persistence shutdown raises.
         """
 
-        session_id = self.active_session_id
+        session_id = (
+            self.active_session_id
+        )
+
+        # ==============================================================
+        # ALREADY INACTIVE
+        # ==============================================================
+
+        if (
+            session_id
+            is None
+        ):
+
+            self.active_session_label = (
+                None
+            )
+
+            self.detector.reset()
+
+            return
+
+        # ==============================================================
+        # DATABASE + RUNTIME TEARDOWN
+        # ==============================================================
 
         try:
+
             self.database.stop_session(
                 session_id
             )
+
         finally:
-            self.active_session_id = None
-            self.active_session_label = None
+
+            self.active_session_id = (
+                None
+            )
+
+            self.active_session_label = (
+                None
+            )
+
             self.detector.reset()
 
     # ==================================================================
@@ -344,46 +780,99 @@ class EventPipeline:
     def on_audio(
         self,
         block: AudioBlock,
-    ) -> list[AcousticEvent]:
+    ) -> list[
+        AcousticEvent
+    ]:
         """
         Feed one audio block into the event detector.
 
-        Audio received outside an active session or from a stale session
-        is ignored by the event-processing layer.
+        Audio outside the active acquisition session is ignored.
         """
 
-        if self.active_session_id is None:
-            return []
+        if not isinstance(
+            block,
+            AudioBlock,
+        ):
 
-        if block.session_id != self.active_session_id:
+            raise TypeError(
+                "block must be an AudioBlock."
+            )
+
+        # ==============================================================
+        # NO ACTIVE SESSION
+        # ==============================================================
+
+        if (
+            self.active_session_id
+            is None
+        ):
+
+            return (
+                []
+            )
+
+        # ==============================================================
+        # STALE SESSION
+        # ==============================================================
+
+        if (
+            block.session_id
+            != self.active_session_id
+        ):
+
             logger.debug(
                 (
                     "Ignoring stale audio block "
-                    "node=%s block_session=0x%08X "
+                    "node=%s "
+                    "block_session=0x%08X "
                     "active_session=0x%08X"
                 ),
                 block.node_id,
                 block.session_id,
                 self.active_session_id,
             )
-            return []
 
-        events = self.detector.process(
-            block
+            return (
+                []
+            )
+
+        # ==============================================================
+        # DETECTOR
+        # ==============================================================
+
+        events = (
+            self.detector.process(
+                block
+            )
         )
 
-        for event in events:
+        # ==============================================================
+        # COMPLETE EVENTS
+        # ==============================================================
+
+        for event in (
+            events
+        ):
+
             try:
+
                 self._persist_event(
                     event
                 )
+
             except Exception:
+
                 logger.exception(
-                    "Failed to process event %s",
+                    (
+                        "Failed to process "
+                        "event %s"
+                    ),
                     event.event_id,
                 )
 
-        return events
+        return (
+            events
+        )
 
     # ==================================================================
     # LOCALIZATION WINDOW SELECTION
@@ -392,101 +881,181 @@ class EventPipeline:
     def _localization_start(
         self,
         event: AcousticEvent,
-    ) -> tuple[int, int]:
+    ) -> tuple[
+        int,
+        int,
+    ]:
         """
         Select a high-energy event region for TDOA localization.
 
         Uses an O(n) cumulative-energy search rather than repeatedly
-        convolving the entire event with a rectangular kernel.
+        convolving the event with a rectangular kernel.
         """
 
         window_samples = int(
-            self.config.localization.window_samples
+            self.config
+            .localization
+            .window_samples
         )
 
         event_length = int(
             event.sample_count
         )
 
-        if event_length <= 0:
+        # ==============================================================
+        # INVALID / EMPTY EVENT
+        # ==============================================================
+
+        if (
+            event_length
+            <= 0
+        ):
+
             return (
-                int(event.start_sample),
+                int(
+                    event.start_sample
+                ),
                 0,
             )
 
-        if window_samples <= 0:
+        if (
+            window_samples
+            <= 0
+        ):
+
             return (
-                int(event.start_sample),
+                int(
+                    event.start_sample
+                ),
                 0,
             )
 
-        # --------------------------------------------------------------
+        # ==============================================================
         # EVENT SHORTER THAN LOCALIZATION WINDOW
-        # --------------------------------------------------------------
+        # ==============================================================
 
-        if event_length <= window_samples:
+        if (
+            event_length
+            <= window_samples
+        ):
+
             return (
                 max(
                     0,
-                    int(event.start_sample),
+                    int(
+                        event.start_sample
+                    ),
                 ),
                 event_length,
             )
 
+        # ==============================================================
+        # REFERENCE MICROPHONE WINDOW
+        # ==============================================================
+
         reference_node = (
-            self.config.localization.reference_node
+            self.config
+            .localization
+            .reference_node
         )
 
-        samples = self.streams.get_window(
-            reference_node,
-            event.start_sample,
-            event_length,
+        samples = (
+            self.streams.get_window(
+                reference_node,
+                event.start_sample,
+                event_length,
+            )
         )
 
-        x = np.asarray(
-            samples,
-            dtype=np.float64,
+        x = (
+            np.asarray(
+                samples,
+                dtype=
+                    np.float64,
+            )
         )
 
-        if x.size == 0:
+        if (
+            x.size
+            == 0
+        ):
+
             return (
-                int(event.start_sample),
+                int(
+                    event.start_sample
+                ),
                 0,
             )
 
-        if x.size <= window_samples:
+        if (
+            x.size
+            <= window_samples
+        ):
+
             return (
-                int(event.start_sample),
-                int(x.size),
+                int(
+                    event.start_sample
+                ),
+                int(
+                    x.size
+                ),
             )
 
-        # --------------------------------------------------------------
+        # ==============================================================
         # O(n) ROLLING ENERGY
-        # --------------------------------------------------------------
+        # ==============================================================
 
-        energy = x * x
-
-        cumulative = np.empty(
-            energy.size + 1,
-            dtype=np.float64,
+        energy = (
+            x
+            * x
         )
 
-        cumulative[0] = 0.0
+        cumulative = (
+            np.empty(
+                energy.size
+                + 1,
+                dtype=
+                    np.float64,
+            )
+        )
+
+        cumulative[
+            0
+        ] = (
+            0.0
+        )
 
         np.cumsum(
             energy,
-            dtype=np.float64,
-            out=cumulative[1:],
+            dtype=
+                np.float64,
+            out=
+                cumulative[
+                    1:
+                ],
         )
 
         rolling_energy = (
-            cumulative[window_samples:]
-            - cumulative[:-window_samples]
+            cumulative[
+                window_samples:
+            ]
+            - cumulative[
+                :
+                -window_samples
+            ]
         )
 
-        if rolling_energy.size == 0:
-            relative_start = 0
+        if (
+            rolling_energy.size
+            == 0
+        ):
+
+            relative_start = (
+                0
+            )
+
         else:
+
             relative_start = int(
                 np.argmax(
                     rolling_energy
@@ -514,47 +1083,76 @@ class EventPipeline:
         """
 
         frame_length = int(
-            self.config.dsp.snr_frame_length
+            self.config
+            .dsp
+            .snr_frame_length
         )
 
-        if frame_length <= 0:
-            return np.array(
-                [],
-                dtype=np.float64,
+        if (
+            frame_length
+            <= 0
+        ):
+
+            return (
+                np.array(
+                    [],
+                    dtype=
+                        np.float64,
+                )
             )
 
-        x = np.asarray(
-            signal,
-            dtype=np.float64,
+        x = (
+            np.asarray(
+                signal,
+                dtype=
+                    np.float64,
+            )
         )
 
-        if x.size == 0:
-            return np.array(
-                [],
-                dtype=np.float64,
+        if (
+            x.size
+            == 0
+        ):
+
+            return (
+                np.array(
+                    [],
+                    dtype=
+                        np.float64,
+                )
             )
 
-        # --------------------------------------------------------------
+        # ==============================================================
         # VERY SHORT SIGNAL
-        # --------------------------------------------------------------
+        # ==============================================================
 
-        if x.size < frame_length:
+        if (
+            x.size
+            < frame_length
+        ):
+
             value = float(
                 np.sqrt(
                     np.mean(
-                        x * x
+                        x
+                        * x
                     )
                 )
             )
 
-            return np.array(
-                [value],
-                dtype=np.float64,
+            return (
+                np.array(
+                    [
+                        value
+                    ],
+                    dtype=
+                        np.float64,
+                )
             )
 
-        # --------------------------------------------------------------
+        # ==============================================================
         # COMPLETE NON-OVERLAPPING FRAMES
-        # --------------------------------------------------------------
+        # ==============================================================
 
         frame_count = (
             x.size
@@ -567,23 +1165,33 @@ class EventPipeline:
         )
 
         frames = (
-            x[:usable_samples]
+            x[
+                :
+                usable_samples
+            ]
             .reshape(
                 frame_count,
                 frame_length,
             )
         )
 
-        rms_values = np.sqrt(
-            np.mean(
-                frames * frames,
-                axis=1,
+        rms_values = (
+            np.sqrt(
+                np.mean(
+                    frames
+                    * frames,
+                    axis=
+                        1,
+                )
             )
         )
 
-        return np.asarray(
-            rms_values,
-            dtype=np.float64,
+        return (
+            np.asarray(
+                rms_values,
+                dtype=
+                    np.float64,
+            )
         )
 
     # ==================================================================
@@ -595,32 +1203,49 @@ class EventPipeline:
         signal: np.ndarray,
     ) -> float | None:
         """
-        Estimate background RMS from the event's pre-trigger region.
+        Estimate background RMS from the event pre-trigger region.
         """
 
-        x = np.asarray(
-            signal,
-            dtype=np.float32,
+        x = (
+            np.asarray(
+                signal,
+                dtype=
+                    np.float32,
+            )
         )
 
-        if x.size == 0:
-            return None
+        if (
+            x.size
+            == 0
+        ):
+
+            return (
+                None
+            )
 
         pre_pad_samples = int(
             round(
-                self.config.detection.pre_pad_s
-                * self.config.audio.sample_rate
+                self.config
+                .detection
+                .pre_pad_s
+                * self.config
+                .audio
+                .sample_rate
             )
         )
 
         preferred_noise_samples = int(
             pre_pad_samples
-            * self.config.dsp.noise_prepad_fraction
+            * self.config
+            .dsp
+            .noise_prepad_fraction
         )
 
         preferred_noise_samples = max(
             int(
-                self.config.dsp.snr_frame_length
+                self.config
+                .dsp
+                .snr_frame_length
             ),
             preferred_noise_samples,
         )
@@ -630,37 +1255,61 @@ class EventPipeline:
             x.size,
         )
 
-        noise_region = x[
-            :preferred_noise_samples
-        ]
-
-        rms_values = self._frame_rms_values(
-            noise_region
+        noise_region = (
+            x[
+                :
+                preferred_noise_samples
+            ]
         )
 
-        if rms_values.size == 0:
-            return None
-
-        finite_values = rms_values[
-            np.isfinite(
-                rms_values
+        rms_values = (
+            self._frame_rms_values(
+                noise_region
             )
-        ]
+        )
 
-        if finite_values.size == 0:
-            return None
+        if (
+            rms_values.size
+            == 0
+        ):
+
+            return (
+                None
+            )
+
+        finite_values = (
+            rms_values[
+                np.isfinite(
+                    rms_values
+                )
+            ]
+        )
+
+        if (
+            finite_values.size
+            == 0
+        ):
+
+            return (
+                None
+            )
 
         noise_rms = float(
             np.quantile(
                 finite_values,
-                self.config.dsp.noise_quantile,
+                self.config
+                .dsp
+                .noise_quantile,
             )
         )
 
         if not math.isfinite(
             noise_rms
         ):
-            return None
+
+            return (
+                None
+            )
 
         return max(
             0.0,
@@ -677,59 +1326,96 @@ class EventPipeline:
         noise_rms: float | None,
     ) -> float:
         """
-        Calculate a robust SNR-like channel-selection score.
+        Calculate robust SNR-like channel-selection score.
 
-        Best-node selection affects feature extraction/classification.
+        Best-node selection affects:
+
+            feature extraction
+            classification
 
         Localization continues to use all synchronized microphones.
         """
 
-        rms_values = self._frame_rms_values(
-            signal
+        rms_values = (
+            self._frame_rms_values(
+                signal
+            )
         )
 
-        if rms_values.size == 0:
-            return float(
-                "-inf"
+        if (
+            rms_values.size
+            == 0
+        ):
+
+            return (
+                float(
+                    "-inf"
+                )
             )
 
-        finite_values = rms_values[
-            np.isfinite(
-                rms_values
-            )
-        ]
+        finite_values = (
+            rms_values[
+                np.isfinite(
+                    rms_values
+                )
+            ]
+        )
 
-        if finite_values.size == 0:
-            return float(
-                "-inf"
+        if (
+            finite_values.size
+            == 0
+        ):
+
+            return (
+                float(
+                    "-inf"
+                )
             )
 
         signal_level = float(
             np.quantile(
                 finite_values,
-                self.config.dsp.signal_quantile,
+                self.config
+                .dsp
+                .signal_quantile,
             )
         )
 
         if (
-            not math.isfinite(signal_level)
-            or signal_level <= 0.0
+            not math.isfinite(
+                signal_level
+            )
+            or signal_level
+            <= 0.0
         ):
-            return float(
-                "-inf"
+
+            return (
+                float(
+                    "-inf"
+                )
             )
 
         digital_floor = float(
-            self.config.dsp.digital_noise_floor
+            self.config
+            .dsp
+            .digital_noise_floor
         )
 
-        if noise_rms is None:
+        if (
+            noise_rms
+            is None
+        ):
+
             effective_noise = (
                 digital_floor
             )
+
         else:
+
             effective_noise = max(
-                float(noise_rms),
+                float(
+                    noise_rms
+                ),
                 digital_floor,
             )
 
@@ -744,12 +1430,17 @@ class EventPipeline:
         if not math.isfinite(
             score
         ):
-            return float(
-                "-inf"
+
+            return (
+                float(
+                    "-inf"
+                )
             )
 
-        return float(
-            score
+        return (
+            float(
+                score
+            )
         )
 
     # ==================================================================
@@ -762,26 +1453,81 @@ class EventPipeline:
         event: AcousticEvent,
     ) -> np.ndarray | None:
         """
-        Prepare a normalized waveform for classification backends.
+        Prepare normalized waveform input for classifiers that need audio.
 
-        Feature extraction success is intentionally irrelevant here.
+        No waveform copy is created when the active backend does not use
+        audio.
+
+        Feature extraction success remains independent from this path.
         """
 
-        if not self.classification_enabled:
-            return None
+        # ==============================================================
+        # CLASSIFICATION DISABLED
+        # ==============================================================
 
         if not (
-            self.config.classification
+            self.classification_enabled
+        ):
+
+            return (
+                None
+            )
+
+        backend = (
+            self.classifier_backend
+        )
+
+        if (
+            backend
+            is None
+        ):
+
+            return (
+                None
+            )
+
+        # ==============================================================
+        # BACKEND DOES NOT REQUIRE AUDIO
+        # ==============================================================
+
+        if not (
+            backend.requires_audio
+        ):
+
+            return (
+                None
+            )
+
+        # ==============================================================
+        # CONFIGURATION POLICY
+        # ==============================================================
+
+        if not (
+            self.config
+            .classification
             .provide_model_audio
         ):
-            return None
+
+            return (
+                None
+            )
+
+        # ==============================================================
+        # MODEL SIGNAL
+        # ==============================================================
 
         try:
-            model_audio = np.asarray(
-                processed.model_signal,
-                dtype=np.float32,
+
+            model_audio = (
+                np.asarray(
+                    processed.model_signal,
+                    dtype=
+                        np.float32,
+                )
             )
+
         except Exception as exc:
+
             logger.warning(
                 (
                     "Event %s: unable to construct "
@@ -790,9 +1536,20 @@ class EventPipeline:
                 event.event_id,
                 exc,
             )
-            return None
 
-        if model_audio.ndim != 1:
+            return (
+                None
+            )
+
+        # ==============================================================
+        # SHAPE
+        # ==============================================================
+
+        if (
+            model_audio.ndim
+            != 1
+        ):
+
             logger.warning(
                 (
                     "Event %s: model waveform "
@@ -800,16 +1557,34 @@ class EventPipeline:
                 ),
                 event.event_id,
             )
-            return None
 
-        if model_audio.size == 0:
-            return None
+            return (
+                None
+            )
+
+        # ==============================================================
+        # LENGTH
+        # ==============================================================
+
+        if (
+            model_audio.size
+            == 0
+        ):
+
+            return (
+                None
+            )
+
+        # ==============================================================
+        # FINITE VALUES
+        # ==============================================================
 
         if not np.all(
             np.isfinite(
                 model_audio
             )
         ):
+
             logger.warning(
                 (
                     "Event %s: model waveform "
@@ -817,12 +1592,20 @@ class EventPipeline:
                 ),
                 event.event_id,
             )
-            return None
+
+            return (
+                None
+            )
+
+        # ==============================================================
+        # CONTIGUOUS PRIVATE COPY
+        # ==============================================================
 
         return (
             np.ascontiguousarray(
                 model_audio,
-                dtype=np.float32,
+                dtype=
+                    np.float32,
             )
             .copy()
         )
@@ -842,35 +1625,60 @@ class EventPipeline:
         """
         Select the best available microphone for DSP/classification.
 
-        Critically, model_audio and handcrafted features are generated
+        Model waveform and handcrafted features are generated
         independently after best-channel selection.
 
         Therefore:
 
             feature extraction failure
-                does NOT destroy model_audio
+                does not destroy model_audio
 
             model-audio preparation failure
-                does NOT destroy extracted features
+                does not destroy extracted features
         """
 
-        best_node_id: int | None = None
-
-        best_score = float(
-            "-inf"
+        best_node_id: (
+            int
+            | None
+        ) = (
+            None
         )
 
-        best_audio: PreprocessedAudio | None = None
-        best_noise_rms: float | None = None
+        best_score = (
+            float(
+                "-inf"
+            )
+        )
+
+        best_audio: (
+            PreprocessedAudio
+            | None
+        ) = (
+            None
+        )
+
+        best_noise_rms: (
+            float
+            | None
+        ) = (
+            None
+        )
 
         # ==============================================================
         # EVALUATE ALL MICROPHONES
         # ==============================================================
 
         for node_id in sorted(
-            self.config.expected_nodes
+            self.config
+            .expected_nodes
         ):
+
+            # ----------------------------------------------------------
+            # RAW WINDOW
+            # ----------------------------------------------------------
+
             try:
+
                 pcm_samples = (
                     self.streams.get_window(
                         node_id,
@@ -878,7 +1686,9 @@ class EventPipeline:
                         event.sample_count,
                     )
                 )
+
             except Exception as exc:
+
                 logger.warning(
                     (
                         "Event %s: unable to read "
@@ -888,18 +1698,26 @@ class EventPipeline:
                     node_id,
                     exc,
                 )
+
                 continue
 
-            pcm_samples = np.asarray(
-                pcm_samples,
-                dtype=np.int16,
+            pcm_samples = (
+                np.asarray(
+                    pcm_samples,
+                    dtype=
+                        np.int16,
+                )
             )
 
             if (
-                pcm_samples.ndim != 1
+                pcm_samples.ndim
+                != 1
                 or pcm_samples.size
-                < self.config.dsp.minimum_event_samples
+                < self.config
+                .dsp
+                .minimum_event_samples
             ):
+
                 continue
 
             # ----------------------------------------------------------
@@ -907,13 +1725,16 @@ class EventPipeline:
             # ----------------------------------------------------------
 
             try:
+
                 processed = (
                     preprocess_event_audio(
                         pcm_samples,
                         self.preprocessing_config,
                     )
                 )
+
             except Exception as exc:
+
                 logger.warning(
                     (
                         "Event %s: preprocessing "
@@ -923,6 +1744,7 @@ class EventPipeline:
                     node_id,
                     exc,
                 )
+
                 continue
 
             # ----------------------------------------------------------
@@ -957,25 +1779,41 @@ class EventPipeline:
             )
 
             # ----------------------------------------------------------
-            # SELECT BEST
+            # BEST CHANNEL
             # ----------------------------------------------------------
 
-            if score > best_score:
-                best_score = score
+            if (
+                score
+                > best_score
+            ):
+
+                best_score = (
+                    score
+                )
+
                 best_node_id = int(
                     node_id
                 )
-                best_audio = processed
-                best_noise_rms = noise_rms
+
+                best_audio = (
+                    processed
+                )
+
+                best_noise_rms = (
+                    noise_rms
+                )
 
         # ==============================================================
         # NO VALID MICROPHONE
         # ==============================================================
 
         if (
-            best_node_id is None
-            or best_audio is None
+            best_node_id
+            is None
+            or best_audio
+            is None
         ):
+
             return (
                 None,
                 None,
@@ -984,10 +1822,6 @@ class EventPipeline:
 
         # ==============================================================
         # MODEL AUDIO
-        # ==============================================================
-        #
-        # IMPORTANT:
-        # This occurs before feature extraction.
         # ==============================================================
 
         model_audio = (
@@ -1001,17 +1835,27 @@ class EventPipeline:
         # FEATURE EXTRACTION
         # ==============================================================
 
-        features: AcousticFeatures | None = None
+        features: (
+            AcousticFeatures
+            | None
+        ) = (
+            None
+        )
 
         try:
+
             features = (
                 extract_acoustic_features(
                     best_audio,
-                    noise_rms=best_noise_rms,
-                    config=self.feature_config,
+                    noise_rms=
+                        best_noise_rms,
+                    config=
+                        self.feature_config,
                 )
             )
+
         except Exception as exc:
+
             logger.warning(
                 (
                     "Event %s: feature extraction "
@@ -1022,10 +1866,11 @@ class EventPipeline:
                 exc,
             )
 
-            # Do NOT return early.
+            # ----------------------------------------------------------
+            # Do not return early.
             #
-            # Future waveform-only classifiers may still classify this
-            # event from model_audio.
+            # Waveform-based classifiers may still classify this event.
+            # ----------------------------------------------------------
 
         return (
             best_node_id,
@@ -1048,36 +1893,81 @@ class EventPipeline:
         """
         Execute the configured classification backend.
 
-        This method deliberately does not assume features are mandatory.
-        Backend.validate_input() determines the actual requirements.
+        Input ownership
+        ---------------
+        EventPipeline creates the backend-independent ClassificationInput.
+
+        The classifier backend owns requirement validation.
+
+        EventPipeline intentionally does NOT call:
+
+            backend.validate_input(...)
+
+        before:
+
+            backend.classify(...)
+
+        because composite backends such as EnsembleClassifierBackend may
+        allow one member to fail while another remains usable.
         """
 
-        if not self.classification_enabled:
-            return None
+        # ==============================================================
+        # CLASSIFICATION DISABLED
+        # ==============================================================
 
-        backend = self.classifier_backend
+        if not (
+            self.classification_enabled
+        ):
 
-        if backend is None:
-            return None
+            return (
+                None
+            )
+
+        backend = (
+            self.classifier_backend
+        )
+
+        if (
+            backend
+            is None
+        ):
+
+            return (
+                None
+            )
 
         # ==============================================================
-        # STANDARD BACKEND-INDEPENDENT INPUT
+        # BACKEND-INDEPENDENT INPUT
         # ==============================================================
 
         try:
+
             classification_input = (
                 ClassificationInput(
-                    features=features,
-                    sample_rate=(
-                        self.config.audio.sample_rate
-                    ),
-                    model_audio=model_audio,
-                    source_node_id=best_node_id,
-                    detector_event_id=event.event_id,
-                    session_id=event.session_id,
+                    features=
+                        features,
+
+                    sample_rate=
+                        self.config
+                        .audio
+                        .sample_rate,
+
+                    model_audio=
+                        model_audio,
+
+                    source_node_id=
+                        best_node_id,
+
+                    detector_event_id=
+                        event.event_id,
+
+                    session_id=
+                        event.session_id,
                 )
             )
+
         except Exception as exc:
+
             logger.warning(
                 (
                     "Event %s classification input "
@@ -1086,37 +1976,40 @@ class EventPipeline:
                 event.event_id,
                 exc,
             )
-            return None
 
-        # ==============================================================
-        # BACKEND REQUIREMENTS
-        # ==============================================================
-
-        try:
-            backend.validate_input(
-                classification_input
+            return (
+                None
             )
-        except Exception as exc:
-            logger.warning(
-                (
-                    "Event %s cannot be classified "
-                    "by backend '%s': %s"
-                ),
-                event.event_id,
-                backend.name,
-                exc,
-            )
-            return None
 
         # ==============================================================
         # BACKEND EXECUTION
         # ==============================================================
+        #
+        # Each backend is responsible for validating its own required
+        # data.
+        #
+        # Examples:
+        #
+        # heuristic:
+        #     validates features
+        #
+        # BirdNET:
+        #     validates waveform
+        #
+        # ensemble:
+        #     members validate independently
+        # ==============================================================
 
         try:
-            result = backend.classify(
-                classification_input
+
+            result = (
+                backend.classify(
+                    classification_input
+                )
             )
+
         except Exception as exc:
+
             logger.warning(
                 (
                     "Event %s classification failed "
@@ -1126,16 +2019,20 @@ class EventPipeline:
                 backend.name,
                 exc,
             )
-            return None
 
-        # --------------------------------------------------------------
-        # CONTRACT VALIDATION
-        # --------------------------------------------------------------
+            return (
+                None
+            )
+
+        # ==============================================================
+        # RESULT CONTRACT
+        # ==============================================================
 
         if not isinstance(
             result,
             ClassificationResult,
         ):
+
             logger.warning(
                 (
                     "Event %s classifier backend '%s' "
@@ -1144,11 +2041,18 @@ class EventPipeline:
                 ),
                 event.event_id,
                 backend.name,
-                type(result).__name__,
+                type(
+                    result
+                ).__name__,
             )
-            return None
 
-        return result
+            return (
+                None
+            )
+
+        return (
+            result
+        )
 
     # ==================================================================
     # EVENT PROCESSING
@@ -1160,13 +2064,29 @@ class EventPipeline:
     ) -> None:
         """
         Execute the complete processing chain for one completed event.
+
+        Persistence policy
+        ------------------
+        The core acoustic event remains persistable even when optional
+        downstream stages fail.
+
+        Optional stages include:
+
+            localization
+            DSP feature extraction
+            classification
+            individual WAV writes
         """
 
         # ==============================================================
         # ACTIVE SESSION REQUIRED
         # ==============================================================
 
-        if self.active_session_id is None:
+        if (
+            self.active_session_id
+            is None
+        ):
+
             logger.debug(
                 (
                     "Ignoring event %s because "
@@ -1174,6 +2094,7 @@ class EventPipeline:
                 ),
                 event.event_id,
             )
+
             return
 
         # ==============================================================
@@ -1184,6 +2105,7 @@ class EventPipeline:
             event.session_id
             != self.active_session_id
         ):
+
             logger.warning(
                 (
                     "Ignoring event from stale session "
@@ -1193,6 +2115,7 @@ class EventPipeline:
                 event.session_id,
                 self.active_session_id,
             )
+
             return
 
         # ==============================================================
@@ -1209,7 +2132,8 @@ class EventPipeline:
         # ==============================================================
 
         environment = (
-            self.streams.get_environment_near(
+            self.streams
+            .get_environment_near(
                 midpoint
             )
         )
@@ -1218,28 +2142,43 @@ class EventPipeline:
         # LOCALIZATION
         # ==============================================================
 
-        localization: LocalizationResult | None = None
+        localization: (
+            LocalizationResult
+            | None
+        ) = (
+            None
+        )
 
         try:
+
             (
                 localization_start,
                 localization_length,
-            ) = self._localization_start(
-                event
+            ) = (
+                self._localization_start(
+                    event
+                )
             )
 
             if (
                 localization_length
-                >= self.config.dsp.minimum_event_samples
+                >= self.config
+                .dsp
+                .minimum_event_samples
             ):
+
                 localization = (
                     self.localizer.locate_window(
-                        start_sample=localization_start,
-                        length=localization_length,
+                        start_sample=
+                            localization_start,
+
+                        length=
+                            localization_length,
                     )
                 )
 
         except Exception as exc:
+
             logger.warning(
                 (
                     "Event %s localization "
@@ -1253,19 +2192,41 @@ class EventPipeline:
         # BEST MICROPHONE + DSP
         # ==============================================================
 
-        best_node_id: int | None = None
-        features: AcousticFeatures | None = None
-        model_audio: np.ndarray | None = None
+        best_node_id: (
+            int
+            | None
+        ) = (
+            None
+        )
+
+        features: (
+            AcousticFeatures
+            | None
+        ) = (
+            None
+        )
+
+        model_audio: (
+            np.ndarray
+            | None
+        ) = (
+            None
+        )
 
         try:
+
             (
                 best_node_id,
                 features,
                 model_audio,
-            ) = self._extract_best_channel_data(
-                event
+            ) = (
+                self._extract_best_channel_data(
+                    event
+                )
             )
+
         except Exception as exc:
+
             logger.warning(
                 (
                     "Event %s DSP unavailable: %s"
@@ -1280,10 +2241,17 @@ class EventPipeline:
 
         classification = (
             self._classify_event(
-                event=event,
-                best_node_id=best_node_id,
-                features=features,
-                model_audio=model_audio,
+                event=
+                    event,
+
+                best_node_id=
+                    best_node_id,
+
+                features=
+                    features,
+
+                model_audio=
+                    model_audio,
             )
         )
 
@@ -1291,41 +2259,57 @@ class EventPipeline:
         # EVENT WAV STORAGE
         # ==============================================================
 
-        event_dir: Path | None = None
+        event_dir: (
+            Path
+            | None
+        ) = (
+            None
+        )
 
         if (
-            self.config.persistence.save_event_wav
+            self.config
+            .persistence
+            .save_event_wav
         ):
+
             label = (
                 self.active_session_label
+
                 or (
-                    f"session_"
+                    "session_"
                     f"{event.session_id:08X}"
                 )
             )
 
             event_dir = (
-                self.config.persistence.events_dir
+                self.config
+                .persistence
+                .events_dir
                 / label
                 / (
-                    f"event_"
+                    "event_"
                     f"{event.event_id:06d}"
                 )
             )
 
             event_dir.mkdir(
-                parents=True,
-                exist_ok=True,
+                parents=
+                    True,
+                exist_ok=
+                    True,
             )
 
-            # ----------------------------------------------------------
+            # ==========================================================
             # SYNCHRONIZED WAV FROM EVERY NODE
-            # ----------------------------------------------------------
+            # ==========================================================
 
             for node_id in sorted(
-                self.config.expected_nodes
+                self.config
+                .expected_nodes
             ):
+
                 try:
+
                     samples = (
                         self.streams.get_window(
                             node_id,
@@ -1336,11 +2320,14 @@ class EventPipeline:
 
                     self._write_wav(
                         event_dir
-                        / f"node_{node_id}.wav",
+                        / (
+                            f"node_{node_id}.wav"
+                        ),
                         samples,
                     )
 
                 except Exception as exc:
+
                     logger.warning(
                         (
                             "Event %s: failed to save "
@@ -1358,14 +2345,26 @@ class EventPipeline:
         database_event_id = (
             self.database.add_event(
                 event,
-                environment=environment,
-                localization=localization,
+
+                environment=
+                    environment,
+
+                localization=
+                    localization,
+
                 event_directory=(
                     None
-                    if event_dir is None
-                    else str(event_dir)
+
+                    if event_dir
+                    is None
+
+                    else str(
+                        event_dir
+                    )
                 ),
-                best_node_id=best_node_id,
+
+                best_node_id=
+                    best_node_id,
             )
         )
 
@@ -1374,16 +2373,27 @@ class EventPipeline:
         # ==============================================================
 
         if (
-            features is not None
-            and best_node_id is not None
+            features
+            is not None
+            and best_node_id
+            is not None
         ):
+
             try:
+
                 self.database.add_event_features(
-                    event_id=database_event_id,
-                    source_node_id=best_node_id,
-                    features=features,
+                    event_id=
+                        database_event_id,
+
+                    source_node_id=
+                        best_node_id,
+
+                    features=
+                        features,
                 )
+
             except Exception as exc:
+
                 logger.warning(
                     (
                         "Event %s stored, but "
@@ -1398,13 +2408,23 @@ class EventPipeline:
         # STORE CLASSIFICATION
         # ==============================================================
 
-        if classification is not None:
+        if (
+            classification
+            is not None
+        ):
+
             try:
+
                 self.database.add_classification(
-                    event_id=database_event_id,
-                    result=classification,
+                    event_id=
+                        database_event_id,
+
+                    result=
+                        classification,
                 )
+
             except Exception as exc:
+
                 logger.warning(
                     (
                         "Event %s stored, but "
@@ -1419,7 +2439,9 @@ class EventPipeline:
         # UPDATE RUNTIME STATE
         # ==============================================================
 
-        self.completed_events += 1
+        self.completed_events += (
+            1
+        )
 
         self.last_event_db_id = (
             database_event_id
@@ -1442,9 +2464,11 @@ class EventPipeline:
         # ==============================================================
 
         if (
-            localization is not None
+            localization
+            is not None
             and localization.position.success
         ):
+
             logger.info(
                 (
                     "EVENT #%d DB#%d "
@@ -1460,15 +2484,22 @@ class EventPipeline:
                 event.start_sample,
                 event.end_sample,
                 (
-                    str(best_node_id)
-                    if best_node_id is not None
+                    str(
+                        best_node_id
+                    )
+
+                    if best_node_id
+                    is not None
+
                     else "N/A"
                 ),
                 localization.position.x,
                 localization.position.y,
                 localization.speed_of_sound_mps,
             )
+
         else:
+
             logger.info(
                 (
                     "EVENT #%d DB#%d "
@@ -1483,8 +2514,13 @@ class EventPipeline:
                 event.start_sample,
                 event.end_sample,
                 (
-                    str(best_node_id)
-                    if best_node_id is not None
+                    str(
+                        best_node_id
+                    )
+
+                    if best_node_id
+                    is not None
+
                     else "N/A"
                 ),
             )
@@ -1493,7 +2529,11 @@ class EventPipeline:
         # DSP LOG
         # ==============================================================
 
-        if features is not None:
+        if (
+            features
+            is not None
+        ):
+
             logger.info(
                 (
                     "DSP event=%d "
@@ -1510,7 +2550,10 @@ class EventPipeline:
                 features.duration_s,
                 (
                     f"{features.snr_db:.2f}dB"
-                    if features.snr_db is not None
+
+                    if features.snr_db
+                    is not None
+
                     else "N/A"
                 ),
                 features.dominant_frequency_hz,
@@ -1524,23 +2567,31 @@ class EventPipeline:
         # ==============================================================
 
         if (
-            classification is not None
-            and self.classifier_backend is not None
+            classification
+            is not None
         ):
+
             second_label = (
-                classification.second_label.value
-                if classification.second_label is not None
+                classification
+                .second_label
+                .value
+
+                if classification.second_label
+                is not None
+
                 else "N/A"
             )
 
             second_confidence = (
-                classification.second_confidence
+                classification
+                .second_confidence
             )
 
             logger.info(
                 (
                     "CLASSIFICATION event=%d "
                     "backend=%s "
+                    "version=%s "
                     "label=%s "
                     "confidence=%.3f "
                     "second=%s "
@@ -1548,13 +2599,23 @@ class EventPipeline:
                     "margin=%.3f"
                 ),
                 event.event_id,
-                self.classifier_backend.name,
+
+                # ------------------------------------------------------
+                # Log the backend recorded by the actual result rather
+                # than merely the configured wrapper/backend object.
+                # ------------------------------------------------------
+
+                classification.classifier_name,
+                classification.classifier_version,
                 classification.label.value,
                 classification.confidence,
                 second_label,
                 (
                     f"{second_confidence:.3f}"
-                    if second_confidence is not None
+
+                    if second_confidence
+                    is not None
+
                     else "N/A"
                 ),
                 classification.margin,
@@ -1574,13 +2635,23 @@ class EventPipeline:
     ) -> None:
         """
         Persist one environmental telemetry packet.
+
+        Session ownership is normally enforced by the receiver/server
+        before this method is reached.
         """
 
         self.database.add_environment(
-            session_id=session_id,
-            node_id=node_id,
-            sample_index=sample_index,
-            environment=environment,
+            session_id=
+                session_id,
+
+            node_id=
+                node_id,
+
+            sample_index=
+                sample_index,
+
+            environment=
+                environment,
         )
 
     # ==================================================================
@@ -1594,37 +2665,69 @@ class EventPipeline:
     ) -> None:
         """
         Write one synchronized mono PCM16 event recording.
+
+        The source sample array is not modified.
         """
 
-        pcm = np.asarray(
-            samples,
-            dtype="<i2",
+        if not isinstance(
+            path,
+            Path,
+        ):
+
+            raise TypeError(
+                "path must be pathlib.Path."
+            )
+
+        pcm = (
+            np.asarray(
+                samples,
+                dtype=
+                    "<i2",
+            )
         )
 
-        if pcm.ndim != 1:
+        if (
+            pcm.ndim
+            != 1
+        ):
+
             raise ValueError(
-                "event WAV samples must be mono/1-D"
+                (
+                    "event WAV samples "
+                    "must be mono/1-D"
+                )
             )
 
         path.parent.mkdir(
-            parents=True,
-            exist_ok=True,
+            parents=
+                True,
+            exist_ok=
+                True,
         )
 
         with wave.open(
-            str(path),
+            str(
+                path
+            ),
             "wb",
         ) as wav:
+
             wav.setnchannels(
-                self.config.audio.channels
+                self.config
+                .audio
+                .channels
             )
 
             wav.setsampwidth(
-                self.config.audio.sample_width_bytes
+                self.config
+                .audio
+                .sample_width_bytes
             )
 
             wav.setframerate(
-                self.config.audio.sample_rate
+                self.config
+                .audio
+                .sample_rate
             )
 
             wav.writeframes(
