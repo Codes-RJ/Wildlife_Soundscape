@@ -2,15 +2,26 @@ from __future__ import annotations
 
 import os
 import wave
+
 from dataclasses import dataclass
+
 from pathlib import Path
+
 from typing import Iterable
 
 import numpy as np
 
-from config import AudioConfig
-from models import AudioBlock
-from node import NodeState
+from config import (
+    AudioConfig,
+)
+
+from models import (
+    AudioBlock,
+)
+
+from node import (
+    NodeState,
+)
 
 
 # ======================================================================
@@ -18,12 +29,131 @@ from node import NodeState
 # ======================================================================
 
 
-PCM16_MIN = -32768
-PCM16_MAX = 32767
+PCM16_MIN = (
+    -32768
+)
 
-# Silence is written in bounded chunks so a large sample-index gap does
-# not require allocating one enormous NumPy array.
-WAV_SILENCE_CHUNK_SAMPLES = 65_536
+PCM16_MAX = (
+    32767
+)
+
+
+UINT8_MAX = (
+    0xFF
+)
+
+UINT64_MAX = (
+    0xFFFFFFFFFFFFFFFF
+)
+
+
+# Silence is emitted in bounded chunks so a large sampleIndex gap does
+# not require one correspondingly huge temporary NumPy allocation.
+WAV_SILENCE_CHUNK_SAMPLES = (
+    65_536
+)
+
+
+# ======================================================================
+# INTEGER VALIDATION
+# ======================================================================
+
+
+def _require_integer(
+    value: int,
+    *,
+    name: str,
+) -> int:
+    """
+    Require a genuine integer value.
+
+    bool is rejected because Python treats bool as a subclass of int.
+    """
+
+    if isinstance(
+        value,
+        bool,
+    ):
+
+        raise TypeError(
+            f"{name} must be an integer"
+        )
+
+    if not isinstance(
+        value,
+        int,
+    ):
+
+        raise TypeError(
+            f"{name} must be an integer"
+        )
+
+    return int(
+        value
+    )
+
+
+def _require_node_id(
+    value: int,
+) -> int:
+    """
+    Validate one Protocol-v4 node identifier.
+    """
+
+    value = (
+        _require_integer(
+            value,
+            name=
+                "node_id",
+        )
+    )
+
+    if not (
+        1
+        <= value
+        <= UINT8_MAX
+    ):
+
+        raise ValueError(
+            (
+                "node_id must lie between "
+                "1 and 255"
+            )
+        )
+
+    return value
+
+
+def _require_uint64(
+    value: int,
+    *,
+    name: str,
+) -> int:
+    """
+    Validate one unsigned 64-bit sample-index value.
+    """
+
+    value = (
+        _require_integer(
+            value,
+            name=name,
+        )
+    )
+
+    if not (
+        0
+        <= value
+        <= UINT64_MAX
+    ):
+
+        raise ValueError(
+            (
+                f"{name} must lie in "
+                "the uint64 range"
+            )
+        )
+
+    return value
 
 
 # ======================================================================
@@ -37,13 +167,13 @@ WAV_SILENCE_CHUNK_SAMPLES = 65_536
 )
 class AlignedBlocks:
     """
-    Approximately sample-aligned audio blocks from requested nodes.
+    Approximately sample-aligned AUDIO blocks from requested nodes.
 
     target_sample_index
-        Common coarse sample-index target.
+        Common coarse sampleIndex target.
 
     blocks
-        Selected block for each node.
+        Selected AUDIO block for each node.
 
     offsets
         Difference between each selected block's starting sampleIndex
@@ -51,11 +181,11 @@ class AlignedBlocks:
 
     Important
     ---------
-    This represents coarse digital-stream alignment only.
+    This represents only digital/shared-clock coarse alignment.
 
-    Acoustic propagation delay is NOT removed here.
+    Acoustic propagation delay is deliberately NOT removed here.
 
-    Residual waveform delay remains available for GCC-PHAT/TDOA.
+    Sub-block waveform delay remains available for GCC-PHAT/TDOA.
     """
 
     target_sample_index: int
@@ -82,34 +212,54 @@ class StreamManager:
 
     Synchronization model
     ---------------------
-    Shared ESP32/I2S clock
-            ↓
-       sampleIndex
-            ↓
-      StreamManager
-            ↓
-      coarse alignment
-            ↓
-       PCM waveforms
-            ↓
-       GCC-PHAT/TDOA
 
-    This class NEVER uses the following for cross-node alignment:
+        Shared ESP32 I2S clock
+                ↓
+           sampleIndex
+                ↓
+          StreamManager
+                ↓
+        coarse alignment
+                ↓
+          PCM waveforms
+                ↓
+         GCC-PHAT / TDOA
+
+
+    The following are NEVER used for cross-node alignment:
 
         TCP packet arrival time
         laptop wall-clock time
         ESP32 localMicros
 
-    `localMicros` remains diagnostic information only.
 
-    Missing PCM samples are preserved as timeline gaps rather than
-    compressing the waveform.
+    Missing PCM remains represented as missing positions on the absolute
+    sample timeline.
+
+    get_window() reconstructs those positions using fill values rather
+    than compressing the waveform.
     """
+
+    # ==================================================================
+    # INITIALIZATION
+    # ==================================================================
 
     def __init__(
         self,
         audio_config: AudioConfig,
     ) -> None:
+
+        if not isinstance(
+            audio_config,
+            AudioConfig,
+        ):
+
+            raise TypeError(
+                (
+                    "audio_config must be "
+                    "an AudioConfig instance"
+                )
+            )
 
         self.audio_config = (
             audio_config
@@ -131,20 +281,85 @@ class StreamManager:
         """
         Register or replace runtime state for one ESP32 node.
 
-        Re-registration normally occurs after a TCP reconnect.
+        Replacement normally occurs following a TCP reconnect.
         """
 
-        node_id = int(
-            state.node_id
+        if not isinstance(
+            state,
+            NodeState,
+        ):
+
+            raise TypeError(
+                (
+                    "state must be "
+                    "a NodeState instance"
+                )
+            )
+
+        node_id = (
+            _require_node_id(
+                state.node_id
+            )
         )
 
+        # --------------------------------------------------------------
+        # AUDIO CONTRACT
+        # --------------------------------------------------------------
+        #
+        # NodeState should be using the same acquisition settings as the
+        # StreamManager that owns it.
+        # --------------------------------------------------------------
+
         if (
-            node_id
-            <= 0
+            state.audio_config.sample_rate
+            != self.audio_config.sample_rate
         ):
 
             raise ValueError(
-                "node_id must be greater than 0"
+                (
+                    f"node {node_id} AudioConfig "
+                    "sample_rate does not match "
+                    "StreamManager"
+                )
+            )
+
+        if (
+            state.audio_config.frames_per_block
+            != self.audio_config.frames_per_block
+        ):
+
+            raise ValueError(
+                (
+                    f"node {node_id} AudioConfig "
+                    "frames_per_block does not match "
+                    "StreamManager"
+                )
+            )
+
+        if (
+            state.audio_config.channels
+            != self.audio_config.channels
+        ):
+
+            raise ValueError(
+                (
+                    f"node {node_id} AudioConfig "
+                    "channels do not match "
+                    "StreamManager"
+                )
+            )
+
+        if (
+            state.audio_config.sample_width_bytes
+            != self.audio_config.sample_width_bytes
+        ):
+
+            raise ValueError(
+                (
+                    f"node {node_id} AudioConfig "
+                    "sample width does not match "
+                    "StreamManager"
+                )
             )
 
         self.nodes[
@@ -152,42 +367,54 @@ class StreamManager:
         ] = state
 
     # ==================================================================
-    # SESSION RESET
+    # AUDIO-TIMELINE RESET
     # ==================================================================
 
     def reset_audio_buffers(
         self,
     ) -> None:
         """
-        Remove buffered PCM from all currently registered nodes.
+        Reset sample-dependent PCM state before a new acquisition START.
 
-        This must occur before every new acquisition session because
-        each ESP32 restarts its sampleIndex timeline at zero.
+        Why this is necessary
+        ---------------------
+        Every ESP32 restarts sampleIndex from zero on START.
 
-        Without this reset:
+        Therefore the following values from the previous session cannot
+        remain authoritative:
 
-            Session A sampleIndex = 0...
-            Session B sampleIndex = 0...
+            buffered PCM
+            expected_next_audio_sample
+            last_sample_index
+            latest session-specific SYNC marker
 
-        could coexist inside the same laptop-side buffer and produce
-        invalid extraction/localization.
+        Network sequence tracking is deliberately preserved here.
+
+        The first packet belonging to the new non-zero session will let
+        NodeState.observe_header() establish/reset the complete session
+        state.
+
+        Environment history is likewise left to NodeState's explicit
+        session transition because it carries its own session IDs.
         """
 
         for state in (
             self.nodes.values()
         ):
 
-            audio_blocks = getattr(
-                state,
-                "audio_blocks",
-                None,
+            state.audio_blocks.clear()
+
+            state.expected_next_audio_sample = (
+                None
             )
 
-            if audio_blocks is None:
+            state.last_sample_index = (
+                None
+            )
 
-                continue
-
-            audio_blocks.clear()
+            state.latest_sync = (
+                None
+            )
 
     # ==================================================================
     # AUDIO INGESTION
@@ -200,6 +427,18 @@ class StreamManager:
         """
         Add one PCM block to its registered node state.
         """
+
+        if not isinstance(
+            block,
+            AudioBlock,
+        ):
+
+            raise TypeError(
+                (
+                    "block must be "
+                    "an AudioBlock instance"
+                )
+            )
 
         state = (
             self.nodes.get(
@@ -229,32 +468,40 @@ class StreamManager:
         node_ids: Iterable[int],
     ) -> tuple[int, ...]:
         """
-        Normalize and validate a requested node collection.
+        Normalize and validate a requested collection of node IDs.
         """
 
+        try:
+
+            raw_nodes = tuple(
+                node_ids
+            )
+
+        except TypeError as exc:
+
+            raise TypeError(
+                (
+                    "node_ids must be "
+                    "an iterable of integers"
+                )
+            ) from exc
+
+        if not raw_nodes:
+
+            raise ValueError(
+                (
+                    "At least one node_id "
+                    "is required"
+                )
+            )
+
         normalized = tuple(
-            int(
+            _require_node_id(
                 node_id
             )
             for node_id
-            in node_ids
+            in raw_nodes
         )
-
-        if not normalized:
-
-            raise ValueError(
-                "At least one node_id is required"
-            )
-
-        if any(
-            node_id <= 0
-            for node_id
-            in normalized
-        ):
-
-            raise ValueError(
-                "node IDs must be greater than 0"
-            )
 
         if (
             len(
@@ -268,7 +515,10 @@ class StreamManager:
         ):
 
             raise ValueError(
-                "node_ids cannot contain duplicates"
+                (
+                    "node_ids cannot "
+                    "contain duplicates"
+                )
             )
 
         return normalized
@@ -288,34 +538,35 @@ class StreamManager:
         tolerance_samples: int | None = None,
     ) -> AlignedBlocks | None:
         """
-        Find the newest approximately aligned block available from every
-        requested node.
+        Find the newest approximately aligned AUDIO block available from
+        every requested node.
 
-        Why this does NOT simply compare each node's newest block
-        ----------------------------------------------------------
-        TCP packet arrival is asynchronous.
+        Why newest-only comparison is insufficient
+        -------------------------------------------
+        TCP delivery between nodes is asynchronous.
 
         Example:
 
-            Node 1 newest sampleIndex = 10240
-            Node 2 newest sampleIndex = 9216
-            Node 3 newest sampleIndex = 10240
+            Node 1 newest = 10240
+            Node 2 newest = 9216
+            Node 3 newest = 10240
 
-        Node 1 and Node 3 may still contain their 9216 blocks.
+        Nodes 1 and 3 may still retain their blocks beginning at 9216.
 
-        Comparing only the newest packet would incorrectly report that
-        the streams are not aligned.
+        Therefore:
 
-        Instead:
+            target =
+                newest start position of the least-advanced stream
 
-            target = least-advanced node's newest sampleIndex
+        Each other node's buffered history is then searched for the
+        closest block start.
 
-        and each other node's buffer is searched for the block nearest
-        that common sample position.
+        The selected blocks must:
 
-        This remains a diagnostic/coarse-alignment operation.
+            belong to one common session
+            fall within coarse synchronization tolerance
 
-        Fine acoustic delays are intentionally left to GCC-PHAT.
+        This operation never compensates acoustic propagation delay.
         """
 
         requested_nodes = (
@@ -324,17 +575,29 @@ class StreamManager:
             )
         )
 
-        tolerance = (
-            self.audio_config
-            .sync_tolerance_samples
+        # ==============================================================
+        # TOLERANCE
+        # ==============================================================
 
-            if tolerance_samples
+        if (
+            tolerance_samples
             is None
+        ):
 
-            else int(
-                tolerance_samples
+            tolerance = (
+                self.audio_config
+                .sync_tolerance_samples
             )
-        )
+
+        else:
+
+            tolerance = (
+                _require_integer(
+                    tolerance_samples,
+                    name=
+                        "tolerance_samples",
+                )
+            )
 
         if (
             tolerance
@@ -390,8 +653,8 @@ class StreamManager:
         # COMMON TARGET
         # ==============================================================
         #
-        # The least-advanced stream determines the newest timeline
-        # position that all nodes could currently share.
+        # The least-advanced node's newest block determines the newest
+        # block-start region all requested nodes may currently share.
         # ==============================================================
 
         target = min(
@@ -405,7 +668,7 @@ class StreamManager:
         )
 
         # ==============================================================
-        # SELECT NEAREST BLOCK PER NODE
+        # SELECT NEAREST BLOCK
         # ==============================================================
 
         selected: dict[
@@ -421,7 +684,9 @@ class StreamManager:
         for (
             node_id,
             blocks,
-        ) in available.items():
+        ) in (
+            available.items()
+        ):
 
             nearest = min(
                 blocks,
@@ -481,6 +746,21 @@ class StreamManager:
 
             return None
 
+        session_id = next(
+            iter(
+                session_ids
+            )
+        )
+
+        # AUDIO packets from acquisition should always use a non-zero
+        # session ID.
+        if (
+            session_id
+            == 0
+        ):
+
+            return None
+
         return AlignedBlocks(
             target_sample_index=
                 int(
@@ -505,23 +785,31 @@ class StreamManager:
         preferred_node: int = 1,
     ):
         """
-        Return the environmental sample nearest an audio sample index.
+        Return environmental telemetry nearest an audio sample position.
 
-        Node 1 is preferred because the current hardware design places
-        the BME280 on Node 1.
+        Node 1 is preferred because the current hardware architecture
+        places the BME280 on the master node.
         """
 
-        sample_index = int(
-            sample_index
-        )
+        try:
 
-        preferred_node = int(
-            preferred_node
-        )
+            sample_index = (
+                _require_uint64(
+                    sample_index,
+                    name=
+                        "sample_index",
+                )
+            )
 
-        if (
-            sample_index
-            < 0
+            preferred_node = (
+                _require_node_id(
+                    preferred_node
+                )
+            )
+
+        except (
+            TypeError,
+            ValueError,
         ):
 
             return None
@@ -536,12 +824,14 @@ class StreamManager:
 
             return None
 
-        return state.environment_near(
-            sample_index
+        return (
+            state.environment_near(
+                sample_index
+            )
         )
 
     # ==================================================================
-    # SAMPLE-INDEXED AUDIO WINDOW
+    # SAMPLE-INDEXED PCM WINDOW
     # ==================================================================
 
     def get_window(
@@ -553,7 +843,7 @@ class StreamManager:
         fill_value: int = 0,
     ) -> np.ndarray:
         """
-        Reconstruct a mono PCM16 window using absolute sample indices.
+        Reconstruct a mono PCM16 window using absolute sample positions.
 
         Missing samples are filled rather than removed.
 
@@ -566,56 +856,54 @@ class StreamManager:
 
         Requested:
 
-            0..3071
+            samples 0..3071
 
         Result:
 
             real PCM
-            1024 samples of fill_value
+            1024 fill samples
             real PCM
 
-        This behavior is essential because compressing gaps would shift
-        later waveform samples and destroy the physical timing needed
-        for synchronized analysis and TDOA.
+
+        This is essential for localization.
+
+        Removing the missing region would shift all subsequent waveform
+        positions and corrupt TDOA timing.
         """
-
-        node_id = int(
-            node_id
-        )
-
-        start_sample = int(
-            start_sample
-        )
-
-        length = int(
-            length
-        )
-
-        fill_value = int(
-            fill_value
-        )
 
         # ==============================================================
         # VALIDATION
         # ==============================================================
 
-        if (
-            node_id
-            <= 0
-        ):
-
-            raise ValueError(
-                "node_id must be greater than 0"
+        node_id = (
+            _require_node_id(
+                node_id
             )
+        )
 
-        if (
-            start_sample
-            < 0
-        ):
-
-            raise ValueError(
-                "start_sample cannot be negative"
+        start_sample = (
+            _require_uint64(
+                start_sample,
+                name=
+                    "start_sample",
             )
+        )
+
+        length = (
+            _require_integer(
+                length,
+                name=
+                    "length",
+            )
+        )
+
+        fill_value = (
+            _require_integer(
+                fill_value,
+                name=
+                    "fill_value",
+            )
+        )
 
         if (
             length
@@ -639,6 +927,24 @@ class StreamManager:
                     "signed PCM16"
                 )
             )
+
+        if (
+            start_sample
+            + length
+            > UINT64_MAX
+            + 1
+        ):
+
+            raise ValueError(
+                (
+                    "requested audio window "
+                    "exceeds uint64 sampleIndex space"
+                )
+            )
+
+        # ==============================================================
+        # NODE
+        # ==============================================================
 
         state = (
             self.nodes.get(
@@ -670,11 +976,46 @@ class StreamManager:
             dtype=np.int16,
         )
 
-        # Snapshot prevents unexpected container mutation while the
-        # reconstruction loop is running.
+        # Snapshot the deque before reconstruction.
         blocks = tuple(
             state.audio_blocks
         )
+
+        if not blocks:
+
+            return output
+
+        # ==============================================================
+        # SESSION CONSISTENCY
+        # ==============================================================
+        #
+        # NodeState normally guarantees one session per audio deque.
+        #
+        # This additional guard prevents a malformed/test-injected mixed
+        # timeline from being silently reconstructed.
+        # ==============================================================
+
+        session_ids = {
+            int(
+                block.session_id
+            )
+            for block
+            in blocks
+        }
+
+        if (
+            len(
+                session_ids
+            )
+            > 1
+        ):
+
+            raise RuntimeError(
+                (
+                    f"node {node_id} audio buffer "
+                    "contains multiple session IDs"
+                )
+            )
 
         # ==============================================================
         # COPY OVERLAPPING PCM
@@ -690,7 +1031,10 @@ class StreamManager:
                 block.end_sample
             )
 
-            # Completely before requested window.
+            # ----------------------------------------------------------
+            # BLOCK COMPLETELY BEFORE WINDOW
+            # ----------------------------------------------------------
+
             if (
                 block_end
                 <= start_sample
@@ -698,13 +1042,20 @@ class StreamManager:
 
                 continue
 
-            # Completely after requested window.
+            # ----------------------------------------------------------
+            # BLOCK COMPLETELY AFTER WINDOW
+            # ----------------------------------------------------------
+
             if (
                 block_start
                 >= end_sample
             ):
 
                 continue
+
+            # ----------------------------------------------------------
+            # INTERSECTION
+            # ----------------------------------------------------------
 
             overlap_start = max(
                 start_sample,
@@ -741,11 +1092,15 @@ class StreamManager:
             source = (
                 block.samples[
                     src_start:
-                    src_start + count
+                    src_start
+                    + count
                 ]
             )
 
-            # Defensive protection against malformed AudioBlock metadata.
+            # ----------------------------------------------------------
+            # DEFENSIVE SIZE LIMIT
+            # ----------------------------------------------------------
+
             actual_count = min(
                 int(
                     source.size
@@ -764,7 +1119,8 @@ class StreamManager:
 
             output[
                 dst_start:
-                dst_start + actual_count
+                dst_start
+                + actual_count
             ] = source[
                 :actual_count
             ]
@@ -781,19 +1137,24 @@ class WavRecorder:
     """
     Continuous per-node PCM16 WAV recorder.
 
-    Timing preservation
-    -------------------
+    Timeline preservation
+    ---------------------
     sampleIndex gaps are represented as digital silence.
 
-    Missing samples are NEVER removed from the output timeline.
+    Missing PCM is never removed from the output timeline.
 
-    This makes continuous recordings useful for:
+    Continuous recordings therefore remain useful for:
 
-        debugging
         synchronization inspection
+        debugging
         offline DSP
-        research data review
+        replay
+        research-data review
     """
+
+    # ==================================================================
+    # INITIALIZATION
+    # ==================================================================
 
     def __init__(
         self,
@@ -804,8 +1165,22 @@ class WavRecorder:
         audio_config: AudioConfig,
     ) -> None:
 
-        self.root = Path(
-            root_dir
+        if not isinstance(
+            audio_config,
+            AudioConfig,
+        ):
+
+            raise TypeError(
+                (
+                    "audio_config must be "
+                    "an AudioConfig instance"
+                )
+            )
+
+        self.root = (
+            Path(
+                root_dir
+            )
         )
 
         self.audio_config = (
@@ -836,7 +1211,7 @@ class WavRecorder:
         self,
     ) -> bool:
         """
-        Whether at least one WAV file is currently open.
+        Whether at least one per-node WAV file is currently open.
         """
 
         return bool(
@@ -844,7 +1219,7 @@ class WavRecorder:
         )
 
     # ==================================================================
-    # SESSION LABEL VALIDATION
+    # SESSION LABEL
     # ==================================================================
 
     @staticmethod
@@ -852,21 +1227,41 @@ class WavRecorder:
         session_label: str,
     ) -> str:
         """
-        Validate a directory-safe session label.
+        Validate a single-component recording directory name.
+
+        ReceiverServer performs stricter platform-safe validation before
+        calling this API. This check remains for standalone use.
         """
 
-        label = str(
-            session_label
-        ).strip()
+        if not isinstance(
+            session_label,
+            str,
+        ):
+
+            raise TypeError(
+                (
+                    "session_label must "
+                    "be a string"
+                )
+            )
+
+        label = (
+            session_label.strip()
+        )
 
         if not label:
 
             raise ValueError(
-                "session_label cannot be empty"
+                (
+                    "session_label "
+                    "cannot be empty"
+                )
             )
 
-        path = Path(
-            label
+        path = (
+            Path(
+                label
+            )
         )
 
         if (
@@ -901,10 +1296,12 @@ class WavRecorder:
         node_ids: Iterable[int],
     ) -> None:
         """
-        Start one WAV file for every requested acoustic node.
+        Start one PCM16 WAV file for every requested acoustic node.
 
-        File creation is transactional: if any WAV cannot be opened,
-        all files already opened for this attempted session are closed.
+        File creation is transactional.
+
+        If opening/configuring any WAV fails, all files already opened
+        for this attempted recording session are closed.
         """
 
         label = (
@@ -913,50 +1310,22 @@ class WavRecorder:
             )
         )
 
-        nodes = tuple(
-            int(
-                node_id
+        nodes = (
+            StreamManager
+            ._normalize_node_ids(
+                node_ids
             )
-            for node_id
-            in node_ids
         )
 
-        if not nodes:
-
-            raise ValueError(
-                "At least one node_id is required"
-            )
-
-        if any(
-            node_id <= 0
-            for node_id
-            in nodes
-        ):
-
-            raise ValueError(
-                "node IDs must be greater than 0"
-            )
-
-        if (
-            len(
-                set(
-                    nodes
-                )
-            )
-            != len(
-                nodes
-            )
-        ):
-
-            raise ValueError(
-                "node_ids cannot contain duplicates"
-            )
-
-        # --------------------------------------------------------------
-        # Close any previous recording first.
-        # --------------------------------------------------------------
+        # ==============================================================
+        # CLOSE PREVIOUS RECORDING
+        # ==============================================================
 
         self.stop()
+
+        # ==============================================================
+        # SESSION DIRECTORY
+        # ==============================================================
 
         session_dir = (
             self.root
@@ -967,6 +1336,10 @@ class WavRecorder:
             parents=True,
             exist_ok=True,
         )
+
+        # ==============================================================
+        # OPEN NODE WAV FILES
+        # ==============================================================
 
         try:
 
@@ -1002,6 +1375,10 @@ class WavRecorder:
                     node_id
                 ] = wav
 
+                # ------------------------------------------------------
+                # Every START begins sampleIndex at zero.
+                # ------------------------------------------------------
+
                 self._expected_sample[
                     node_id
                 ] = 0
@@ -1017,7 +1394,7 @@ class WavRecorder:
         )
 
     # ==================================================================
-    # SILENCE WRITER
+    # DIGITAL-SILENCE WRITER
     # ==================================================================
 
     @staticmethod
@@ -1026,7 +1403,7 @@ class WavRecorder:
         sample_count: int,
     ) -> None:
         """
-        Write PCM16 digital silence using bounded chunks.
+        Write PCM16 digital silence using bounded memory.
         """
 
         remaining = int(
@@ -1040,11 +1417,13 @@ class WavRecorder:
 
             return
 
+        chunk_size = min(
+            remaining,
+            WAV_SILENCE_CHUNK_SAMPLES,
+        )
+
         chunk = np.zeros(
-            min(
-                remaining,
-                WAV_SILENCE_CHUNK_SAMPLES,
-            ),
+            chunk_size,
             dtype="<i2",
         )
 
@@ -1071,7 +1450,7 @@ class WavRecorder:
             )
 
     # ==================================================================
-    # WRITE BLOCK
+    # WRITE AUDIO BLOCK
     # ==================================================================
 
     def write(
@@ -1079,19 +1458,38 @@ class WavRecorder:
         block: AudioBlock,
     ) -> None:
         """
-        Write one PCM block while preserving its sample-index timeline.
+        Write one AUDIO block while preserving the sampleIndex timeline.
 
-        Three cases are handled:
+        Cases
+        -----
+        block.sample_index > expected
 
-        1. block.sample_index > expected
-               missing samples → write digital silence
+            A gap exists.
+            Digital silence is inserted.
 
-        2. block.sample_index < expected
-               repeated/overlapping samples → skip duplicate prefix
 
-        3. block.sample_index == expected
-               write normally
+        block.sample_index < expected
+
+            Data overlaps already-written PCM.
+            The duplicate prefix is skipped.
+
+
+        block.sample_index == expected
+
+            PCM is written directly.
         """
+
+        if not isinstance(
+            block,
+            AudioBlock,
+        ):
+
+            raise TypeError(
+                (
+                    "block must be "
+                    "an AudioBlock instance"
+                )
+            )
 
         wav = (
             self._files.get(
@@ -1113,21 +1511,13 @@ class WavRecorder:
 
             return
 
-        block_start = int(
-            block.sample_index
-        )
-
-        if (
-            block_start
-            < 0
-        ):
-
-            raise ValueError(
-                (
-                    "AudioBlock sample_index "
-                    "cannot be negative"
-                )
+        block_start = (
+            _require_uint64(
+                block.sample_index,
+                name=
+                    "AudioBlock sample_index",
             )
+        )
 
         samples = np.asarray(
             block.samples,
@@ -1177,7 +1567,7 @@ class WavRecorder:
             )
 
         # ==============================================================
-        # OVERLAP / DUPLICATE DATA
+        # OVERLAP / DUPLICATE
         # ==============================================================
 
         elif (
@@ -1190,7 +1580,7 @@ class WavRecorder:
                 - block_start
             )
 
-            # Entire packet has already been represented in the file.
+            # Entire AUDIO packet is already represented in the file.
             if (
                 overlap
                 >= samples.size
@@ -1209,7 +1599,7 @@ class WavRecorder:
             )
 
         # ==============================================================
-        # WRITE REMAINING PCM
+        # WRITE PCM
         # ==============================================================
 
         wav.writeframesraw(
@@ -1226,7 +1616,7 @@ class WavRecorder:
         )
 
     # ==================================================================
-    # STOP
+    # STOP RECORDING
     # ==================================================================
 
     def stop(
@@ -1234,19 +1624,30 @@ class WavRecorder:
     ) -> None:
         """
         Finalize and close all open WAV files.
+
+        Recorder state is cleared before close operations so one failed
+        filesystem close cannot leave the object logically recording.
         """
 
         files = list(
             self._files.values()
         )
 
-        # Clear state first so a close failure cannot leave the recorder
-        # logically marked as active.
+        # ==============================================================
+        # CLEAR LOGICAL STATE FIRST
+        # ==============================================================
+
         self._files.clear()
 
         self._expected_sample.clear()
 
-        self._session_label = None
+        self._session_label = (
+            None
+        )
+
+        # ==============================================================
+        # FINALIZE FILES
+        # ==============================================================
 
         for wav in files:
 
@@ -1256,6 +1657,6 @@ class WavRecorder:
 
             except Exception:
 
-                # Recorder shutdown should not prevent the rest of the
-                # receiver from closing.
+                # Recorder shutdown must not prevent the rest of the
+                # acquisition stack from closing.
                 pass

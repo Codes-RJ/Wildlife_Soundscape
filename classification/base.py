@@ -1,13 +1,192 @@
 from __future__ import annotations
 
-from abc import ABC, abstractmethod
-from dataclasses import dataclass
+from abc import (
+    ABC,
+    abstractmethod,
+)
+
+from dataclasses import (
+    dataclass,
+)
 
 import numpy as np
 
-from dsp.features import AcousticFeatures
+from dsp.features import (
+    AcousticFeatures,
+)
 
-from .classifier import ClassificationResult
+from .classifier import (
+    ClassificationResult,
+)
+
+
+# ======================================================================
+# CONSTANTS
+# ======================================================================
+
+
+UINT8_MAX = (
+    0xFF
+)
+
+
+UINT32_MAX = (
+    0xFFFFFFFF
+)
+
+
+# ======================================================================
+# INTEGER VALIDATION
+# ======================================================================
+
+
+def _require_integer(
+    value: int,
+    *,
+    name: str,
+) -> int:
+    """
+    Require one strict Python integer.
+
+    bool is deliberately rejected even though bool is a subclass of int.
+    """
+
+    if (
+        isinstance(
+            value,
+            bool,
+        )
+        or not isinstance(
+            value,
+            int,
+        )
+    ):
+
+        raise TypeError(
+            (
+                f"{name} must be "
+                "an integer."
+            )
+        )
+
+    return value
+
+
+def _require_positive_integer(
+    value: int,
+    *,
+    name: str,
+) -> int:
+    """
+    Require one integer greater than zero.
+    """
+
+    value = (
+        _require_integer(
+            value,
+            name=
+                name,
+        )
+    )
+
+    if (
+        value
+        <= 0
+    ):
+
+        raise ValueError(
+            (
+                f"{name} must be "
+                "greater than zero."
+            )
+        )
+
+    return value
+
+
+def _require_uint8_node_id(
+    value: int,
+    *,
+    name: str,
+) -> int:
+    """
+    Validate a Protocol-v4 node identifier.
+
+    Node IDs are transported as uint8 and zero is reserved as an invalid
+    acoustic-node identifier in this project.
+    """
+
+    value = (
+        _require_integer(
+            value,
+            name=
+                name,
+        )
+    )
+
+    if not (
+        1
+        <= value
+        <= UINT8_MAX
+    ):
+
+        raise ValueError(
+            (
+                f"{name} must lie "
+                "between 1 and 255."
+            )
+        )
+
+    return value
+
+
+def _require_uint32(
+    value: int,
+    *,
+    name: str,
+    allow_zero: bool,
+) -> int:
+    """
+    Validate one unsigned 32-bit identifier.
+    """
+
+    value = (
+        _require_integer(
+            value,
+            name=
+                name,
+        )
+    )
+
+    minimum = (
+        0
+        if allow_zero
+        else 1
+    )
+
+    if not (
+        minimum
+        <= value
+        <= UINT32_MAX
+    ):
+
+        if allow_zero:
+
+            raise ValueError(
+                (
+                    f"{name} must lie between "
+                    "0 and 4294967295."
+                )
+            )
+
+        raise ValueError(
+            (
+                f"{name} must lie between "
+                "1 and 4294967295."
+            )
+        )
+
+    return value
 
 
 # ======================================================================
@@ -25,73 +204,88 @@ class ClassificationInput:
 
     Classification inputs are intentionally backend-independent.
 
-    A backend may use:
+    A backend may consume:
 
         - handcrafted DSP features
         - processed waveform audio
         - both
-        - potentially neither, if a future backend uses only external
-          or contextual information
+        - potentially neither for a future contextual backend
 
-    Backend-specific requirements are enforced by ClassifierBackend,
-    not by this generic input container.
+    Backend-specific availability requirements are enforced by
+    ClassifierBackend rather than by this generic container.
+
 
     Examples
     --------
-    Heuristic classifier:
+    Heuristic backend:
 
         features = AcousticFeatures(...)
         model_audio = None
 
-    Waveform model:
+    Waveform backend:
 
         features = None
         model_audio = waveform
 
-    Ensemble classifier:
+    Ensemble backend:
 
         features = AcousticFeatures(...)
         model_audio = waveform
+
+
+    Design rule
+    -----------
+    This object validates structural correctness.
+
+    It does not decide whether a particular backend requires features,
+    waveform audio, or both.
     """
 
-    # ------------------------------------------------------------------
+    # ==================================================================
     # DSP FEATURES
-    # ------------------------------------------------------------------
+    # ==================================================================
     #
     # Optional by design.
     #
-    # The current heuristic classifier requires them, but future
-    # waveform-based models must remain usable even if handcrafted
-    # feature extraction fails.
-    # ------------------------------------------------------------------
+    # The heuristic backend requires features, but future waveform-based
+    # classifiers must remain usable even when handcrafted feature
+    # extraction is unavailable.
+    # ==================================================================
 
-    features: AcousticFeatures | None
+    features: (
+        AcousticFeatures
+        | None
+    )
 
-    # ------------------------------------------------------------------
+    # ==================================================================
     # AUDIO INFORMATION
-    # ------------------------------------------------------------------
+    # ==================================================================
 
     sample_rate: int
 
-    model_audio: np.ndarray | None = (
-        None
-    )
+    model_audio: (
+        np.ndarray
+        | None
+    ) = None
 
-    # ------------------------------------------------------------------
+    # ==================================================================
     # EVENT CONTEXT
-    # ------------------------------------------------------------------
+    # ==================================================================
 
-    source_node_id: int | None = (
-        None
-    )
+    source_node_id: (
+        int
+        | None
+    ) = None
 
-    detector_event_id: int | None = (
-        None
-    )
+    detector_event_id: (
+        int
+        | None
+    ) = None
 
-    session_id: int | None = (
-        None
-    )
+    session_id: (
+        int
+        | None
+    ) = None
 
     # ==================================================================
     # VALIDATION
@@ -101,41 +295,24 @@ class ClassificationInput:
         self,
     ) -> None:
         """
-        Validate generic classification-input structure.
+        Validate generic classifier-input structure.
 
-        Important
-        ---------
-        This method validates whether supplied data is structurally
-        valid.
-
-        It does NOT decide which inputs are mandatory.
-
-        Mandatory-input decisions belong to the selected
-        ClassifierBackend.
+        Backend-specific mandatory inputs are intentionally not enforced
+        here. They are handled by ClassifierBackend.validate_input().
         """
 
         # ==============================================================
         # SAMPLE RATE
         # ==============================================================
 
-        sample_rate = int(
-            self.sample_rate
+        _require_positive_integer(
+            self.sample_rate,
+            name=
+                "sample_rate",
         )
 
-        if (
-            sample_rate
-            <= 0
-        ):
-
-            raise ValueError(
-                (
-                    "sample_rate must be "
-                    "greater than zero"
-                )
-            )
-
         # ==============================================================
-        # FEATURE TYPE
+        # FEATURES
         # ==============================================================
 
         if (
@@ -151,7 +328,7 @@ class ClassificationInput:
                 (
                     "features must be an "
                     "AcousticFeatures instance "
-                    "or None"
+                    "or None."
                 )
             )
 
@@ -164,24 +341,21 @@ class ClassificationInput:
             is not None
         ):
 
-            source_node_id = int(
-                self.source_node_id
+            _require_uint8_node_id(
+                self.source_node_id,
+                name=
+                    "source_node_id",
             )
-
-            if (
-                source_node_id
-                <= 0
-            ):
-
-                raise ValueError(
-                    (
-                        "source_node_id must be "
-                        "greater than zero"
-                    )
-                )
 
         # ==============================================================
         # DETECTOR EVENT ID
+        # ==============================================================
+        #
+        # Detector-event IDs are local software identifiers rather than
+        # protocol node IDs.
+        #
+        # Zero is retained as valid because test/synthetic contexts may
+        # use zero as their first local event index.
         # ==============================================================
 
         if (
@@ -189,24 +363,21 @@ class ClassificationInput:
             is not None
         ):
 
-            detector_event_id = int(
-                self.detector_event_id
+            _require_uint32(
+                self.detector_event_id,
+                name=
+                    "detector_event_id",
+                allow_zero=
+                    True,
             )
-
-            if (
-                detector_event_id
-                < 0
-            ):
-
-                raise ValueError(
-                    (
-                        "detector_event_id "
-                        "cannot be negative"
-                    )
-                )
 
         # ==============================================================
         # SESSION ID
+        # ==============================================================
+        #
+        # Real acquisition sessions are non-zero Protocol-v4 uint32 IDs.
+        #
+        # None means no acquisition-session context was supplied.
         # ==============================================================
 
         if (
@@ -214,21 +385,13 @@ class ClassificationInput:
             is not None
         ):
 
-            session_id = int(
-                self.session_id
+            _require_uint32(
+                self.session_id,
+                name=
+                    "session_id",
+                allow_zero=
+                    False,
             )
-
-            if (
-                session_id
-                < 0
-            ):
-
-                raise ValueError(
-                    (
-                        "session_id "
-                        "cannot be negative"
-                    )
-                )
 
         # ==============================================================
         # MODEL AUDIO
@@ -239,7 +402,30 @@ class ClassificationInput:
             is not None
         ):
 
-            audio = np.asarray(
+            # ----------------------------------------------------------
+            # REQUIRE NDARRAY
+            # ----------------------------------------------------------
+            #
+            # The classifier interface deliberately uses ndarray rather
+            # than silently converting arbitrary array-like containers.
+            #
+            # This keeps backend behavior and memory/layout semantics
+            # predictable.
+            # ----------------------------------------------------------
+
+            if not isinstance(
+                self.model_audio,
+                np.ndarray,
+            ):
+
+                raise TypeError(
+                    (
+                        "model_audio must be a "
+                        "NumPy ndarray or None."
+                    )
+                )
+
+            audio = (
                 self.model_audio
             )
 
@@ -255,7 +441,7 @@ class ClassificationInput:
                 raise ValueError(
                     (
                         "model_audio must be "
-                        "a mono 1-D waveform"
+                        "a mono 1-D waveform."
                     )
                 )
 
@@ -271,7 +457,7 @@ class ClassificationInput:
                 raise ValueError(
                     (
                         "model_audio "
-                        "cannot be empty"
+                        "cannot be empty."
                     )
                 )
 
@@ -287,7 +473,7 @@ class ClassificationInput:
                 raise TypeError(
                     (
                         "model_audio must "
-                        "contain numeric samples"
+                        "contain numeric samples."
                     )
                 )
 
@@ -303,7 +489,7 @@ class ClassificationInput:
                 raise TypeError(
                     (
                         "model_audio must contain "
-                        "real-valued audio samples"
+                        "real-valued samples."
                     )
                 )
 
@@ -320,7 +506,7 @@ class ClassificationInput:
                 raise ValueError(
                     (
                         "model_audio contains "
-                        "NaN or infinite samples"
+                        "NaN or infinite samples."
                     )
                 )
 
@@ -364,14 +550,15 @@ class ClassifierBackend(
     ABC
 ):
     """
-    Abstract interface implemented by all acoustic classifiers.
+    Abstract interface implemented by acoustic-classification backends.
 
     Current implementation
     ----------------------
-    HeuristicClassifierBackend
+    HeuristicClassifierBackend:
 
         requires_features = True
         requires_audio = False
+
 
     Future implementations
     ----------------------
@@ -384,8 +571,18 @@ class ClassifierBackend(
 
         may require both
 
-    This abstraction keeps EventPipeline, persistence and dashboard
-    logic independent of the selected classification implementation.
+
+    Architecture
+    ------------
+    This abstraction keeps:
+
+        EventPipeline
+        SQLite persistence
+        CLI
+        dashboard
+        research analytics
+
+    independent from the concrete classifier implementation.
     """
 
     # ==================================================================
@@ -398,7 +595,7 @@ class ClassifierBackend(
         self,
     ) -> str:
         """
-        Human-readable backend identifier.
+        Stable human-readable backend identifier.
         """
 
         raise NotImplementedError
@@ -425,7 +622,7 @@ class ClassifierBackend(
         """
         Whether waveform audio is mandatory for this backend.
 
-        Feature-only classifiers should leave this False.
+        Feature-only classifiers leave this False.
         """
 
         return False
@@ -437,7 +634,7 @@ class ClassifierBackend(
         """
         Whether handcrafted DSP features are mandatory.
 
-        The current heuristic backend requires them.
+        The current heuristic backend requires features.
         """
 
         return True
@@ -453,11 +650,15 @@ class ClassifierBackend(
         """
         Validate that an input satisfies this backend's requirements.
 
-        Generic structural validation is already handled by
+        Generic structural validation has already been performed by
         ClassificationInput.__post_init__().
 
-        This method handles backend-specific availability requirements.
+        This method enforces backend-specific availability requirements.
         """
+
+        # ==============================================================
+        # INPUT TYPE
+        # ==============================================================
 
         if not isinstance(
             classification_input,
@@ -467,7 +668,7 @@ class ClassifierBackend(
             raise TypeError(
                 (
                     "classification_input must be "
-                    "a ClassificationInput instance"
+                    "a ClassificationInput instance."
                 )
             )
 
@@ -484,7 +685,7 @@ class ClassifierBackend(
                 (
                     f"classifier backend "
                     f"'{self.name}' requires "
-                    "model_audio"
+                    "model_audio."
                 )
             )
 
@@ -501,7 +702,7 @@ class ClassifierBackend(
                 (
                     f"classifier backend "
                     f"'{self.name}' requires "
-                    "acoustic features"
+                    "acoustic features."
                 )
             )
 
@@ -517,21 +718,14 @@ class ClassifierBackend(
         """
         Classify one detected acoustic event.
 
-        Implementations must return ClassificationResult so that:
-
-            EventPipeline
-            SQLite persistence
-            CLI
-            dashboard
-            research analytics
-
-        remain independent of the concrete classifier implementation.
+        Implementations must return ClassificationResult so that the
+        surrounding system remains classifier-backend independent.
 
         Implementations should normally call:
 
             self.validate_input(classification_input)
 
-        before accessing backend-required data.
+        before accessing backend-required input data.
         """
 
         raise NotImplementedError

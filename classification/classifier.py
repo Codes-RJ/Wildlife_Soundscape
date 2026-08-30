@@ -2,9 +2,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
+
 import math
 
-from dsp.features import AcousticFeatures
+from dsp.features import (
+    AcousticFeatures,
+)
 
 
 # ======================================================================
@@ -12,28 +15,44 @@ from dsp.features import AcousticFeatures
 # ======================================================================
 
 
-class AcousticClass(str, Enum):
+class AcousticClass(
+    str,
+    Enum,
+):
     """
-    Broad acoustic categories used by the baseline classifier.
+    Broad acoustic-pattern categories used by the baseline classifier.
 
     Important
     ---------
-    These labels represent acoustic-pattern categories.
+    These are broad acoustic categories.
 
-    They are NOT species identifications.
+    They are NOT species identifications and must not be presented as
+    biological confirmation of the source animal.
     """
 
-    BIRD = "bird"
+    BIRD = (
+        "bird"
+    )
 
-    INSECT = "insect"
+    INSECT = (
+        "insect"
+    )
 
-    AMPHIBIAN = "amphibian"
+    AMPHIBIAN = (
+        "amphibian"
+    )
 
-    MAMMAL = "mammal"
+    MAMMAL = (
+        "mammal"
+    )
 
-    NOISE = "noise"
+    NOISE = (
+        "noise"
+    )
 
-    UNKNOWN = "unknown"
+    UNKNOWN = (
+        "unknown"
+    )
 
 
 # ======================================================================
@@ -41,64 +60,375 @@ class AcousticClass(str, Enum):
 # ======================================================================
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(
+    frozen=True,
+    slots=True,
+)
 class ClassificationResult:
     """
-    Result produced by the baseline acoustic classifier.
+    Result produced by an acoustic classifier.
+
+    label
+        Selected broad acoustic class.
 
     confidence
-        Heuristic decision confidence in the selected label.
+        Final decision confidence for the selected label.
 
     second_label
-        Next strongest candidate.
+        Next strongest candidate when one exists.
+
+    second_confidence
+        Final decision confidence for second_label.
+
+        None when second_label is None.
 
     margin
-        Difference between the strongest and second strongest
-        class scores.
+        Difference between the strongest and second strongest applicable
+        decision scores.
 
     scores
-        Raw broad-class scores in the range [0, 1].
+        Final broad-class decision scores in [0, 1].
 
     reasons
         Human-readable explanation of the decision.
+
+    classifier_name
+        Backend/model identity.
+
+    classifier_version
+        Backend/model version.
     """
 
     label: AcousticClass
 
     confidence: float
 
-    second_label: AcousticClass | None
+    second_label: (
+        AcousticClass
+        | None
+    )
 
-    second_confidence: float
+    second_confidence: (
+        float
+        | None
+    )
 
     margin: float
 
-    scores: dict[str, float]
+    scores: dict[
+        str,
+        float,
+    ]
 
-    reasons: tuple[str, ...]
+    reasons: tuple[
+        str,
+        ...,
+    ]
 
     classifier_name: str = (
         "heuristic_acoustic_classifier"
     )
 
     classifier_version: str = (
-        "1.1"
+        "1.2"
     )
+
+    # ==================================================================
+    # VALIDATION
+    # ==================================================================
+
+    def __post_init__(
+        self,
+    ) -> None:
+        """
+        Validate classifier-output invariants.
+        """
+
+        # --------------------------------------------------------------
+        # PRIMARY LABEL
+        # --------------------------------------------------------------
+
+        if not isinstance(
+            self.label,
+            AcousticClass,
+        ):
+
+            raise TypeError(
+                (
+                    "label must be "
+                    "an AcousticClass."
+                )
+            )
+
+        # --------------------------------------------------------------
+        # PRIMARY CONFIDENCE
+        # --------------------------------------------------------------
+
+        confidence = float(
+            self.confidence
+        )
+
+        if (
+            not math.isfinite(
+                confidence
+            )
+            or not (
+                0.0
+                <= confidence
+                <= 1.0
+            )
+        ):
+
+            raise ValueError(
+                (
+                    "confidence must be finite "
+                    "and lie in [0, 1]."
+                )
+            )
+
+        # --------------------------------------------------------------
+        # SECONDARY CANDIDATE
+        # --------------------------------------------------------------
+
+        if (
+            self.second_label
+            is None
+        ):
+
+            if (
+                self.second_confidence
+                is not None
+            ):
+
+                raise ValueError(
+                    (
+                        "second_confidence must be "
+                        "None when second_label is None."
+                    )
+                )
+
+        else:
+
+            if not isinstance(
+                self.second_label,
+                AcousticClass,
+            ):
+
+                raise TypeError(
+                    (
+                        "second_label must be "
+                        "AcousticClass or None."
+                    )
+                )
+
+            if (
+                self.second_label
+                == self.label
+            ):
+
+                raise ValueError(
+                    (
+                        "second_label cannot equal "
+                        "the primary label."
+                    )
+                )
+
+            if (
+                self.second_confidence
+                is None
+            ):
+
+                raise ValueError(
+                    (
+                        "second_confidence is required "
+                        "when second_label is present."
+                    )
+                )
+
+            second_confidence = float(
+                self.second_confidence
+            )
+
+            if (
+                not math.isfinite(
+                    second_confidence
+                )
+                or not (
+                    0.0
+                    <= second_confidence
+                    <= 1.0
+                )
+            ):
+
+                raise ValueError(
+                    (
+                        "second_confidence must be finite "
+                        "and lie in [0, 1]."
+                    )
+                )
+
+        # --------------------------------------------------------------
+        # MARGIN
+        # --------------------------------------------------------------
+
+        margin = float(
+            self.margin
+        )
+
+        if (
+            not math.isfinite(
+                margin
+            )
+            or margin
+            < 0.0
+        ):
+
+            raise ValueError(
+                (
+                    "margin must be finite "
+                    "and non-negative."
+                )
+            )
+
+        # --------------------------------------------------------------
+        # SCORE MAP
+        # --------------------------------------------------------------
+
+        if not isinstance(
+            self.scores,
+            dict,
+        ):
+
+            raise TypeError(
+                (
+                    "scores must be "
+                    "a dictionary."
+                )
+            )
+
+        for (
+            score_label,
+            score,
+        ) in self.scores.items():
+
+            if not isinstance(
+                score_label,
+                str,
+            ):
+
+                raise TypeError(
+                    (
+                        "classification score keys "
+                        "must be strings."
+                    )
+                )
+
+            score = float(
+                score
+            )
+
+            if (
+                not math.isfinite(
+                    score
+                )
+                or not (
+                    0.0
+                    <= score
+                    <= 1.0
+                )
+            ):
+
+                raise ValueError(
+                    (
+                        "classification scores must "
+                        "be finite and lie in [0, 1]."
+                    )
+                )
+
+        # --------------------------------------------------------------
+        # REASONS
+        # --------------------------------------------------------------
+
+        if not isinstance(
+            self.reasons,
+            tuple,
+        ):
+
+            raise TypeError(
+                (
+                    "reasons must be "
+                    "a tuple of strings."
+                )
+            )
+
+        if any(
+            not isinstance(
+                reason,
+                str,
+            )
+            for reason
+            in self.reasons
+        ):
+
+            raise TypeError(
+                (
+                    "classification reasons "
+                    "must be strings."
+                )
+            )
+
+        # --------------------------------------------------------------
+        # BACKEND IDENTITY
+        # --------------------------------------------------------------
+
+        if not (
+            str(
+                self.classifier_name
+            ).strip()
+        ):
+
+            raise ValueError(
+                (
+                    "classifier_name "
+                    "cannot be empty."
+                )
+            )
+
+        if not (
+            str(
+                self.classifier_version
+            ).strip()
+        ):
+
+            raise ValueError(
+                (
+                    "classifier_version "
+                    "cannot be empty."
+                )
+            )
+
+    # ==================================================================
+    # CONFIDENCE SUMMARY
+    # ==================================================================
 
     @property
     def is_confident(
         self,
     ) -> bool:
         """
-        Whether the classification is strong enough to be presented
-        as a reasonably confident broad-group prediction.
+        Whether the result is suitable for presentation as a reasonably
+        confident broad-group acoustic prediction.
         """
 
         return (
             self.label
             != AcousticClass.UNKNOWN
-            and self.confidence >= 0.55
-            and self.margin >= 0.10
+
+            and self.confidence
+            >= 0.55
+
+            and self.margin
+            >= 0.10
         )
 
 
@@ -113,10 +443,10 @@ class HeuristicClassifier:
 
     Purpose
     -------
-    This is the project's interpretable baseline classifier.
+    This is the project's interpretable baseline.
 
-    It uses event-level acoustic descriptors rather than a trained
-    neural network.
+    It uses event-level acoustic descriptors rather than a trained neural
+    network.
 
     Features used
     -------------
@@ -141,7 +471,7 @@ class HeuristicClassifier:
 
     Scientific limitation
     ---------------------
-    The output means:
+    A result means:
 
         "The acoustic pattern is most consistent with this broad group."
 
@@ -149,43 +479,65 @@ class HeuristicClassifier:
 
         "The system has biologically confirmed this animal."
 
-    A trained bioacoustic model can replace or complement this
-    classifier later without changing the rest of the event pipeline.
+    A trained bioacoustic backend can later replace or complement this
+    baseline without changing the surrounding event pipeline.
     """
 
     # ==================================================================
     # DECISION THRESHOLDS
     # ==================================================================
 
-    MIN_ACCEPT_CONFIDENCE = 0.48
+    MIN_ACCEPT_CONFIDENCE = (
+        0.48
+    )
 
-    MIN_ACCEPT_MARGIN = 0.075
+    MIN_ACCEPT_MARGIN = (
+        0.075
+    )
 
-    CONFIDENT_SCORE = 0.55
+    CONFIDENT_SCORE = (
+        0.55
+    )
 
-    CONFIDENT_MARGIN = 0.10
+    CONFIDENT_MARGIN = (
+        0.10
+    )
 
     # ------------------------------------------------------------------
     # SNR
     # ------------------------------------------------------------------
 
-    EXTREME_LOW_SNR_DB = -3.0
+    EXTREME_LOW_SNR_DB = (
+        -3.0
+    )
 
-    VERY_LOW_SNR_DB = 1.5
+    VERY_LOW_SNR_DB = (
+        1.5
+    )
 
-    LOW_SNR_DB = 4.0
+    LOW_SNR_DB = (
+        4.0
+    )
 
-    MODERATE_SNR_DB = 8.0
+    MODERATE_SNR_DB = (
+        8.0
+    )
 
-    GOOD_SNR_DB = 12.0
+    GOOD_SNR_DB = (
+        12.0
+    )
 
     # ------------------------------------------------------------------
-    # Noise characteristics
+    # NOISE CHARACTERISTICS
     # ------------------------------------------------------------------
 
-    HIGH_FLATNESS = 0.60
+    HIGH_FLATNESS = (
+        0.60
+    )
 
-    VERY_HIGH_FLATNESS = 0.72
+    VERY_HIGH_FLATNESS = (
+        0.72
+    )
 
     # ==================================================================
     # NUMERIC HELPERS
@@ -199,7 +551,9 @@ class HeuristicClassifier:
         try:
 
             return math.isfinite(
-                float(value)
+                float(
+                    value
+                )
             )
 
         except (
@@ -217,8 +571,21 @@ class HeuristicClassifier:
         Restrict a numeric value to [0, 1].
         """
 
+        try:
+
+            value = float(
+                value
+            )
+
+        except (
+            TypeError,
+            ValueError,
+        ):
+
+            return 0.0
+
         if not math.isfinite(
-            float(value)
+            value
         ):
 
             return 0.0
@@ -228,7 +595,7 @@ class HeuristicClassifier:
                 0.0,
                 min(
                     1.0,
-                    float(value),
+                    value,
                 ),
             )
         )
@@ -247,16 +614,16 @@ class HeuristicClassifier:
         softness: float,
     ) -> float:
         """
-        Soft membership score for a numeric range.
+        Soft membership score for a numeric interval.
 
-        value inside range:
-            1.0
+        Inside interval:
+            score = 1
 
-        value slightly outside range:
-            gradually decreases
+        Slightly outside:
+            score decreases gradually
 
-        value far outside:
-            0.0
+        Far outside:
+            score = 0
         """
 
         if not cls._finite(
@@ -277,11 +644,17 @@ class HeuristicClassifier:
 
             return 1.0
 
-        if softness <= 0.0:
+        if (
+            softness
+            <= 0.0
+        ):
 
             return 0.0
 
-        if value < low:
+        if (
+            value
+            < low
+        ):
 
             return cls._clamp01(
                 1.0
@@ -323,15 +696,24 @@ class HeuristicClassifier:
             value
         )
 
-        if value <= ideal_max:
+        if (
+            value
+            <= ideal_max
+        ):
 
             return 1.0
 
-        if value >= zero_at:
+        if (
+            value
+            >= zero_at
+        ):
 
             return 0.0
 
-        if zero_at <= ideal_max:
+        if (
+            zero_at
+            <= ideal_max
+        ):
 
             return 0.0
 
@@ -369,15 +751,24 @@ class HeuristicClassifier:
             value
         )
 
-        if value >= ideal_min:
+        if (
+            value
+            >= ideal_min
+        ):
 
             return 1.0
 
-        if value <= zero_below:
+        if (
+            value
+            <= zero_below
+        ):
 
             return 0.0
 
-        if ideal_min <= zero_below:
+        if (
+            ideal_min
+            <= zero_below
+        ):
 
             return 0.0
 
@@ -401,23 +792,23 @@ class HeuristicClassifier:
         half_width: float,
     ) -> float:
         """
-        Triangular soft-membership function centered around a target.
-
-        Useful when a class is more characteristic of a specific
-        frequency region rather than a very broad interval.
+        Triangular soft-membership score around a target value.
         """
 
         if (
             not cls._finite(
                 value
             )
-            or half_width <= 0.0
+            or half_width
+            <= 0.0
         ):
 
             return 0.0
 
         distance = abs(
-            float(value)
+            float(
+                value
+            )
             - center
         )
 
@@ -428,7 +819,7 @@ class HeuristicClassifier:
         )
 
     # ==================================================================
-    # INPUT VALIDATION
+    # FEATURE VALIDITY
     # ==================================================================
 
     @classmethod
@@ -437,7 +828,7 @@ class HeuristicClassifier:
         features: AcousticFeatures,
     ) -> bool:
         """
-        Reject invalid, empty or non-finite feature vectors.
+        Reject empty, physically invalid or non-finite feature vectors.
         """
 
         required = (
@@ -468,7 +859,6 @@ class HeuristicClassifier:
             not cls._finite(
                 value
             )
-
             for value
             in required
         ):
@@ -497,6 +887,21 @@ class HeuristicClassifier:
             return False
 
         if (
+            features.crest_factor
+            < 0.0
+        ):
+
+            return False
+
+        if not (
+            0.0
+            <= features.zero_crossing_rate
+            <= 1.0
+        ):
+
+            return False
+
+        if (
             features.dominant_frequency_hz
             < 0.0
         ):
@@ -510,10 +915,31 @@ class HeuristicClassifier:
 
             return False
 
+        if (
+            features.spectral_bandwidth_hz
+            < 0.0
+        ):
+
+            return False
+
+        if (
+            features.spectral_rolloff_hz
+            < 0.0
+        ):
+
+            return False
+
         if not (
             0.0
             <= features.spectral_flatness
             <= 1.0
+        ):
+
+            return False
+
+        if (
+            features.spectral_flux
+            < 0.0
         ):
 
             return False
@@ -529,13 +955,16 @@ class HeuristicClassifier:
         snr_db: float | None,
     ) -> float:
         """
-        Convert SNR into a reliability multiplier.
+        Convert event SNR into a reliability multiplier.
 
         Missing SNR does not automatically invalidate an event because
-        noise estimation may occasionally be unavailable.
+        pre-trigger background estimation may occasionally be unavailable.
         """
 
-        if snr_db is None:
+        if (
+            snr_db
+            is None
+        ):
 
             return 0.90
 
@@ -587,7 +1016,7 @@ class HeuristicClassifier:
         return 1.0
 
     # ==================================================================
-    # BIRD
+    # BIRD SCORE
     # ==================================================================
 
     def _score_bird(
@@ -598,65 +1027,84 @@ class HeuristicClassifier:
         list[str],
     ]:
 
-        reasons: list[str] = []
-
-        # --------------------------------------------------------------
-        # Bird calls commonly occupy mid/high audible frequency bands,
-        # but frequency alone is not sufficiently discriminative.
-        # --------------------------------------------------------------
+        reasons: list[
+            str
+        ] = []
 
         dominant = self._range_score(
             f.dominant_frequency_hz,
-            low=900.0,
-            high=9500.0,
-            softness=1800.0,
+            low=
+                900.0,
+            high=
+                9500.0,
+            softness=
+                1800.0,
         )
 
         centroid = self._range_score(
             f.spectral_centroid_hz,
-            low=1500.0,
-            high=8500.0,
-            softness=1800.0,
+            low=
+                1500.0,
+            high=
+                8500.0,
+            softness=
+                1800.0,
         )
 
         tonal = self._low_score(
             f.spectral_flatness,
-            ideal_max=0.20,
-            zero_at=0.62,
+            ideal_max=
+                0.20,
+            zero_at=
+                0.62,
         )
 
         flux = self._high_score(
             f.spectral_flux,
-            zero_below=0.001,
-            ideal_min=0.018,
+            zero_below=
+                0.001,
+            ideal_min=
+                0.018,
         )
 
         zcr = self._range_score(
             f.zero_crossing_rate,
-            low=0.025,
-            high=0.38,
-            softness=0.12,
+            low=
+                0.025,
+            high=
+                0.38,
+            softness=
+                0.12,
         )
 
         bandwidth = self._range_score(
             f.spectral_bandwidth_hz,
-            low=250.0,
-            high=6000.0,
-            softness=1800.0,
+            low=
+                250.0,
+            high=
+                6000.0,
+            softness=
+                1800.0,
         )
 
         duration = self._range_score(
             f.duration_s,
-            low=0.04,
-            high=5.0,
-            softness=2.0,
+            low=
+                0.04,
+            high=
+                5.0,
+            softness=
+                2.0,
         )
 
         rolloff = self._range_score(
             f.spectral_rolloff_hz,
-            low=1500.0,
-            high=14_000.0,
-            softness=2500.0,
+            low=
+                1500.0,
+            high=
+                14_000.0,
+            softness=
+                2500.0,
         )
 
         score = (
@@ -685,51 +1133,70 @@ class HeuristicClassifier:
             * rolloff
         )
 
-        # --------------------------------------------------------------
-        # Distinguishing evidence
-        # --------------------------------------------------------------
-
         if (
-            dominant >= 0.85
-            and centroid >= 0.75
+            dominant
+            >= 0.85
+            and centroid
+            >= 0.75
         ):
 
             reasons.append(
-                "dominant and centroid frequencies are consistent "
-                "with a mid-to-high frequency vocalization"
-            )
-
-        if tonal >= 0.75:
-
-            reasons.append(
-                "spectrum contains strong tonal structure"
-            )
-
-        if flux >= 0.75:
-
-            reasons.append(
-                "frequency content changes strongly over time"
+                (
+                    "dominant and centroid frequencies are consistent "
+                    "with a mid-to-high frequency vocalization"
+                )
             )
 
         if (
-            tonal >= 0.70
-            and flux >= 0.70
+            tonal
+            >= 0.75
         ):
 
-            score += 0.07
-
             reasons.append(
-                "combined tonal and time-varying structure supports "
-                "a call/song-like acoustic pattern"
+                (
+                    "spectrum contains strong "
+                    "tonal structure"
+                )
             )
 
-        # Very low-frequency dominance weakens bird evidence.
+        if (
+            flux
+            >= 0.75
+        ):
+
+            reasons.append(
+                (
+                    "frequency content changes "
+                    "strongly over time"
+                )
+            )
+
+        if (
+            tonal
+            >= 0.70
+            and flux
+            >= 0.70
+        ):
+
+            score += (
+                0.07
+            )
+
+            reasons.append(
+                (
+                    "combined tonal and time-varying structure supports "
+                    "a call/song-like acoustic pattern"
+                )
+            )
+
         if (
             f.dominant_frequency_hz
             < 500.0
         ):
 
-            score *= 0.72
+            score *= (
+                0.72
+            )
 
         return (
             self._clamp01(
@@ -739,7 +1206,7 @@ class HeuristicClassifier:
         )
 
     # ==================================================================
-    # INSECT
+    # INSECT SCORE
     # ==================================================================
 
     def _score_insect(
@@ -750,52 +1217,72 @@ class HeuristicClassifier:
         list[str],
     ]:
 
-        reasons: list[str] = []
+        reasons: list[
+            str
+        ] = []
 
         dominant = self._range_score(
             f.dominant_frequency_hz,
-            low=2800.0,
-            high=15_800.0,
-            softness=2000.0,
+            low=
+                2800.0,
+            high=
+                15_800.0,
+            softness=
+                2000.0,
         )
 
         centroid = self._high_score(
             f.spectral_centroid_hz,
-            zero_below=2200.0,
-            ideal_min=5000.0,
+            zero_below=
+                2200.0,
+            ideal_min=
+                5000.0,
         )
 
         zcr = self._high_score(
             f.zero_crossing_rate,
-            zero_below=0.06,
-            ideal_min=0.20,
+            zero_below=
+                0.06,
+            ideal_min=
+                0.20,
         )
 
         rolloff = self._high_score(
             f.spectral_rolloff_hz,
-            zero_below=3500.0,
-            ideal_min=8000.0,
+            zero_below=
+                3500.0,
+            ideal_min=
+                8000.0,
         )
 
         duration = self._range_score(
             f.duration_s,
-            low=0.10,
-            high=12.0,
-            softness=2.5,
+            low=
+                0.10,
+            high=
+                12.0,
+            softness=
+                2.5,
         )
 
         bandwidth = self._range_score(
             f.spectral_bandwidth_hz,
-            low=400.0,
-            high=7000.0,
-            softness=1700.0,
+            low=
+                400.0,
+            high=
+                7000.0,
+            softness=
+                1700.0,
         )
 
         flatness = self._range_score(
             f.spectral_flatness,
-            low=0.03,
-            high=0.48,
-            softness=0.20,
+            low=
+                0.03,
+            high=
+                0.48,
+            softness=
+                0.20,
         )
 
         score = (
@@ -822,47 +1309,60 @@ class HeuristicClassifier:
         )
 
         if (
-            dominant >= 0.85
+            dominant
+            >= 0.85
         ):
 
             reasons.append(
-                "dominant acoustic energy occurs at relatively "
-                "high frequency"
+                (
+                    "dominant acoustic energy occurs "
+                    "at relatively high frequency"
+                )
             )
 
         if (
-            centroid >= 0.80
+            centroid
+            >= 0.80
         ):
 
             reasons.append(
-                "spectral centroid is strongly weighted toward "
-                "high frequencies"
+                (
+                    "spectral centroid is strongly "
+                    "weighted toward high frequencies"
+                )
             )
 
         if (
-            zcr >= 0.80
+            zcr
+            >= 0.80
         ):
 
             reasons.append(
-                "high zero-crossing activity supports a rapid "
-                "high-frequency acoustic pattern"
+                (
+                    "high zero-crossing activity supports a rapid "
+                    "high-frequency acoustic pattern"
+                )
             )
 
         if (
-            centroid >= 0.75
-            and zcr >= 0.75
+            centroid
+            >= 0.75
+            and zcr
+            >= 0.75
         ):
 
-            score += 0.06
+            score += (
+                0.06
+            )
 
-        # Lower-frequency events should not easily become insects simply
-        # because another feature overlaps.
         if (
             f.spectral_centroid_hz
             < 1800.0
         ):
 
-            score *= 0.65
+            score *= (
+                0.65
+            )
 
         return (
             self._clamp01(
@@ -872,7 +1372,7 @@ class HeuristicClassifier:
         )
 
     # ==================================================================
-    # AMPHIBIAN
+    # AMPHIBIAN SCORE
     # ==================================================================
 
     def _score_amphibian(
@@ -883,53 +1383,74 @@ class HeuristicClassifier:
         list[str],
     ]:
 
-        reasons: list[str] = []
+        reasons: list[
+            str
+        ] = []
 
         dominant = self._range_score(
             f.dominant_frequency_hz,
-            low=180.0,
-            high=3800.0,
-            softness=900.0,
+            low=
+                180.0,
+            high=
+                3800.0,
+            softness=
+                900.0,
         )
 
         centroid = self._range_score(
             f.spectral_centroid_hz,
-            low=250.0,
-            high=3800.0,
-            softness=1000.0,
+            low=
+                250.0,
+            high=
+                3800.0,
+            softness=
+                1000.0,
         )
 
         low_mid_preference = self._target_score(
             f.spectral_centroid_hz,
-            center=1750.0,
-            half_width=2300.0,
+            center=
+                1750.0,
+            half_width=
+                2300.0,
         )
 
         tonal = self._low_score(
             f.spectral_flatness,
-            ideal_max=0.28,
-            zero_at=0.70,
+            ideal_max=
+                0.28,
+            zero_at=
+                0.70,
         )
 
         zcr = self._range_score(
             f.zero_crossing_rate,
-            low=0.006,
-            high=0.22,
-            softness=0.09,
+            low=
+                0.006,
+            high=
+                0.22,
+            softness=
+                0.09,
         )
 
         duration = self._range_score(
             f.duration_s,
-            low=0.08,
-            high=7.0,
-            softness=2.0,
+            low=
+                0.08,
+            high=
+                7.0,
+            softness=
+                2.0,
         )
 
         flux = self._range_score(
             f.spectral_flux,
-            low=0.001,
-            high=0.055,
-            softness=0.030,
+            low=
+                0.001,
+            high=
+                0.055,
+            softness=
+                0.030,
         )
 
         score = (
@@ -956,18 +1477,29 @@ class HeuristicClassifier:
         )
 
         if (
-            dominant >= 0.85
-            and centroid >= 0.75
+            dominant
+            >= 0.85
+            and centroid
+            >= 0.75
         ):
 
             reasons.append(
-                "energy is concentrated in a low-to-mid acoustic band"
+                (
+                    "energy is concentrated in "
+                    "a low-to-mid acoustic band"
+                )
             )
 
-        if tonal >= 0.75:
+        if (
+            tonal
+            >= 0.75
+        ):
 
             reasons.append(
-                "signal contains tonal or harmonic structure"
+                (
+                    "signal contains tonal "
+                    "or harmonic structure"
+                )
             )
 
         if (
@@ -976,18 +1508,20 @@ class HeuristicClassifier:
         ):
 
             reasons.append(
-                "spectral center is consistent with a lower-frequency "
-                "calling pattern"
+                (
+                    "spectral center is consistent with "
+                    "a lower-frequency calling pattern"
+                )
             )
 
-        # Strong high-frequency spectral center weakens the amphibian
-        # interpretation.
         if (
             f.spectral_centroid_hz
             > 5000.0
         ):
 
-            score *= 0.60
+            score *= (
+                0.60
+            )
 
         return (
             self._clamp01(
@@ -997,7 +1531,7 @@ class HeuristicClassifier:
         )
 
     # ==================================================================
-    # MAMMAL
+    # MAMMAL SCORE
     # ==================================================================
 
     def _score_mammal(
@@ -1008,53 +1542,76 @@ class HeuristicClassifier:
         list[str],
     ]:
 
-        reasons: list[str] = []
+        reasons: list[
+            str
+        ] = []
 
         dominant = self._range_score(
             f.dominant_frequency_hz,
-            low=70.0,
-            high=3000.0,
-            softness=900.0,
+            low=
+                70.0,
+            high=
+                3000.0,
+            softness=
+                900.0,
         )
 
         centroid = self._range_score(
             f.spectral_centroid_hz,
-            low=100.0,
-            high=3800.0,
-            softness=1200.0,
+            low=
+                100.0,
+            high=
+                3800.0,
+            softness=
+                1200.0,
         )
 
-        low_frequency_preference = self._target_score(
-            f.spectral_centroid_hz,
-            center=1100.0,
-            half_width=2300.0,
+        low_frequency_preference = (
+            self._target_score(
+                f.spectral_centroid_hz,
+                center=
+                    1100.0,
+                half_width=
+                    2300.0,
+            )
         )
 
         zcr = self._low_score(
             f.zero_crossing_rate,
-            ideal_max=0.12,
-            zero_at=0.40,
+            ideal_max=
+                0.12,
+            zero_at=
+                0.40,
         )
 
         rolloff = self._range_score(
             f.spectral_rolloff_hz,
-            low=200.0,
-            high=6500.0,
-            softness=1600.0,
+            low=
+                200.0,
+            high=
+                6500.0,
+            softness=
+                1600.0,
         )
 
         duration = self._range_score(
             f.duration_s,
-            low=0.04,
-            high=8.0,
-            softness=3.0,
+            low=
+                0.04,
+            high=
+                8.0,
+            softness=
+                3.0,
         )
 
         bandwidth = self._range_score(
             f.spectral_bandwidth_hz,
-            low=150.0,
-            high=4500.0,
-            softness=1500.0,
+            low=
+                150.0,
+            high=
+                4500.0,
+            softness=
+                1500.0,
         )
 
         score = (
@@ -1081,12 +1638,15 @@ class HeuristicClassifier:
         )
 
         if (
-            dominant >= 0.85
+            dominant
+            >= 0.85
         ):
 
             reasons.append(
-                "dominant energy lies in a relatively low-frequency "
-                "acoustic region"
+                (
+                    "dominant energy lies in a relatively "
+                    "low-frequency acoustic region"
+                )
             )
 
         if (
@@ -1095,15 +1655,22 @@ class HeuristicClassifier:
         ):
 
             reasons.append(
-                "spectral center is weighted toward lower frequencies"
+                (
+                    "spectral center is weighted "
+                    "toward lower frequencies"
+                )
             )
 
         if (
-            zcr >= 0.80
+            zcr
+            >= 0.80
         ):
 
             reasons.append(
-                "zero-crossing activity is comparatively low"
+                (
+                    "zero-crossing activity "
+                    "is comparatively low"
+                )
             )
 
         if (
@@ -1111,7 +1678,9 @@ class HeuristicClassifier:
             > 5500.0
         ):
 
-            score *= 0.55
+            score *= (
+                0.55
+            )
 
         return (
             self._clamp01(
@@ -1121,7 +1690,7 @@ class HeuristicClassifier:
         )
 
     # ==================================================================
-    # NOISE / NON-BIOLOGICAL ACOUSTIC PATTERN
+    # NOISE SCORE
     # ==================================================================
 
     def _score_noise(
@@ -1132,30 +1701,41 @@ class HeuristicClassifier:
         list[str],
     ]:
 
-        reasons: list[str] = []
+        reasons: list[
+            str
+        ] = []
 
         flatness = self._high_score(
             f.spectral_flatness,
-            zero_below=0.25,
-            ideal_min=0.68,
+            zero_below=
+                0.25,
+            ideal_min=
+                0.68,
         )
 
         bandwidth = self._high_score(
             f.spectral_bandwidth_hz,
-            zero_below=2500.0,
-            ideal_min=7000.0,
+            zero_below=
+                2500.0,
+            ideal_min=
+                7000.0,
         )
 
         low_tonality = self._high_score(
             f.spectral_flatness,
-            zero_below=0.38,
-            ideal_min=0.72,
+            zero_below=
+                0.38,
+            ideal_min=
+                0.72,
         )
 
-        low_snr = 0.0
+        low_snr = (
+            0.0
+        )
 
         if (
-            f.snr_db is not None
+            f.snr_db
+            is not None
             and self._finite(
                 f.snr_db
             )
@@ -1170,22 +1750,26 @@ class HeuristicClassifier:
                 <= self.VERY_LOW_SNR_DB
             ):
 
-                low_snr = 1.0
+                low_snr = (
+                    1.0
+                )
 
             elif (
                 snr
                 < self.MODERATE_SNR_DB
             ):
 
-                low_snr = self._clamp01(
-                    1.0
-                    - (
-                        snr
-                        - self.VERY_LOW_SNR_DB
-                    )
-                    / (
-                        self.MODERATE_SNR_DB
-                        - self.VERY_LOW_SNR_DB
+                low_snr = (
+                    self._clamp01(
+                        1.0
+                        - (
+                            snr
+                            - self.VERY_LOW_SNR_DB
+                        )
+                        / (
+                            self.MODERATE_SNR_DB
+                            - self.VERY_LOW_SNR_DB
+                        )
                     )
                 )
 
@@ -1209,33 +1793,46 @@ class HeuristicClassifier:
         ):
 
             reasons.append(
-                "spectrum is comparatively flat and noise-like"
+                (
+                    "spectrum is comparatively "
+                    "flat and noise-like"
+                )
             )
 
         if (
-            bandwidth >= 0.80
+            bandwidth
+            >= 0.80
         ):
 
             reasons.append(
-                "energy is distributed across a broad frequency range"
+                (
+                    "energy is distributed across "
+                    "a broad frequency range"
+                )
             )
 
         if (
-            low_snr >= 0.75
+            low_snr
+            >= 0.75
         ):
 
             reasons.append(
-                "event has poor signal-to-noise separation"
+                (
+                    "event has poor "
+                    "signal-to-noise separation"
+                )
             )
 
-        # Strong broadband + flat-spectrum evidence.
         if (
             f.spectral_flatness
             >= self.VERY_HIGH_FLATNESS
-            and bandwidth >= 0.70
+            and bandwidth
+            >= 0.70
         ):
 
-            score += 0.10
+            score += (
+                0.10
+            )
 
         return (
             self._clamp01(
@@ -1245,50 +1842,66 @@ class HeuristicClassifier:
         )
 
     # ==================================================================
-    # SCORE ALL CLASSES
+    # RAW CLASS EVIDENCE
     # ==================================================================
 
     def _calculate_scores(
         self,
         features: AcousticFeatures,
     ) -> tuple[
-        dict[AcousticClass, float],
-        dict[AcousticClass, list[str]],
+        dict[
+            AcousticClass,
+            float,
+        ],
+        dict[
+            AcousticClass,
+            list[str],
+        ],
     ]:
 
         (
             bird_score,
             bird_reasons,
-        ) = self._score_bird(
-            features
+        ) = (
+            self._score_bird(
+                features
+            )
         )
 
         (
             insect_score,
             insect_reasons,
-        ) = self._score_insect(
-            features
+        ) = (
+            self._score_insect(
+                features
+            )
         )
 
         (
             amphibian_score,
             amphibian_reasons,
-        ) = self._score_amphibian(
-            features
+        ) = (
+            self._score_amphibian(
+                features
+            )
         )
 
         (
             mammal_score,
             mammal_reasons,
-        ) = self._score_mammal(
-            features
+        ) = (
+            self._score_mammal(
+                features
+            )
         )
 
         (
             noise_score,
             noise_reasons,
-        ) = self._score_noise(
-            features
+        ) = (
+            self._score_noise(
+                features
+            )
         )
 
         scores = {
@@ -1335,17 +1948,118 @@ class HeuristicClassifier:
     # ==================================================================
 
     @staticmethod
-    def _empty_scores() -> dict[
+    def _empty_scores(
+        *,
+        unknown_score: float = 0.0,
+    ) -> dict[
         str,
         float,
     ]:
+        """
+        Produce a complete six-class score dictionary.
+        """
 
-        return {
-            acoustic_class.value: 0.0
+        scores = {
+            acoustic_class.value:
+                0.0
 
             for acoustic_class
             in AcousticClass
         }
+
+        scores[
+            AcousticClass.UNKNOWN.value
+        ] = float(
+            max(
+                0.0,
+                min(
+                    1.0,
+                    unknown_score,
+                ),
+            )
+        )
+
+        return scores
+
+    # ==================================================================
+    # APPLY DECISION-QUALITY ADJUSTMENTS
+    # ==================================================================
+
+    def _decision_scores(
+        self,
+        *,
+        features: AcousticFeatures,
+        raw_scores: dict[
+            AcousticClass,
+            float,
+        ],
+    ) -> dict[
+        AcousticClass,
+        float,
+    ]:
+        """
+        Convert raw acoustic evidence into final ranking scores.
+
+        Adjustments currently include:
+
+            event SNR reliability
+            strong flat-spectrum penalty for biological categories
+
+        Ranking MUST occur after these adjustments.
+        """
+
+        quality_factor = (
+            self._snr_quality_factor(
+                features.snr_db
+            )
+        )
+
+        result: dict[
+            AcousticClass,
+            float,
+        ] = {}
+
+        for (
+            label,
+            raw_score,
+        ) in raw_scores.items():
+
+            score = (
+                raw_score
+                * quality_factor
+            )
+
+            # ----------------------------------------------------------
+            # VERY FLAT SPECTRUM
+            # ----------------------------------------------------------
+            #
+            # Strongly flat/broadband signals are less consistent with
+            # the biological-pattern categories represented by this
+            # simple heuristic baseline.
+            #
+            # Noise is deliberately not penalized.
+            # ----------------------------------------------------------
+
+            if (
+                label
+                != AcousticClass.NOISE
+                and features.spectral_flatness
+                >= self.VERY_HIGH_FLATNESS
+            ):
+
+                score *= (
+                    0.72
+                )
+
+            result[
+                label
+            ] = (
+                self._clamp01(
+                    score
+                )
+            )
+
+        return result
 
     # ==================================================================
     # CLASSIFY
@@ -1360,11 +2074,27 @@ class HeuristicClassifier:
         """
 
         # ==============================================================
+        # API TYPE
+        # ==============================================================
+
+        if not isinstance(
+            features,
+            AcousticFeatures,
+        ):
+
+            raise TypeError(
+                (
+                    "features must be an "
+                    "AcousticFeatures instance."
+                )
+            )
+
+        # ==============================================================
         # FEATURE VALIDITY
         # ==============================================================
 
-        if (
-            not self._feature_quality_valid(
+        if not (
+            self._feature_quality_valid(
                 features
             )
         ):
@@ -1380,17 +2110,22 @@ class HeuristicClassifier:
                     None,
 
                 second_confidence=
-                    0.0,
+                    None,
 
                 margin=
                     0.0,
 
                 scores=
-                    self._empty_scores(),
+                    self._empty_scores(
+                        unknown_score=
+                            1.0
+                    ),
 
                 reasons=(
-                    "acoustic feature vector is incomplete, invalid, "
-                    "or contains no usable signal",
+                    (
+                        "acoustic feature vector is incomplete, invalid, "
+                        "or contains no usable signal"
+                    ),
                 ),
             )
 
@@ -1399,7 +2134,8 @@ class HeuristicClassifier:
         # ==============================================================
 
         if (
-            features.snr_db is not None
+            features.snr_db
+            is not None
             and self._finite(
                 features.snr_db
             )
@@ -1408,16 +2144,17 @@ class HeuristicClassifier:
         ):
 
             scores = (
-                self._empty_scores()
+                self._empty_scores(
+                    unknown_score=
+                        1.0
+                )
             )
 
             scores[
                 AcousticClass.NOISE.value
-            ] = 0.75
-
-            scores[
-                AcousticClass.UNKNOWN.value
-            ] = 1.0
+            ] = (
+                0.75
+            )
 
             return ClassificationResult(
                 label=
@@ -1439,31 +2176,51 @@ class HeuristicClassifier:
                     scores,
 
                 reasons=(
-                    "signal-to-noise ratio is too low for reliable "
-                    "broad acoustic classification",
+                    (
+                        "signal-to-noise ratio is too low for reliable "
+                        "broad acoustic classification"
+                    ),
                 ),
             )
 
         # ==============================================================
-        # CALCULATE RAW CLASS EVIDENCE
+        # RAW ACOUSTIC EVIDENCE
         # ==============================================================
 
         (
             raw_scores,
             reasons_by_class,
-        ) = self._calculate_scores(
-            features
+        ) = (
+            self._calculate_scores(
+                features
+            )
         )
 
         # ==============================================================
-        # RANK
+        # FINAL DECISION SCORES
+        # ==============================================================
+
+        decision_scores = (
+            self._decision_scores(
+                features=
+                    features,
+
+                raw_scores=
+                    raw_scores,
+            )
+        )
+
+        # ==============================================================
+        # RANK AFTER ALL ADJUSTMENTS
         # ==============================================================
 
         ranking = sorted(
-            raw_scores.items(),
+            decision_scores.items(),
 
             key=lambda item:
-                item[1],
+                item[
+                    1
+                ],
 
             reverse=True,
         )
@@ -1471,68 +2228,28 @@ class HeuristicClassifier:
         (
             top_label,
             top_score,
-        ) = ranking[0]
+        ) = ranking[
+            0
+        ]
 
         (
             second_label,
             second_score,
-        ) = ranking[1]
+        ) = ranking[
+            1
+        ]
 
-        raw_margin = (
+        decision_margin = max(
+            0.0,
             float(
                 top_score
                 - second_score
-            )
+            ),
         )
 
         # ==============================================================
-        # SIGNAL QUALITY
+        # OUTPUT SCORE MAP
         # ==============================================================
-
-        quality_factor = (
-            self._snr_quality_factor(
-                features.snr_db
-            )
-        )
-
-        adjusted_top = (
-            self._clamp01(
-                top_score
-                * quality_factor
-            )
-        )
-
-        adjusted_second = (
-            self._clamp01(
-                second_score
-                * quality_factor
-            )
-        )
-
-        # ==============================================================
-        # BIOLOGICAL VS NOISE OVERRIDE
-        # ==============================================================
-
-        if (
-            top_label
-            != AcousticClass.NOISE
-            and features.spectral_flatness
-            >= self.VERY_HIGH_FLATNESS
-        ):
-
-            adjusted_top *= 0.72
-
-        # ==============================================================
-        # AMBIGUITY
-        # ==============================================================
-
-        ambiguous = (
-            adjusted_top
-            < self.MIN_ACCEPT_CONFIDENCE
-
-            or raw_margin
-            < self.MIN_ACCEPT_MARGIN
-        )
 
         score_output: dict[
             str,
@@ -1545,9 +2262,30 @@ class HeuristicClassifier:
                     )
                 )
 
-            for label, score
-            in raw_scores.items()
+            for (
+                label,
+                score,
+            )
+            in decision_scores.items()
         }
+
+        score_output[
+            AcousticClass.UNKNOWN.value
+        ] = (
+            0.0
+        )
+
+        # ==============================================================
+        # AMBIGUITY
+        # ==============================================================
+
+        ambiguous = (
+            top_score
+            < self.MIN_ACCEPT_CONFIDENCE
+
+            or decision_margin
+            < self.MIN_ACCEPT_MARGIN
+        )
 
         # ==============================================================
         # UNKNOWN DECISION
@@ -1555,35 +2293,50 @@ class HeuristicClassifier:
 
         if ambiguous:
 
-            ambiguity_strength = max(
+            confidence_deficit = (
                 1.0
-                - adjusted_top,
-
-                self._clamp01(
-                    (
-                        self.MIN_ACCEPT_MARGIN
-                        - raw_margin
-                    )
-                    / self.MIN_ACCEPT_MARGIN
-                )
-                if (
-                    raw_margin
-                    < self.MIN_ACCEPT_MARGIN
-                )
-                else 0.0,
+                - top_score
             )
+
+            if (
+                decision_margin
+                < self.MIN_ACCEPT_MARGIN
+            ):
+
+                margin_deficit = (
+                    self._clamp01(
+                        (
+                            self.MIN_ACCEPT_MARGIN
+                            - decision_margin
+                        )
+                        / self.MIN_ACCEPT_MARGIN
+                    )
+                )
+
+            else:
+
+                margin_deficit = (
+                    0.0
+                )
 
             unknown_confidence = (
                 self._clamp01(
-                    ambiguity_strength
+                    max(
+                        confidence_deficit,
+                        margin_deficit,
+                    )
                 )
             )
 
             score_output[
                 AcousticClass.UNKNOWN.value
-            ] = unknown_confidence
+            ] = (
+                unknown_confidence
+            )
 
-            reasons: list[str] = [
+            reasons: list[
+                str
+            ] = [
                 (
                     "available acoustic evidence is not sufficiently "
                     "distinct for a reliable broad-group decision"
@@ -1591,25 +2344,25 @@ class HeuristicClassifier:
             ]
 
             if (
-                adjusted_top
+                top_score
                 < self.MIN_ACCEPT_CONFIDENCE
             ):
 
                 reasons.append(
                     (
-                        f"best candidate score after signal-quality "
-                        f"adjustment is only {adjusted_top:.2f}"
+                        "best candidate decision score is only "
+                        f"{top_score:.2f}"
                     )
                 )
 
             if (
-                raw_margin
+                decision_margin
                 < self.MIN_ACCEPT_MARGIN
             ):
 
                 reasons.append(
                     (
-                        f"top candidates overlap strongly: "
+                        "top candidates overlap strongly: "
                         f"{top_label.value}={top_score:.2f}, "
                         f"{second_label.value}={second_score:.2f}"
                     )
@@ -1635,7 +2388,7 @@ class HeuristicClassifier:
 
             reasons.append(
                 (
-                    f"strongest acoustic candidate remains "
+                    "strongest remaining acoustic candidate is "
                     f"{top_label.value}"
                 )
             )
@@ -1651,10 +2404,12 @@ class HeuristicClassifier:
                     top_label,
 
                 second_confidence=
-                    adjusted_top,
+                    float(
+                        top_score
+                    ),
 
                 margin=
-                    raw_margin,
+                    decision_margin,
 
                 scores=
                     score_output,
@@ -1669,31 +2424,23 @@ class HeuristicClassifier:
         # ACCEPTED CLASSIFICATION
         # ==============================================================
 
-        score_output[
-            AcousticClass.UNKNOWN.value
-        ] = 0.0
-
         accepted_reasons = list(
             reasons_by_class[
                 top_label
             ]
         )
 
-        # --------------------------------------------------------------
-        # Generic useful explanation
-        # --------------------------------------------------------------
-
         accepted_reasons.append(
             (
-                f"{top_label.value} produced the highest broad-group "
-                f"acoustic score ({top_score:.2f})"
+                f"{top_label.value} produced the highest final "
+                f"broad-group decision score ({top_score:.2f})"
             )
         )
 
         accepted_reasons.append(
             (
                 f"decision margin over {second_label.value} "
-                f"is {raw_margin:.2f}"
+                f"is {decision_margin:.2f}"
             )
         )
 
@@ -1723,16 +2470,20 @@ class HeuristicClassifier:
                 top_label,
 
             confidence=
-                adjusted_top,
+                float(
+                    top_score
+                ),
 
             second_label=
                 second_label,
 
             second_confidence=
-                adjusted_second,
+                float(
+                    second_score
+                ),
 
             margin=
-                raw_margin,
+                decision_margin,
 
             scores=
                 score_output,

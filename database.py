@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import json
+import math
 import sqlite3
+
 from pathlib import Path
 from threading import Lock
 from typing import Any
@@ -28,6 +30,24 @@ from protocol import (
 
 
 # ======================================================================
+# INTEGER LIMITS
+# ======================================================================
+
+
+UINT8_MAX = (
+    0xFF
+)
+
+UINT32_MAX = (
+    0xFFFFFFFF
+)
+
+UINT64_MAX = (
+    0xFFFFFFFFFFFFFFFF
+)
+
+
+# ======================================================================
 # DATABASE
 # ======================================================================
 
@@ -45,47 +65,68 @@ class EventDatabase:
         Environmental measurements received from the BME280.
 
     events
-        Core acoustic-event metadata, associated environmental
-        conditions and localization results.
+        Core acoustic-event metadata, environmental context and
+        localization result.
 
     event_features
-        DSP/acoustic descriptors generated from the selected
-        best-quality microphone channel.
+        DSP descriptors extracted from the selected best-quality
+        microphone channel.
 
     classifications
-        Broad acoustic classification result associated with an event.
+        Broad acoustic classification associated one-to-one with an
+        event.
 
-    Storage design
+
+    Storage policy
     --------------
-    Raw audio is deliberately NOT stored inside SQLite.
+    Raw PCM/audio is deliberately not stored as SQLite BLOB data.
 
-    Audio files:
-        filesystem / WAV
+        WAV/audio
+            filesystem
 
-    Structured metadata:
-        SQLite
+        structured metadata
+            SQLite
 
-    This keeps the database relatively compact and allows event audio
-    to remain directly accessible for later research, reprocessing and
-    model development.
+    This keeps the database compact and makes recordings directly
+    reusable by later DSP, benchmarking and machine-learning workflows.
     """
+
+    # ==================================================================
+    # INITIALIZATION
+    # ==================================================================
 
     def __init__(
         self,
         path: str | Path,
     ) -> None:
 
-        self.path = Path(
-            path
+        self.path = (
+            Path(
+                path
+            )
         )
+
+        if not (
+            self.path.name
+        ):
+
+            raise ValueError(
+                (
+                    "Database path must contain "
+                    "a database filename."
+                )
+            )
 
         self.path.parent.mkdir(
             parents=True,
             exist_ok=True,
         )
 
-        # All writes are serialized inside this process.
-        self._lock = Lock()
+        # SQLite connections are short-lived, but write operations within
+        # this process are still serialized.
+        self._lock = (
+            Lock()
+        )
 
         self._initialize()
 
@@ -99,19 +140,18 @@ class EventDatabase:
         """
         Open one configured SQLite connection.
 
-        A fresh connection is used per database operation.
-
-        WAL mode is configured during database initialization rather
-        than repeatedly for every connection.
+        A fresh connection is used for every database operation.
         """
 
-        connection = sqlite3.connect(
-            self.path,
-            timeout=5.0,
+        connection = (
+            sqlite3.connect(
+                self.path,
+                timeout=5.0,
+            )
         )
 
         # --------------------------------------------------------------
-        # FOREIGN KEYS
+        # REFERENTIAL INTEGRITY
         # --------------------------------------------------------------
 
         connection.execute(
@@ -139,10 +179,10 @@ class EventDatabase:
         sort_keys: bool = False,
     ) -> str:
         """
-        Serialize data using standards-compatible JSON.
+        Serialize standards-compatible compact JSON.
 
-        NaN and infinity are rejected rather than silently persisting
-        non-standard JSON values.
+        NaN and infinity are rejected because they are not valid JSON
+        numbers according to the JSON specification.
         """
 
         return json.dumps(
@@ -156,28 +196,197 @@ class EventDatabase:
         )
 
     # ==================================================================
-    # INITIALIZATION
+    # FINITE FLOAT VALIDATION
+    # ==================================================================
+
+    @staticmethod
+    def _finite_float(
+        value: Any,
+        *,
+        name: str,
+    ) -> float:
+        """
+        Convert a value to float and require a finite result.
+        """
+
+        result = float(
+            value
+        )
+
+        if not math.isfinite(
+            result
+        ):
+
+            raise ValueError(
+                f"{name} must be finite"
+            )
+
+        return result
+
+    @classmethod
+    def _optional_finite_float(
+        cls,
+        value: Any | None,
+        *,
+        name: str,
+    ) -> float | None:
+        """
+        Return None or one finite float.
+        """
+
+        if value is None:
+
+            return None
+
+        return cls._finite_float(
+            value,
+            name=name,
+        )
+
+    # ==================================================================
+    # ID VALIDATION
+    # ==================================================================
+
+    @staticmethod
+    def _positive_id(
+        value: int,
+        *,
+        name: str,
+        maximum: int | None = None,
+    ) -> int:
+        """
+        Validate a positive integer identifier.
+        """
+
+        if isinstance(
+            value,
+            bool,
+        ):
+
+            raise TypeError(
+                f"{name} must be an integer"
+            )
+
+        if not isinstance(
+            value,
+            int,
+        ):
+
+            raise TypeError(
+                f"{name} must be an integer"
+            )
+
+        result = int(
+            value
+        )
+
+        if result <= 0:
+
+            raise ValueError(
+                f"{name} must be greater than 0"
+            )
+
+        if (
+            maximum is not None
+            and result > maximum
+        ):
+
+            raise ValueError(
+                (
+                    f"{name} cannot exceed "
+                    f"{maximum}"
+                )
+            )
+
+        return result
+
+    # ==================================================================
+    # SAMPLE INDEX VALIDATION
+    # ==================================================================
+
+    @staticmethod
+    def _sample_index(
+        value: int,
+        *,
+        name: str,
+    ) -> int:
+        """
+        Validate one Protocol-v4 uint64 sample position.
+        """
+
+        if isinstance(
+            value,
+            bool,
+        ):
+
+            raise TypeError(
+                f"{name} must be an integer"
+            )
+
+        if not isinstance(
+            value,
+            int,
+        ):
+
+            raise TypeError(
+                f"{name} must be an integer"
+            )
+
+        result = int(
+            value
+        )
+
+        if not (
+            0
+            <= result
+            <= UINT64_MAX
+        ):
+
+            raise ValueError(
+                (
+                    f"{name} must lie in "
+                    "the uint64 range"
+                )
+            )
+
+        # --------------------------------------------------------------
+        # SQLITE INTEGER LIMIT
+        # --------------------------------------------------------------
+        #
+        # SQLite INTEGER is signed 64-bit.
+        #
+        # Protocol sampleIndex is uint64. Real acquisition sessions will
+        # never approach 2^63 samples, but explicitly reject values that
+        # SQLite cannot represent rather than allowing an OverflowError.
+        # --------------------------------------------------------------
+
+        if result > 0x7FFFFFFFFFFFFFFF:
+
+            raise ValueError(
+                (
+                    f"{name} exceeds SQLite "
+                    "signed 64-bit INTEGER capacity"
+                )
+            )
+
+        return result
+
+    # ==================================================================
+    # DATABASE INITIALIZATION
     # ==================================================================
 
     def _initialize(
         self,
     ) -> None:
         """
-        Create required database tables and indexes.
-
-        Existing databases are retained and simple compatible migrations
-        are applied where possible.
+        Create tables, perform compatible migrations and create indexes.
         """
 
         with self._connect() as conn:
 
-            # ----------------------------------------------------------
-            # WAL
-            # ----------------------------------------------------------
-            #
-            # WAL improves concurrent reads while the receiver continues
-            # writing event information.
-            # ----------------------------------------------------------
+            # ==========================================================
+            # SQLITE OPERATING MODE
+            # ==========================================================
 
             conn.execute(
                 "PRAGMA journal_mode = WAL"
@@ -188,7 +397,7 @@ class EventDatabase:
             )
 
             # ==========================================================
-            # SCHEMA
+            # CORE TABLES
             # ==========================================================
 
             conn.executescript(
@@ -232,24 +441,6 @@ class EventDatabase:
 
                     created_at TEXT NOT NULL
                         DEFAULT CURRENT_TIMESTAMP
-                );
-
-
-                CREATE INDEX IF NOT EXISTS
-                    idx_telemetry_session_sample
-
-                ON telemetry(
-                    session_id,
-                    sample_index
-                );
-
-
-                CREATE INDEX IF NOT EXISTS
-                    idx_telemetry_node_sample
-
-                ON telemetry(
-                    node_id,
-                    sample_index
                 );
 
 
@@ -318,23 +509,6 @@ class EventDatabase:
 
                     FOREIGN KEY(session_id)
                         REFERENCES sessions(session_id)
-                );
-
-
-                CREATE INDEX IF NOT EXISTS
-                    idx_events_session_start
-
-                ON events(
-                    session_id,
-                    start_sample
-                );
-
-
-                CREATE INDEX IF NOT EXISTS
-                    idx_events_created
-
-                ON events(
-                    created_at
                 );
 
 
@@ -411,22 +585,6 @@ class EventDatabase:
                 );
 
 
-                CREATE INDEX IF NOT EXISTS
-                    idx_event_features_event
-
-                ON event_features(
-                    event_id
-                );
-
-
-                CREATE INDEX IF NOT EXISTS
-                    idx_event_features_node
-
-                ON event_features(
-                    source_node_id
-                );
-
-
                 ------------------------------------------------------------
                 -- CLASSIFICATIONS
                 ------------------------------------------------------------
@@ -451,7 +609,7 @@ class EventDatabase:
 
                     second_label TEXT,
 
-                    second_confidence REAL NOT NULL,
+                    second_confidence REAL,
 
                     --------------------------------------------------------
                     -- DECISION QUALITY
@@ -482,6 +640,93 @@ class EventDatabase:
                         REFERENCES events(id)
                         ON DELETE CASCADE
                 );
+                """
+            )
+
+            # ==========================================================
+            # SIMPLE EVENT MIGRATIONS
+            # ==========================================================
+
+            self._ensure_column(
+                conn,
+                table=
+                    "events",
+                column=
+                    "best_node_id",
+                definition=
+                    "INTEGER",
+            )
+
+            # ==========================================================
+            # CLASSIFICATION SCHEMA MIGRATION
+            # ==========================================================
+
+            self._ensure_nullable_second_confidence(
+                conn
+            )
+
+            # ==========================================================
+            # INDEXES
+            # ==========================================================
+            #
+            # These are deliberately created after table migrations.
+            #
+            # Rebuilding a SQLite table drops indexes associated with the
+            # old table, so this guarantees they exist in the final
+            # schema.
+            # ==========================================================
+
+            conn.executescript(
+                """
+                CREATE INDEX IF NOT EXISTS
+                    idx_telemetry_session_sample
+
+                ON telemetry(
+                    session_id,
+                    sample_index
+                );
+
+
+                CREATE INDEX IF NOT EXISTS
+                    idx_telemetry_node_sample
+
+                ON telemetry(
+                    node_id,
+                    sample_index
+                );
+
+
+                CREATE INDEX IF NOT EXISTS
+                    idx_events_session_start
+
+                ON events(
+                    session_id,
+                    start_sample
+                );
+
+
+                CREATE INDEX IF NOT EXISTS
+                    idx_events_created
+
+                ON events(
+                    created_at
+                );
+
+
+                CREATE INDEX IF NOT EXISTS
+                    idx_event_features_event
+
+                ON event_features(
+                    event_id
+                );
+
+
+                CREATE INDEX IF NOT EXISTS
+                    idx_event_features_node
+
+                ON event_features(
+                    source_node_id
+                );
 
 
                 CREATE INDEX IF NOT EXISTS
@@ -501,26 +746,8 @@ class EventDatabase:
                 """
             )
 
-            # ==========================================================
-            # DATABASE MIGRATION
-            # ==========================================================
-            #
-            # Older events tables may predate best_node_id.
-            #
-            # CREATE TABLE IF NOT EXISTS does not alter an already
-            # existing table, therefore the column must be checked
-            # separately.
-            # ==========================================================
-
-            self._ensure_column(
-                conn,
-                table="events",
-                column="best_node_id",
-                definition="INTEGER",
-            )
-
     # ==================================================================
-    # SIMPLE MIGRATION SUPPORT
+    # SIMPLE COLUMN MIGRATION
     # ==================================================================
 
     @staticmethod
@@ -532,15 +759,15 @@ class EventDatabase:
         definition: str,
     ) -> None:
         """
-        Add one column only when it does not already exist.
-
-        This helper is intended only for controlled internal schema
-        migrations using hard-coded table/column names.
+        Add one hard-coded internal column when absent.
         """
 
-        rows = conn.execute(
-            f"PRAGMA table_info({table})"
-        ).fetchall()
+        rows = (
+            conn.execute(
+                f"PRAGMA table_info({table})"
+            )
+            .fetchall()
+        )
 
         existing_columns = {
             str(
@@ -565,6 +792,170 @@ class EventDatabase:
         )
 
     # ==================================================================
+    # CLASSIFICATION NULLABILITY MIGRATION
+    # ==================================================================
+
+    @staticmethod
+    def _ensure_nullable_second_confidence(
+        conn: sqlite3.Connection,
+    ) -> None:
+        """
+        Upgrade old classifications tables where second_confidence was
+        incorrectly declared NOT NULL.
+
+        SQLite cannot directly DROP a NOT NULL constraint, therefore the
+        table is rebuilt while preserving existing rows.
+        """
+
+        table_info = (
+            conn.execute(
+                """
+                PRAGMA table_info(
+                    classifications
+                )
+                """
+            )
+            .fetchall()
+        )
+
+        second_column = next(
+            (
+                row
+                for row
+                in table_info
+                if str(
+                    row[1]
+                )
+                == "second_confidence"
+            ),
+            None,
+        )
+
+        # Fresh/current schema.
+        if (
+            second_column is None
+            or int(
+                second_column[3]
+            )
+            == 0
+        ):
+
+            return
+
+        # ==============================================================
+        # OLD TABLE REQUIRES REBUILD
+        # ==========================================================
+
+        conn.execute(
+            """
+            CREATE TABLE
+                classifications_migrated (
+
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+                    event_id INTEGER NOT NULL UNIQUE,
+
+                    label TEXT NOT NULL,
+
+                    confidence REAL NOT NULL,
+
+                    second_label TEXT,
+
+                    second_confidence REAL,
+
+                    margin REAL NOT NULL,
+
+                    scores_json TEXT NOT NULL,
+
+                    reasons_json TEXT NOT NULL,
+
+                    classifier_name TEXT NOT NULL,
+
+                    classifier_version TEXT NOT NULL,
+
+                    created_at TEXT NOT NULL
+                        DEFAULT CURRENT_TIMESTAMP,
+
+                    FOREIGN KEY(event_id)
+                        REFERENCES events(id)
+                        ON DELETE CASCADE
+                )
+            """
+        )
+
+        conn.execute(
+            """
+            INSERT INTO classifications_migrated(
+
+                id,
+
+                event_id,
+
+                label,
+
+                confidence,
+
+                second_label,
+
+                second_confidence,
+
+                margin,
+
+                scores_json,
+
+                reasons_json,
+
+                classifier_name,
+
+                classifier_version,
+
+                created_at
+            )
+
+            SELECT
+
+                id,
+
+                event_id,
+
+                label,
+
+                confidence,
+
+                second_label,
+
+                second_confidence,
+
+                margin,
+
+                scores_json,
+
+                reasons_json,
+
+                classifier_name,
+
+                classifier_version,
+
+                created_at
+
+            FROM classifications
+            """
+        )
+
+        conn.execute(
+            """
+            DROP TABLE classifications
+            """
+        )
+
+        conn.execute(
+            """
+            ALTER TABLE classifications_migrated
+            RENAME TO classifications
+            """
+        )
+
+    # ==================================================================
     # SESSION OPERATIONS
     # ==================================================================
 
@@ -576,31 +967,45 @@ class EventDatabase:
         """
         Register the beginning of one acquisition session.
 
-        Session IDs are generated by the laptop and shared with all
-        ESP32 nodes.
+        A session identifier is immutable historical identity.
+
+        If the same non-zero ID already exists, insertion fails rather
+        than silently overwriting an older research session.
         """
 
-        session_id = int(
-            session_id
+        session_id = (
+            self._positive_id(
+                session_id,
+                name=
+                    "session_id",
+                maximum=
+                    UINT32_MAX,
+            )
         )
 
-        label = str(
-            label
-        ).strip()
-
-        if (
-            session_id
-            <= 0
+        if not isinstance(
+            label,
+            str,
         ):
 
-            raise ValueError(
-                "session_id must be greater than 0"
+            raise TypeError(
+                (
+                    "session label must "
+                    "be a string"
+                )
             )
+
+        label = (
+            label.strip()
+        )
 
         if not label:
 
             raise ValueError(
-                "session label cannot be empty"
+                (
+                    "session label "
+                    "cannot be empty"
+                )
             )
 
         with (
@@ -608,39 +1013,47 @@ class EventDatabase:
             self._connect() as conn,
         ):
 
-            conn.execute(
-                """
-                INSERT INTO sessions(
-                    session_id,
-                    label,
-                    started_at,
-                    stopped_at
-                )
+            try:
 
-                VALUES(
-                    ?,
-                    ?,
-                    CURRENT_TIMESTAMP,
-                    NULL
-                )
+                conn.execute(
+                    """
+                    INSERT INTO sessions(
 
-                ON CONFLICT(session_id)
-                DO UPDATE SET
+                        session_id,
 
-                    label =
-                        excluded.label,
+                        label,
 
-                    started_at =
+                        started_at,
+
+                        stopped_at
+                    )
+
+                    VALUES(
+                        ?,
+                        ?,
                         CURRENT_TIMESTAMP,
-
-                    stopped_at =
                         NULL
-                """,
-                (
-                    session_id,
-                    label,
-                ),
-            )
+                    )
+                    """,
+                    (
+                        session_id,
+                        label,
+                    ),
+                )
+
+            except sqlite3.IntegrityError as exc:
+
+                raise ValueError(
+                    (
+                        "session_id already exists "
+                        f"in database: "
+                        f"0x{session_id:08X}"
+                    )
+                ) from exc
+
+    # ==================================================================
+    # STOP SESSION
+    # ==================================================================
 
     def stop_session(
         self,
@@ -657,13 +1070,21 @@ class EventDatabase:
 
             return
 
-        session_id = int(
-            session_id
-        )
+        try:
 
-        if (
-            session_id
-            <= 0
+            session_id = (
+                self._positive_id(
+                    session_id,
+                    name=
+                        "session_id",
+                    maximum=
+                        UINT32_MAX,
+                )
+            )
+
+        except (
+            TypeError,
+            ValueError,
         ):
 
             return
@@ -700,47 +1121,72 @@ class EventDatabase:
         environment: EnvironmentPayload,
     ) -> None:
         """
-        Persist one environmental telemetry sample.
+        Persist one BME280 telemetry sample.
         """
 
-        session_id = int(
-            session_id
+        session_id = (
+            self._positive_id(
+                session_id,
+                name=
+                    "session_id",
+                maximum=
+                    UINT32_MAX,
+            )
         )
 
-        node_id = int(
-            node_id
+        node_id = (
+            self._positive_id(
+                node_id,
+                name=
+                    "node_id",
+                maximum=
+                    UINT8_MAX,
+            )
         )
 
-        sample_index = int(
-            sample_index
+        sample_index = (
+            self._sample_index(
+                sample_index,
+                name=
+                    "sample_index",
+            )
         )
 
-        if (
-            session_id
-            <= 0
+        if not isinstance(
+            environment,
+            EnvironmentPayload,
         ):
 
-            raise ValueError(
-                "session_id must be greater than 0"
+            raise TypeError(
+                (
+                    "environment must be an "
+                    "EnvironmentPayload instance"
+                )
             )
 
-        if (
-            node_id
-            <= 0
-        ):
-
-            raise ValueError(
-                "node_id must be greater than 0"
+        temperature = (
+            self._finite_float(
+                environment.temperature_c,
+                name=
+                    "temperature_c",
             )
+        )
 
-        if (
-            sample_index
-            < 0
-        ):
-
-            raise ValueError(
-                "sample_index cannot be negative"
+        humidity = (
+            self._finite_float(
+                environment.humidity_percent,
+                name=
+                    "humidity_percent",
             )
+        )
+
+        pressure = (
+            self._finite_float(
+                environment.pressure_hpa,
+                name=
+                    "pressure_hpa",
+            )
+        )
 
         with (
             self._lock,
@@ -780,22 +1226,16 @@ class EventDatabase:
 
                     sample_index,
 
-                    float(
-                        environment.temperature_c
-                    ),
+                    temperature,
 
-                    float(
-                        environment.humidity_percent
-                    ),
+                    humidity,
 
-                    float(
-                        environment.pressure_hpa
-                    ),
+                    pressure,
                 ),
             )
 
     # ==================================================================
-    # EVENT OPERATIONS
+    # CORE EVENT OPERATIONS
     # ==================================================================
 
     def add_event(
@@ -810,59 +1250,296 @@ class EventDatabase:
         """
         Store core acoustic-event information.
 
-        DSP features and classification outputs are deliberately stored
-        in their own one-to-one tables.
+        DSP features and classification remain in separate one-to-one
+        tables.
         """
 
-        if (
-            event.session_id
-            <= 0
+        # ==============================================================
+        # EVENT TYPE
+        # ==============================================================
+
+        if not isinstance(
+            event,
+            AcousticEvent,
         ):
 
-            raise ValueError(
-                "event session_id must be greater than 0"
+            raise TypeError(
+                (
+                    "event must be "
+                    "an AcousticEvent instance"
+                )
             )
 
-        if (
-            event.start_sample
-            < 0
-        ):
+        # ==============================================================
+        # EVENT IDENTITY
+        # ==============================================================
 
-            raise ValueError(
-                "event start_sample cannot be negative"
+        detector_event_id = (
+            self._positive_id(
+                event.event_id,
+                name=
+                    "detector_event_id",
             )
+        )
+
+        session_id = (
+            self._positive_id(
+                event.session_id,
+                name=
+                    "event session_id",
+                maximum=
+                    UINT32_MAX,
+            )
+        )
+
+        start_sample = (
+            self._sample_index(
+                event.start_sample,
+                name=
+                    "event start_sample",
+            )
+        )
+
+        end_sample = (
+            self._sample_index(
+                event.end_sample,
+                name=
+                    "event end_sample",
+            )
+        )
 
         if (
-            event.end_sample
-            < event.start_sample
+            end_sample
+            < start_sample
         ):
 
             raise ValueError(
                 (
-                    "event end_sample cannot be "
-                    "smaller than start_sample"
+                    "event end_sample cannot "
+                    "be smaller than start_sample"
                 )
             )
 
-        position = (
-            localization.position
-            if localization is not None
-            else None
+        peak_rms_dbfs = (
+            self._finite_float(
+                event.peak_rms_dbfs,
+                name=
+                    "event peak_rms_dbfs",
+            )
         )
 
+        # ==============================================================
+        # TRIGGER NODES
+        # ==============================================================
+
         trigger_nodes = sorted(
-            int(
-                node_id
-            )
-            for node_id
-            in event.trigger_nodes
+            {
+                self._positive_id(
+                    node_id,
+                    name=
+                        "trigger node_id",
+                    maximum=
+                        UINT8_MAX,
+                )
+                for node_id
+                in event.trigger_nodes
+            }
         )
+
+        if not trigger_nodes:
+
+            raise ValueError(
+                (
+                    "AcousticEvent must contain "
+                    "at least one trigger node"
+                )
+            )
 
         trigger_nodes_json = (
             self._json_dumps(
                 trigger_nodes
             )
         )
+
+        # ==============================================================
+        # BEST NODE
+        # ==============================================================
+
+        if (
+            best_node_id
+            is not None
+        ):
+
+            best_node_id = (
+                self._positive_id(
+                    best_node_id,
+                    name=
+                        "best_node_id",
+                    maximum=
+                        UINT8_MAX,
+                )
+            )
+
+        # ==============================================================
+        # ENVIRONMENT
+        # ==============================================================
+
+        if (
+            environment
+            is None
+        ):
+
+            temperature = (
+                None
+            )
+
+            humidity = (
+                None
+            )
+
+            pressure = (
+                None
+            )
+
+        else:
+
+            if not isinstance(
+                environment,
+                EnvironmentPayload,
+            ):
+
+                raise TypeError(
+                    (
+                        "environment must be "
+                        "EnvironmentPayload or None"
+                    )
+                )
+
+            temperature = (
+                self._finite_float(
+                    environment.temperature_c,
+                    name=
+                        "event temperature_c",
+                )
+            )
+
+            humidity = (
+                self._finite_float(
+                    environment.humidity_percent,
+                    name=
+                        "event humidity_percent",
+                )
+            )
+
+            pressure = (
+                self._finite_float(
+                    environment.pressure_hpa,
+                    name=
+                        "event pressure_hpa",
+                )
+            )
+
+        # ==============================================================
+        # LOCALIZATION
+        # ==============================================================
+
+        if (
+            localization
+            is None
+        ):
+
+            speed_of_sound = (
+                None
+            )
+
+            x_m = (
+                None
+            )
+
+            y_m = (
+                None
+            )
+
+            localization_success = (
+                None
+            )
+
+            localization_residual = (
+                None
+            )
+
+        else:
+
+            if not isinstance(
+                localization,
+                LocalizationResult,
+            ):
+
+                raise TypeError(
+                    (
+                        "localization must be "
+                        "LocalizationResult or None"
+                    )
+                )
+
+            speed_of_sound = (
+                self._finite_float(
+                    localization.speed_of_sound_mps,
+                    name=
+                        "speed_of_sound_mps",
+                )
+            )
+
+            position = (
+                localization.position
+            )
+
+            x_m = (
+                self._finite_float(
+                    position.x,
+                    name=
+                        "localization x_m",
+                )
+            )
+
+            y_m = (
+                self._finite_float(
+                    position.y,
+                    name=
+                        "localization y_m",
+                )
+            )
+
+            localization_success = int(
+                bool(
+                    position.success
+                )
+            )
+
+            localization_residual = (
+                self._finite_float(
+                    position.residual_rms_meters,
+                    name=
+                        "localization_residual_m",
+                )
+            )
+
+        # ==============================================================
+        # EVENT DIRECTORY
+        # ==============================================================
+
+        if (
+            event_directory
+            is not None
+        ):
+
+            event_directory = str(
+                event_directory
+            )
+
+        # ==============================================================
+        # INSERT
+        # ==============================================================
 
         with (
             self._lock,
@@ -926,109 +1603,37 @@ class EventDatabase:
                 )
                 """,
                 (
-                    int(
-                        event.event_id
-                    ),
+                    detector_event_id,
 
-                    int(
-                        event.session_id
-                    ),
+                    session_id,
 
-                    int(
-                        event.start_sample
-                    ),
+                    start_sample,
 
-                    int(
-                        event.end_sample
-                    ),
+                    end_sample,
 
                     trigger_nodes_json,
 
-                    float(
-                        event.peak_rms_dbfs
-                    ),
+                    peak_rms_dbfs,
 
-                    (
-                        None
-                        if best_node_id is None
-                        else int(
-                            best_node_id
-                        )
-                    ),
+                    best_node_id,
 
-                    (
-                        None
-                        if environment is None
-                        else float(
-                            environment.temperature_c
-                        )
-                    ),
+                    temperature,
 
-                    (
-                        None
-                        if environment is None
-                        else float(
-                            environment.humidity_percent
-                        )
-                    ),
+                    humidity,
 
-                    (
-                        None
-                        if environment is None
-                        else float(
-                            environment.pressure_hpa
-                        )
-                    ),
+                    pressure,
 
-                    (
-                        None
-                        if localization is None
-                        else float(
-                            localization.speed_of_sound_mps
-                        )
-                    ),
+                    speed_of_sound,
 
-                    (
-                        None
-                        if position is None
-                        else float(
-                            position.x
-                        )
-                    ),
+                    x_m,
 
-                    (
-                        None
-                        if position is None
-                        else float(
-                            position.y
-                        )
-                    ),
+                    y_m,
 
-                    (
-                        None
-                        if position is None
-                        else int(
-                            bool(
-                                position.success
-                            )
-                        )
-                    ),
+                    localization_success,
 
-                    (
-                        None
-                        if position is None
-                        else float(
-                            position.residual_rms_meters
-                        )
-                    ),
+                    localization_residual,
 
-                    (
-                        None
-                        if event_directory is None
-                        else str(
-                            event_directory
-                        )
-                    ),
+                    event_directory,
                 ),
             )
 
@@ -1043,8 +1648,8 @@ class EventDatabase:
 
                 raise RuntimeError(
                     (
-                        "SQLite did not return an "
-                        "event row ID"
+                        "SQLite did not return "
+                        "an event row ID"
                     )
                 )
 
@@ -1066,58 +1671,178 @@ class EventDatabase:
         """
         Store or update the DSP feature vector associated with an event.
 
-        `event_id` refers to events.id, not detector_event_id.
+        event_id refers to events.id, not detector_event_id.
         """
 
-        event_id = int(
-            event_id
+        event_id = (
+            self._positive_id(
+                event_id,
+                name=
+                    "event_id",
+            )
         )
 
-        source_node_id = int(
-            source_node_id
+        source_node_id = (
+            self._positive_id(
+                source_node_id,
+                name=
+                    "source_node_id",
+                maximum=
+                    UINT8_MAX,
+            )
         )
 
-        if (
-            event_id
-            <= 0
+        if not isinstance(
+            features,
+            AcousticFeatures,
         ):
 
-            raise ValueError(
-                "event_id must be greater than 0"
+            raise TypeError(
+                (
+                    "features must be an "
+                    "AcousticFeatures instance"
+                )
             )
 
-        if (
-            source_node_id
-            <= 0
-        ):
+        # ==============================================================
+        # MFCC
+        # ==============================================================
 
-            raise ValueError(
-                "source_node_id must be greater than 0"
+        mfcc_mean = [
+            self._finite_float(
+                value,
+                name=
+                    "MFCC mean value",
             )
+            for value
+            in features.mfcc_mean
+        ]
+
+        mfcc_std = [
+            self._finite_float(
+                value,
+                name=
+                    "MFCC std value",
+            )
+            for value
+            in features.mfcc_std
+        ]
 
         mfcc_mean_json = (
             self._json_dumps(
-                [
-                    float(
-                        value
-                    )
-                    for value
-                    in features.mfcc_mean
-                ]
+                mfcc_mean
             )
         )
 
         mfcc_std_json = (
             self._json_dumps(
-                [
-                    float(
-                        value
-                    )
-                    for value
-                    in features.mfcc_std
-                ]
+                mfcc_std
             )
         )
+
+        # ==============================================================
+        # SCALAR FEATURES
+        # ==============================================================
+
+        duration_s = (
+            self._finite_float(
+                features.duration_s,
+                name=
+                    "features.duration_s",
+            )
+        )
+
+        rms = (
+            self._finite_float(
+                features.rms,
+                name=
+                    "features.rms",
+            )
+        )
+
+        peak_amplitude = (
+            self._finite_float(
+                features.peak_amplitude,
+                name=
+                    "features.peak_amplitude",
+            )
+        )
+
+        crest_factor = (
+            self._finite_float(
+                features.crest_factor,
+                name=
+                    "features.crest_factor",
+            )
+        )
+
+        zero_crossing_rate = (
+            self._finite_float(
+                features.zero_crossing_rate,
+                name=
+                    "features.zero_crossing_rate",
+            )
+        )
+
+        dominant_frequency_hz = (
+            self._finite_float(
+                features.dominant_frequency_hz,
+                name=
+                    "features.dominant_frequency_hz",
+            )
+        )
+
+        spectral_centroid_hz = (
+            self._finite_float(
+                features.spectral_centroid_hz,
+                name=
+                    "features.spectral_centroid_hz",
+            )
+        )
+
+        spectral_bandwidth_hz = (
+            self._finite_float(
+                features.spectral_bandwidth_hz,
+                name=
+                    "features.spectral_bandwidth_hz",
+            )
+        )
+
+        spectral_rolloff_hz = (
+            self._finite_float(
+                features.spectral_rolloff_hz,
+                name=
+                    "features.spectral_rolloff_hz",
+            )
+        )
+
+        spectral_flatness = (
+            self._finite_float(
+                features.spectral_flatness,
+                name=
+                    "features.spectral_flatness",
+            )
+        )
+
+        spectral_flux = (
+            self._finite_float(
+                features.spectral_flux,
+                name=
+                    "features.spectral_flux",
+            )
+        )
+
+        snr_db = (
+            self._optional_finite_float(
+                features.snr_db,
+                name=
+                    "features.snr_db",
+            )
+        )
+
+        # ==============================================================
+        # UPSERT
+        # ==============================================================
 
         with (
             self._lock,
@@ -1233,57 +1958,29 @@ class EventDatabase:
 
                     source_node_id,
 
-                    float(
-                        features.duration_s
-                    ),
+                    duration_s,
 
-                    float(
-                        features.rms
-                    ),
+                    rms,
 
-                    float(
-                        features.peak_amplitude
-                    ),
+                    peak_amplitude,
 
-                    float(
-                        features.crest_factor
-                    ),
+                    crest_factor,
 
-                    float(
-                        features.zero_crossing_rate
-                    ),
+                    zero_crossing_rate,
 
-                    float(
-                        features.dominant_frequency_hz
-                    ),
+                    dominant_frequency_hz,
 
-                    float(
-                        features.spectral_centroid_hz
-                    ),
+                    spectral_centroid_hz,
 
-                    float(
-                        features.spectral_bandwidth_hz
-                    ),
+                    spectral_bandwidth_hz,
 
-                    float(
-                        features.spectral_rolloff_hz
-                    ),
+                    spectral_rolloff_hz,
 
-                    float(
-                        features.spectral_flatness
-                    ),
+                    spectral_flatness,
 
-                    float(
-                        features.spectral_flux
-                    ),
+                    spectral_flux,
 
-                    (
-                        None
-                        if features.snr_db is None
-                        else float(
-                            features.snr_db
-                        )
-                    ),
+                    snr_db,
 
                     mfcc_mean_json,
 
@@ -1292,7 +1989,7 @@ class EventDatabase:
             )
 
     # ==================================================================
-    # CLASSIFICATION OPERATIONS
+    # CLASSIFICATION SCORE KEY
     # ==================================================================
 
     @staticmethod
@@ -1300,12 +1997,9 @@ class EventDatabase:
         key: Any,
     ) -> str:
         """
-        Convert a classification score key into a stable string.
+        Convert one classification-score key into stable stored text.
 
-        Current ClassificationResult.scores uses string keys.
-
-        Supporting `.value` here also makes persistence robust if a
-        future backend supplies enum-style score keys.
+        Supporting `.value` also allows future enum-keyed score maps.
         """
 
         value = getattr(
@@ -1318,6 +2012,10 @@ class EventDatabase:
             value
         )
 
+    # ==================================================================
+    # CLASSIFICATION OPERATIONS
+    # ==================================================================
+
     def add_classification(
         self,
         *,
@@ -1328,29 +2026,103 @@ class EventDatabase:
         Store or update broad acoustic classification for one event.
         """
 
-        event_id = int(
-            event_id
+        event_id = (
+            self._positive_id(
+                event_id,
+                name=
+                    "event_id",
+            )
         )
 
-        if (
-            event_id
-            <= 0
+        if not isinstance(
+            result,
+            ClassificationResult,
         ):
 
-            raise ValueError(
-                "event_id must be greater than 0"
+            raise TypeError(
+                (
+                    "result must be a "
+                    "ClassificationResult instance"
+                )
             )
+
+        # ==============================================================
+        # PRIMARY RESULT
+        # ==============================================================
+
+        label = str(
+            result.label.value
+        )
+
+        confidence = (
+            self._finite_float(
+                result.confidence,
+                name=
+                    "classification confidence",
+            )
+        )
+
+        margin = (
+            self._finite_float(
+                result.margin,
+                name=
+                    "classification margin",
+            )
+        )
+
+        # ==============================================================
+        # SECOND CANDIDATE
+        # ==============================================================
+
+        if (
+            result.second_label
+            is None
+        ):
+
+            second_label = (
+                None
+            )
+
+            second_confidence = (
+                None
+            )
+
+        else:
+
+            second_label = str(
+                result.second_label.value
+            )
+
+            second_confidence = (
+                self._optional_finite_float(
+                    result.second_confidence,
+                    name=
+                        (
+                            "classification "
+                            "second_confidence"
+                        ),
+                )
+            )
+
+        # ==============================================================
+        # SCORES
+        # ==============================================================
 
         scores = {
             self._classification_score_key(
-                label
+                score_label
             ):
-                float(
-                    score
+                self._finite_float(
+                    score,
+                    name=
+                        (
+                            "classification score "
+                            f"{score_label!r}"
+                        ),
                 )
 
             for (
-                label,
+                score_label,
                 score,
             )
             in result.scores.items()
@@ -1362,6 +2134,10 @@ class EventDatabase:
                 sort_keys=True,
             )
         )
+
+        # ==============================================================
+        # REASONS
+        # ==============================================================
 
         reasons_json = (
             self._json_dumps(
@@ -1375,13 +2151,43 @@ class EventDatabase:
             )
         )
 
-        second_label = (
-            None
-            if result.second_label is None
-            else str(
-                result.second_label.value
-            )
+        # ==============================================================
+        # CLASSIFIER IDENTITY
+        # ==============================================================
+
+        classifier_name = str(
+            result.classifier_name
         )
+
+        classifier_version = str(
+            result.classifier_version
+        )
+
+        if not (
+            classifier_name.strip()
+        ):
+
+            raise ValueError(
+                (
+                    "classifier_name "
+                    "cannot be empty"
+                )
+            )
+
+        if not (
+            classifier_version.strip()
+        ):
+
+            raise ValueError(
+                (
+                    "classifier_version "
+                    "cannot be empty"
+                )
+            )
+
+        # ==============================================================
+        # UPSERT
+        # ==============================================================
 
         with (
             self._lock,
@@ -1459,35 +2265,23 @@ class EventDatabase:
                 (
                     event_id,
 
-                    str(
-                        result.label.value
-                    ),
+                    label,
 
-                    float(
-                        result.confidence
-                    ),
+                    confidence,
 
                     second_label,
 
-                    float(
-                        result.second_confidence
-                    ),
+                    second_confidence,
 
-                    float(
-                        result.margin
-                    ),
+                    margin,
 
                     scores_json,
 
                     reasons_json,
 
-                    str(
-                        result.classifier_name
-                    ),
+                    classifier_name,
 
-                    str(
-                        result.classifier_version
-                    ),
+                    classifier_version,
                 ),
             )
 
@@ -1498,10 +2292,10 @@ class EventDatabase:
     @staticmethod
     def _event_select_query() -> str:
         """
-        Base query joining core event, DSP and classification data.
+        Base query joining event, DSP and classification information.
 
-        Keeping this query centralized ensures recent_events() and
-        get_event() expose the same field names.
+        recent_events() and get_event() therefore expose the same field
+        names to the CLI and future dashboard.
         """
 
         return """
@@ -1601,8 +2395,17 @@ class EventDatabase:
         sqlite3.Row
     ]:
         """
-        Return recent events together with DSP and classification data.
+        Return newest events together with DSP and classification data.
         """
+
+        if isinstance(
+            limit,
+            bool,
+        ):
+
+            raise TypeError(
+                "limit must be an integer"
+            )
 
         limit = int(
             limit
@@ -1631,12 +2434,15 @@ class EventDatabase:
                 """
             )
 
-            rows = conn.execute(
-                query,
-                (
-                    limit,
-                ),
-            ).fetchall()
+            rows = (
+                conn.execute(
+                    query,
+                    (
+                        limit,
+                    ),
+                )
+                .fetchall()
+            )
 
             return list(
                 rows
@@ -1654,9 +2460,25 @@ class EventDatabase:
         Return one event together with DSP and classification data.
         """
 
-        event_id = int(
-            event_id
-        )
+        if isinstance(
+            event_id,
+            bool,
+        ):
+
+            return None
+
+        try:
+
+            event_id = int(
+                event_id
+            )
+
+        except (
+            TypeError,
+            ValueError,
+        ):
+
+            return None
 
         if (
             event_id
@@ -1681,9 +2503,12 @@ class EventDatabase:
                 """
             )
 
-            return conn.execute(
-                query,
-                (
-                    event_id,
-                ),
-            ).fetchone()
+            return (
+                conn.execute(
+                    query,
+                    (
+                        event_id,
+                    ),
+                )
+                .fetchone()
+            )
