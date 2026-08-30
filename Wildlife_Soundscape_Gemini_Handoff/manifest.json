@@ -1,0 +1,28 @@
+{
+  "name": "Wildlife Soundscape Gemini Handoff",
+  "version": "1.0",
+  "required_phases": [
+    "P0",
+    "P1",
+    "P2",
+    "P3",
+    "P4",
+    "P5",
+    "P6"
+  ],
+  "optional_phases": [
+    "P7"
+  ],
+  "known_good_files": [
+    "known_good/classification/birdnet_backend.py",
+    "known_good/classification/ensemble_backend.py"
+  ],
+  "must_preserve": [
+    "protocol v4",
+    "3-node hardware",
+    "shared BCLK/WS synchronization",
+    "GPIO27 marker-only semantics",
+    "2D TDOA sign convention",
+    "sampleIndex timeline semantics"
+  ]
+}
