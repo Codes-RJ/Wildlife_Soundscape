@@ -431,9 +431,36 @@ def _create_birdnet_backend(
             )
         )
 
-    # ==================================================================
+    # ==============================================================
+    # TAXONOMY & GEOGRAPHIC CONTEXT
+    # ==============================================================
+
+    from .birdnet_context import (
+        BirdNETGeoContext,
+        BirdNETTaxonomy,
+    )
+
+    taxonomy = (
+        BirdNETTaxonomy.from_csv(config.taxonomy_path)
+        if config.taxonomy_path is not None
+        else None
+    )
+
+    geo_context = (
+        BirdNETGeoContext(
+            enabled=config.use_geo_filter,
+            latitude=config.latitude,
+            longitude=config.longitude,
+            week=config.week,
+            min_confidence=config.geo_min_confidence,
+        )
+        if config.use_geo_filter
+        else None
+    )
+
+    # ==============================================================
     # CONSTRUCTION
-    # ==================================================================
+    # ==============================================================
 
     return (
         BirdNETClassifierBackend(
@@ -442,6 +469,12 @@ def _create_birdnet_backend(
 
             top_k=
                 config.top_k,
+
+            taxonomy=
+                taxonomy,
+
+            geo_context=
+                geo_context,
         )
     )
 

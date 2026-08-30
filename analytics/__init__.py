@@ -5,29 +5,30 @@ Wildlife Soundscape Mapping & Behavior Analysis System
 ------------------------------------------------------
 
 This package provides higher-level research analytics over persisted
-acoustic events, classifications, environmental measurements and
-localization results.
-
-Planned modules
----------------
-models
-    Typed analytics-domain result models.
-
-activity
-    Temporal wildlife activity metrics and distributions.
-
-environmental
-    Relationships between acoustic activity and environmental
-    conditions.
-
-spatial
-    Spatial occupancy, hotspot and movement-related analysis.
-
-behavior
-    Conservative behavioural indicators derived from repeated acoustic
-    and spatial observations.
-
-service
-    High-level analytics orchestration used by dashboards, exports and
-    research reporting.
+acoustic events, classifications, environmental measurements,
+localization results, and continuous soundscape metrics.
 """
+
+from __future__ import annotations
+
+from .indices import (
+    SoundscapeIndicesConfig,
+    SoundscapeIndicesResult,
+    calculate_aci,
+    calculate_acoustic_entropy,
+    calculate_bioacoustic_index,
+    calculate_ndsi,
+    calculate_soundscape_indices,
+)
+from .soundscape_service import SoundscapeService
+
+__all__ = (
+    "SoundscapeIndicesConfig",
+    "SoundscapeIndicesResult",
+    "SoundscapeService",
+    "calculate_aci",
+    "calculate_acoustic_entropy",
+    "calculate_bioacoustic_index",
+    "calculate_ndsi",
+    "calculate_soundscape_indices",
+)

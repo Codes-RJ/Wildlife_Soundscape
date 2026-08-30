@@ -61,13 +61,21 @@ def solve_position(
 
     kwargs: dict[str, object] = {
         "fun": residuals,
-        "x0": x0,
         "loss": "soft_l1",
         "f_scale": 1.0 / speed_of_sound_mps,  # ~1 m residual scale
         "max_nfev": 300,
+        "ftol": 1e-12,
+        "xtol": 1e-12,
+        "gtol": 1e-12,
     }
+
     if bounds is not None:
-        kwargs["bounds"] = bounds
+        lb = np.asarray(bounds[0], dtype=np.float64)
+        ub = np.asarray(bounds[1], dtype=np.float64)
+        x0 = np.clip(x0, lb, ub)
+        kwargs["bounds"] = (lb, ub)
+
+    kwargs["x0"] = x0
 
     result = least_squares(**kwargs)
     r = residuals(result.x)

@@ -225,6 +225,12 @@ from .base import (
 )
 
 
+from .birdnet_context import (
+    BirdNETGeoContext,
+    BirdNETTaxonomy,
+)
+
+
 from .classifier import (
     AcousticClass,
     ClassificationResult,
@@ -529,6 +535,9 @@ class BirdNETClassifierBackend(
         min_confidence: float = DEFAULT_MIN_CONFIDENCE,
         top_k: int = DEFAULT_TOP_K,
         custom_species_list: Path | None = None,
+        taxonomy: BirdNETTaxonomy | None = None,
+        geo_context: BirdNETGeoContext | None = None,
+        geo_model: Any | None = None,
         model: Any | None = None,
     ) -> None:
 
@@ -756,6 +765,22 @@ class BirdNETClassifierBackend(
 
         self.custom_species_list = (
             custom_species_list
+        )
+
+        self.taxonomy = (
+            taxonomy
+            if taxonomy is not None
+            else BirdNETTaxonomy()
+        )
+
+        self.geo_context = (
+            geo_context
+            if geo_context is not None
+            else BirdNETGeoContext()
+        )
+
+        self._geo_model = (
+            geo_model
         )
 
         self._model = (
@@ -2126,40 +2151,46 @@ class BirdNETClassifierBackend(
         )
 
         # ==============================================================
-        # BROAD SCORE MAP
+        # TAXONOMY RESOLUTION & BROAD SCORE MAP
         # ==============================================================
 
-        broad_bird_score = (
-            float(
-                top_prediction.confidence
-            )
+        broad_class = self.taxonomy.get_broad_class(
+            top_prediction.species_name
         )
 
-        broad_unknown_score = (
-            0.0
+        taxon_group = self.taxonomy.get_taxon_group(
+            top_prediction.species_name
         )
 
-        broad_margin = (
-            broad_bird_score
-            - broad_unknown_score
-        )
+        if broad_class == AcousticClass.UNKNOWN:
+            broad_label = AcousticClass.UNKNOWN
+            broad_confidence = 0.0
+            second_label = None
+            second_confidence = None
+            broad_margin = 0.0
+        else:
+            broad_label = broad_class
+            broad_confidence = float(top_prediction.confidence)
+            second_label = None
+            second_confidence = None
+            broad_margin = float(top_prediction.confidence)
 
         scores: dict[
             str,
             float,
         ] = {
-            AcousticClass.BIRD.value:
-                broad_bird_score,
-
-            AcousticClass.UNKNOWN.value:
-                broad_unknown_score,
+            broad_label.value:
+                broad_confidence,
 
             "birdnet:species_margin":
                 species_margin,
         }
 
+        if broad_label != AcousticClass.UNKNOWN:
+            scores[AcousticClass.UNKNOWN.value] = 0.0
+
         # ==============================================================
-        # SPECIES SCORES
+        # SPECIES & ACOUSTIC SCORES
         # ==============================================================
 
         for prediction in (
@@ -2175,6 +2206,25 @@ class BirdNETClassifierBackend(
                 prediction.confidence
             )
 
+            scores[
+                (
+                    "birdnet:acoustic:"
+                    f"{prediction.species_name}"
+                )
+            ] = (
+                prediction.confidence
+            )
+
+        # ==============================================================
+        # GEOGRAPHIC PRIOR CONTEXT
+        # ==============================================================
+
+        if self.geo_context.enabled and self._geo_model is not None:
+            geo_priors = self.geo_context.query_geo_prior(self._geo_model)
+            if geo_priors:
+                for sp, prior_conf in geo_priors.items():
+                    scores[f"birdnet:geo:{sp}"] = float(prior_conf)
+
         # ==============================================================
         # EXPLANATION
         # ==============================================================
@@ -2188,13 +2238,22 @@ class BirdNETClassifierBackend(
                 "(confidence="
                 f"{top_prediction.confidence:.3f})"
             ),
-
-            (
-                "accepted BirdNET species evidence "
-                "is mapped to the project's broad "
-                "'bird' acoustic class"
-            ),
         ]
+
+        if broad_label != AcousticClass.UNKNOWN:
+            reasons.append(
+                (
+                    f"structured taxonomy group '{taxon_group}' "
+                    f"is mapped to broad class '{broad_label.value}'"
+                )
+            )
+        else:
+            reasons.append(
+                (
+                    "no verified broad taxonomy mapping is established "
+                    "for this prediction -> safe abstention as UNKNOWN"
+                )
+            )
 
         if (
             top_prediction.common_name
@@ -2242,7 +2301,7 @@ class BirdNETClassifierBackend(
             (
                 "ClassificationResult.margin="
                 f"{broad_margin:.3f} represents the "
-                "broad BIRD-vs-UNKNOWN decision; "
+                f"broad {broad_label.name}-vs-UNKNOWN decision; "
                 "species-level ambiguity is retained "
                 "separately"
             )
@@ -2264,16 +2323,16 @@ class BirdNETClassifierBackend(
         return (
             ClassificationResult(
                 label=
-                    AcousticClass.BIRD,
+                    broad_label,
 
                 confidence=
-                    broad_bird_score,
+                    broad_confidence,
 
                 second_label=
-                    AcousticClass.UNKNOWN,
+                    second_label,
 
                 second_confidence=
-                    broad_unknown_score,
+                    second_confidence,
 
                 margin=
                     broad_margin,

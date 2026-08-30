@@ -171,6 +171,10 @@ class ExportFormat(
         "jsonl"
     )
 
+    GEOJSON = (
+        "geojson"
+    )
+
 
 # ======================================================================
 # EXPORT OPTIONS
@@ -208,6 +212,22 @@ class EventExportOptions:
 
     pretty_json: bool = (
         True
+    )
+
+    origin_latitude: float | None = (
+        None
+    )
+
+    origin_longitude: float | None = (
+        None
+    )
+
+    azimuth_deg: float = (
+        0.0
+    )
+
+    coarsen_decimals: int | None = (
+        None
     )
 
     def __post_init__(
@@ -363,6 +383,42 @@ class EventExportOptions:
 
             raise TypeError(
                 "pretty_json must be bool."
+            )
+
+        # ==============================================================
+        # GEOJSON REQUIREMENTS
+        # ==============================================================
+
+        if self.export_format is ExportFormat.GEOJSON:
+
+            if (
+                self.origin_latitude is None
+                or self.origin_longitude is None
+            ):
+
+                raise ValueError(
+                    "origin_latitude and origin_longitude are required for GeoJSON export."
+                )
+
+            if not (-90.0 <= self.origin_latitude <= 90.0):
+
+                raise ValueError(
+                    "origin_latitude must be between -90 and 90 degrees."
+                )
+
+            if not (-180.0 <= self.origin_longitude <= 180.0):
+
+                raise ValueError(
+                    "origin_longitude must be between -180 and 180 degrees."
+                )
+
+        if (
+            self.coarsen_decimals is not None
+            and (not isinstance(self.coarsen_decimals, int) or self.coarsen_decimals < 0)
+        ):
+
+            raise ValueError(
+                "coarsen_decimals must be a non-negative integer or None."
             )
 
 
@@ -2177,6 +2233,173 @@ def write_jsonl(
 
 
 # ======================================================================
+# GEODETIC COORDINATE TRANSFORMATION
+# ======================================================================
+
+
+def local_to_geodetic(
+    x_m: float,
+    y_m: float,
+    *,
+    origin_latitude: float,
+    origin_longitude: float,
+    azimuth_deg: float = 0.0,
+) -> tuple[float, float]:
+    """
+    Convert local array coordinates (x=right, y=forward in meters)
+    to WGS84 coordinates (longitude, latitude).
+
+    Transform steps:
+    1. Rotate local coordinates by array azimuth (degrees clockwise from True North):
+       East  offset (dE) =  x * cos(azimuth) + y * sin(azimuth)
+       North offset (dN) = -x * sin(azimuth) + y * cos(azimuth)
+    2. Convert ENU offsets to WGS84 using pyproj (or ellipsoidal geodesic formula).
+
+    Returns:
+        (longitude, latitude) in decimal degrees.
+    """
+    azimuth_rad = math.radians(azimuth_deg)
+    cos_az = math.cos(azimuth_rad)
+    sin_az = math.sin(azimuth_rad)
+
+    # Local x is right (+90 deg from boresight), y is boresight (+0 deg)
+    delta_e = x_m * cos_az + y_m * sin_az
+    delta_n = -x_m * sin_az + y_m * cos_az
+
+    try:
+        import pyproj
+
+        proj_enu = pyproj.Proj(
+            proj="aeqd",
+            lat_0=origin_latitude,
+            lon_0=origin_longitude,
+            datum="WGS84",
+            units="m",
+        )
+        lon, lat = proj_enu(delta_e, delta_n, inverse=True)
+        return float(lon), float(lat)
+
+    except (ImportError, Exception):
+        # WGS84 ellipsoidal fallback approximation
+        lat0_rad = math.radians(origin_latitude)
+        m_per_deg_lat = (
+            111132.954
+            - 559.822 * math.cos(2.0 * lat0_rad)
+            + 1.175 * math.cos(4.0 * lat0_rad)
+        )
+        m_per_deg_lon = (
+            111412.84 * math.cos(lat0_rad)
+            - 93.5 * math.cos(3.0 * lat0_rad)
+        )
+        lat = origin_latitude + (delta_n / m_per_deg_lat)
+        lon = origin_longitude + (delta_e / (m_per_deg_lon + 1e-12))
+        return float(lon), float(lat)
+
+
+# ======================================================================
+# WRITE GEOJSON
+# ======================================================================
+
+
+def write_geojson(
+    rows: Sequence[Mapping[str, Any]],
+    output_path: Path,
+    *,
+    origin_latitude: float,
+    origin_longitude: float,
+    azimuth_deg: float = 0.0,
+    coarsen_decimals: int | None = None,
+    pretty: bool = True,
+) -> int:
+    """
+    Write successfully localized events to a GeoJSON FeatureCollection.
+
+    Unlocalized events are omitted to prevent fabricating GPS coordinates.
+
+    Returns:
+        Number of GeoJSON Point Features written.
+    """
+    output_path.parent.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
+
+    features: list[dict[str, Any]] = []
+
+    for row in rows:
+        is_localized = bool(
+            row.get("localization_success")
+            or row.get("has_localization")
+        )
+        if not is_localized:
+            continue
+
+        x_val = row.get("x_m")
+        y_val = row.get("y_m")
+
+        if x_val is None or y_val is None:
+            continue
+
+        try:
+            x_f = float(x_val)
+            y_f = float(y_val)
+            if not (math.isfinite(x_f) and math.isfinite(y_f)):
+                continue
+        except (TypeError, ValueError):
+            continue
+
+        lon, lat = local_to_geodetic(
+            x_f,
+            y_f,
+            origin_latitude=origin_latitude,
+            origin_longitude=origin_longitude,
+            azimuth_deg=azimuth_deg,
+        )
+
+        if coarsen_decimals is not None and coarsen_decimals >= 0:
+            lon = round(lon, coarsen_decimals)
+            lat = round(lat, coarsen_decimals)
+
+        # Build clean properties dictionary
+        properties: dict[str, Any] = {}
+        for k, v in row.items():
+            if isinstance(v, float) and not math.isfinite(v):
+                continue
+            properties[k] = v
+
+        features.append(
+            {
+                "type": "Feature",
+                "geometry": {
+                    "type": "Point",
+                    "coordinates": [lon, lat],
+                },
+                "properties": properties,
+            }
+        )
+
+    feature_collection = {
+        "type": "FeatureCollection",
+        "features": features,
+    }
+
+    with output_path.open(
+        "w",
+        encoding="utf-8",
+    ) as handle:
+        json.dump(
+            feature_collection,
+            handle,
+            ensure_ascii=False,
+            allow_nan=False,
+            indent=(2 if pretty else None),
+        )
+        handle.write("\n")
+
+    return len(features)
+
+
+# ======================================================================
 # EXPORT
 # ======================================================================
 
@@ -2223,6 +2446,7 @@ def export_events(
             rows,
             options.output_path,
         )
+        return len(rows)
 
     elif (
         options.export_format
@@ -2235,6 +2459,7 @@ def export_events(
             pretty=
                 options.pretty_json,
         )
+        return len(rows)
 
     elif (
         options.export_format
@@ -2245,6 +2470,25 @@ def export_events(
             rows,
             options.output_path,
         )
+        return len(rows)
+
+    elif (
+        options.export_format
+        is ExportFormat.GEOJSON
+    ):
+
+        assert options.origin_latitude is not None
+        assert options.origin_longitude is not None
+
+        return write_geojson(
+            rows,
+            options.output_path,
+            origin_latitude=options.origin_latitude,
+            origin_longitude=options.origin_longitude,
+            azimuth_deg=options.azimuth_deg,
+            coarsen_decimals=options.coarsen_decimals,
+            pretty=options.pretty_json,
+        )
 
     else:
 
@@ -2254,12 +2498,6 @@ def export_events(
                 f"{options.export_format}"
             )
         )
-
-    return (
-        len(
-            rows
-        )
-    )
 
 
 # ======================================================================
@@ -2395,6 +2633,42 @@ def build_argument_parser() -> argparse.ArgumentParser:
         ),
     )
 
+    parser.add_argument(
+        "--origin-latitude",
+        type=float,
+        default=None,
+        help=(
+            "Array origin latitude in decimal degrees (required for GeoJSON)."
+        ),
+    )
+
+    parser.add_argument(
+        "--origin-longitude",
+        type=float,
+        default=None,
+        help=(
+            "Array origin longitude in decimal degrees (required for GeoJSON)."
+        ),
+    )
+
+    parser.add_argument(
+        "--azimuth-deg",
+        type=float,
+        default=0.0,
+        help=(
+            "Array orientation angle clockwise from True North in degrees (default: 0.0)."
+        ),
+    )
+
+    parser.add_argument(
+        "--coarsen-decimals",
+        type=int,
+        default=None,
+        help=(
+            "Optional decimal place rounding for privacy/obfuscation of coordinates."
+        ),
+    )
+
     return (
         parser
     )
@@ -2490,6 +2764,18 @@ def main() -> int:
 
             pretty_json=
                 not arguments.compact_json,
+
+            origin_latitude=
+                arguments.origin_latitude,
+
+            origin_longitude=
+                arguments.origin_longitude,
+
+            azimuth_deg=
+                arguments.azimuth_deg,
+
+            coarsen_decimals=
+                arguments.coarsen_decimals,
         )
 
         exported_count = (

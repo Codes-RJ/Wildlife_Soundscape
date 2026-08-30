@@ -139,6 +139,7 @@ from dashboard.plots import (
     build_environmental_association_matrix,
     build_environmental_timeseries,
     build_localization_scatter,
+    build_soundscape_indices_timeline,
     build_spatial_occupancy_heatmap,
 )
 
@@ -1074,6 +1075,58 @@ def _render_environment_section(
                 "interpretation should use the project's "
                 "configured statistical methodology."
             )
+        )
+
+
+# ======================================================================
+# CONTINUOUS ECOACOUSTIC INDICES
+# ======================================================================
+
+
+def _render_soundscape_indices_section(
+    *,
+    data_access: DashboardDataAccess,
+    session_id: int,
+    config: AppConfig,
+) -> None:
+    """
+    Render continuous ecoacoustic indices (ACI, NDSI, Entropy, BI) with parameter metadata.
+    """
+    st.markdown("## Continuous Ecoacoustic Soundscape Metrics")
+    st.caption(
+        "Continuous soundscape metrics (ACI, NDSI, Acoustic Entropy H, Bioacoustic Index) "
+        "calculated over rolling analysis windows to evaluate biophonic and anthrophonic soundscape pressure."
+    )
+
+    indices_records = data_access.soundscape_indices(session_id=session_id)
+
+    if not indices_records:
+        st.info("No continuous soundscape index records have been persisted for this acquisition session.")
+        return
+
+    # Node selection
+    available_nodes = sorted({r.get("node_id", 1) for r in indices_records})
+    node_options = ["All Nodes"] + [f"Node {n}" for n in available_nodes]
+    selected_node_label = st.selectbox("Soundscape Node Filter", node_options, index=0)
+
+    if selected_node_label != "All Nodes":
+        selected_node = int(selected_node_label.replace("Node ", ""))
+        display_records = [r for r in indices_records if r.get("node_id") == selected_node]
+    else:
+        display_records = indices_records
+
+    fig = build_soundscape_indices_timeline(display_records)
+    st.plotly_chart(fig, use_container_width=True)
+
+    with st.expander("Ecoacoustic Parameter Traceability & Scientific Disclaimers", expanded=False):
+        if display_records:
+            first_params = display_records[0].get("parameters", {})
+            st.json(first_params)
+        st.markdown(
+            "- **ACI (Acoustic Complexity Index)**: Intensity variability across time/frequency. High ACI reflects dynamic frequency modulation (e.g. bird dawn choruses), not direct species richness.\n"
+            "- **NDSI (Normalized Difference Soundscape Index)**: Balance between biological ([2–8 kHz] default) and anthropogenic ([1–2 kHz] default) frequency energy in range [-1, +1].\n"
+            "- **Acoustic Entropy (H = Ht * Hf)**: Product of temporal and spectral entropy in range [0, 1]. High values indicate evenly distributed acoustic energy across time and frequency.\n"
+            "- **Bioacoustic Index (BI)**: Area under the dB power spectrum curve in the avian/biophonic band."
         )
 
 
@@ -2164,6 +2217,23 @@ def render_analysis_view(
         )
 
         st.divider()
+
+    # ==================================================================
+    # CONTINUOUS ECOACOUSTIC INDICES
+    # ==================================================================
+
+    _render_soundscape_indices_section(
+        data_access=
+            data_access,
+
+        session_id=
+            session_id,
+
+        config=
+            config,
+    )
+
+    st.divider()
 
     # ==================================================================
     # SPATIAL

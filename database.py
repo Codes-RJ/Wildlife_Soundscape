@@ -218,13 +218,19 @@ class EventDatabase:
     # CONNECTION
     # ==================================================================
 
+    from contextlib import (
+        contextmanager,
+    )
+
+    @contextmanager
     def _connect(
         self,
-    ) -> sqlite3.Connection:
+    ):
         """
-        Open one configured SQLite connection.
+        Open one configured SQLite connection as a context manager.
 
-        A fresh connection is used for every database operation.
+        A fresh connection is used for every database operation and is
+        properly closed when the context exits.
         """
 
         connection = (
@@ -235,25 +241,30 @@ class EventDatabase:
             )
         )
 
-        # --------------------------------------------------------------
-        # REFERENTIAL INTEGRITY
-        # --------------------------------------------------------------
+        try:
 
-        connection.execute(
-            "PRAGMA foreign_keys = ON"
-        )
+            # ----------------------------------------------------------
+            # REFERENTIAL INTEGRITY
+            # ----------------------------------------------------------
 
-        # --------------------------------------------------------------
-        # LOCK WAIT
-        # --------------------------------------------------------------
+            connection.execute(
+                "PRAGMA foreign_keys = ON"
+            )
 
-        connection.execute(
-            "PRAGMA busy_timeout = 5000"
-        )
+            # ----------------------------------------------------------
+            # LOCK WAIT
+            # ----------------------------------------------------------
 
-        return (
-            connection
-        )
+            connection.execute(
+                "PRAGMA busy_timeout = 5000"
+            )
+
+            with connection:
+                yield connection
+
+        finally:
+
+            connection.close()
 
     # ==================================================================
     # JSON SERIALIZATION
@@ -1163,6 +1174,50 @@ class EventDatabase:
                         REFERENCES events(id)
                         ON DELETE CASCADE
                 );
+
+
+                --------------------------------------------------------
+                -- SOUNDSCAPE INDICES TABLE
+                --------------------------------------------------------
+
+                CREATE TABLE IF NOT EXISTS
+                    soundscape_indices (
+
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+                        session_id INTEGER NOT NULL,
+
+                        node_id INTEGER NOT NULL,
+
+                        start_sample INTEGER NOT NULL,
+
+                        end_sample INTEGER NOT NULL,
+
+                        aci REAL NOT NULL,
+
+                        ndsi REAL NOT NULL,
+
+                        acoustic_entropy REAL NOT NULL,
+
+                        temporal_entropy REAL NOT NULL,
+
+                        spectral_entropy REAL NOT NULL,
+
+                        bioacoustic_index REAL NOT NULL,
+
+                        anthrophony_power REAL NOT NULL,
+
+                        biophony_power REAL NOT NULL,
+
+                        parameters_json TEXT NOT NULL,
+
+                        created_at TEXT NOT NULL
+                            DEFAULT CURRENT_TIMESTAMP,
+
+                        FOREIGN KEY(session_id)
+                            REFERENCES sessions(session_id)
+                            ON DELETE CASCADE
+                    );
                 """
             )
 
@@ -1273,6 +1328,23 @@ class EventDatabase:
 
                 ON classifications(
                     label
+                );
+
+
+                CREATE INDEX IF NOT EXISTS
+                    idx_soundscape_indices_session_node
+
+                ON soundscape_indices(
+                    session_id,
+                    node_id
+                );
+
+
+                CREATE INDEX IF NOT EXISTS
+                    idx_soundscape_indices_created
+
+                ON soundscape_indices(
+                    created_at
                 );
                 """
             )
@@ -1556,43 +1628,35 @@ class EventDatabase:
             self._connect() as conn,
         ):
 
-            try:
+            conn.execute(
+                """
+                INSERT INTO sessions(
 
-                conn.execute(
-                    """
-                    INSERT INTO sessions(
+                    session_id,
 
-                        session_id,
+                    label,
 
-                        label,
+                    started_at,
 
-                        started_at,
-
-                        stopped_at
-                    )
-
-                    VALUES(
-                        ?,
-                        ?,
-                        CURRENT_TIMESTAMP,
-                        NULL
-                    )
-                    """,
-                    (
-                        session_id,
-                        label,
-                    ),
+                    stopped_at
                 )
 
-            except sqlite3.IntegrityError as exc:
-
-                raise ValueError(
-                    (
-                        "session_id already exists "
-                        f"in database: "
-                        f"0x{session_id:08X}"
-                    )
-                ) from exc
+                VALUES(
+                    ?,
+                    ?,
+                    CURRENT_TIMESTAMP,
+                    NULL
+                )
+                ON CONFLICT(session_id) DO UPDATE SET
+                    label = excluded.label,
+                    started_at = CURRENT_TIMESTAMP,
+                    stopped_at = NULL
+                """,
+                (
+                    session_id,
+                    label,
+                ),
+            )
 
     # ==================================================================
     # STOP SESSION
@@ -2144,6 +2208,9 @@ class EventDatabase:
             if not isinstance(
                 localization,
                 LocalizationResult,
+            ) and not hasattr(
+                localization,
+                "position",
             ):
 
                 raise TypeError(
@@ -4972,3 +5039,198 @@ class EventDatabase:
         return (
             result
         )
+
+    # ==================================================================
+    # SOUNDSCAPE INDICES PERSISTENCE
+    # ==================================================================
+
+    def add_soundscape_indices(
+        self,
+        *,
+        session_id: int,
+        node_id: int,
+        start_sample: int,
+        end_sample: int,
+        result: Any,
+    ) -> int:
+        """
+        Persist continuous ecoacoustic indices for one node analysis window.
+        """
+        session_id = self._positive_id(
+            session_id,
+            name="soundscape_indices session_id",
+            maximum=UINT32_MAX,
+        )
+
+        node_id = self._positive_id(
+            node_id,
+            name="soundscape_indices node_id",
+            maximum=UINT8_MAX,
+        )
+
+        start_sample = self._sample_index(
+            start_sample,
+            name="soundscape_indices start_sample",
+        )
+
+        end_sample = self._sample_index(
+            end_sample,
+            name="soundscape_indices end_sample",
+        )
+
+        if end_sample < start_sample:
+            raise ValueError(
+                "end_sample cannot be smaller than start_sample"
+            )
+
+        aci = self._finite_float(
+            getattr(result, "aci", result.get("aci") if isinstance(result, dict) else None),
+            name="aci",
+        )
+
+        ndsi = self._finite_float(
+            getattr(result, "ndsi", result.get("ndsi") if isinstance(result, dict) else None),
+            name="ndsi",
+        )
+
+        acoustic_entropy = self._finite_float(
+            getattr(result, "acoustic_entropy", result.get("acoustic_entropy") if isinstance(result, dict) else None),
+            name="acoustic_entropy",
+        )
+
+        temporal_entropy = self._finite_float(
+            getattr(result, "temporal_entropy", result.get("temporal_entropy") if isinstance(result, dict) else None),
+            name="temporal_entropy",
+        )
+
+        spectral_entropy = self._finite_float(
+            getattr(result, "spectral_entropy", result.get("spectral_entropy") if isinstance(result, dict) else None),
+            name="spectral_entropy",
+        )
+
+        bioacoustic_index = self._finite_float(
+            getattr(result, "bioacoustic_index", result.get("bioacoustic_index") if isinstance(result, dict) else None),
+            name="bioacoustic_index",
+        )
+
+        anthrophony_power = self._finite_float(
+            getattr(result, "anthrophony_power", result.get("anthrophony_power") if isinstance(result, dict) else None),
+            name="anthrophony_power",
+        )
+
+        biophony_power = self._finite_float(
+            getattr(result, "biophony_power", result.get("biophony_power") if isinstance(result, dict) else None),
+            name="biophony_power",
+        )
+
+        params = getattr(result, "parameters", result.get("parameters") if isinstance(result, dict) else {})
+        if hasattr(params, "__dataclass_fields__"):
+            from dataclasses import asdict
+            params_dict = asdict(params)
+        elif isinstance(params, dict):
+            params_dict = params
+        else:
+            params_dict = {}
+
+        parameters_json = self._json_dumps(params_dict)
+
+        with self._lock, self._connect() as conn:
+            cursor = conn.execute(
+                """
+                INSERT INTO soundscape_indices(
+                    session_id,
+                    node_id,
+                    start_sample,
+                    end_sample,
+                    aci,
+                    ndsi,
+                    acoustic_entropy,
+                    temporal_entropy,
+                    spectral_entropy,
+                    bioacoustic_index,
+                    anthrophony_power,
+                    biophony_power,
+                    parameters_json
+                )
+                VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    session_id,
+                    node_id,
+                    start_sample,
+                    end_sample,
+                    aci,
+                    ndsi,
+                    acoustic_entropy,
+                    temporal_entropy,
+                    spectral_entropy,
+                    bioacoustic_index,
+                    anthrophony_power,
+                    biophony_power,
+                    parameters_json,
+                ),
+            )
+            return int(cursor.lastrowid)
+
+    def get_soundscape_indices(
+        self,
+        *,
+        session_id: int | None = None,
+        node_id: int | None = None,
+        limit: int = 1000,
+    ) -> list[dict[str, Any]]:
+        """
+        Query persisted continuous ecoacoustic index records.
+        """
+        query_parts = ["SELECT * FROM soundscape_indices WHERE 1=1"]
+        params: list[Any] = []
+
+        if session_id is not None:
+            query_parts.append("AND session_id = ?")
+            params.append(
+                self._positive_id(
+                    session_id,
+                    name="soundscape_indices session_id",
+                    maximum=UINT32_MAX,
+                )
+            )
+
+        if node_id is not None:
+            query_parts.append("AND node_id = ?")
+            params.append(
+                self._positive_id(
+                    node_id,
+                    name="soundscape_indices node_id",
+                    maximum=UINT8_MAX,
+                )
+            )
+
+        query_parts.append("ORDER BY id ASC LIMIT ?")
+        params.append(max(1, int(limit)))
+
+        query = " ".join(query_parts)
+
+        with self._lock, self._connect() as conn:
+            conn.row_factory = sqlite3.Row
+            rows = conn.execute(query, tuple(params)).fetchall()
+
+            return [
+                {
+                    "id": int(row["id"]),
+                    "session_id": int(row["session_id"]),
+                    "node_id": int(row["node_id"]),
+                    "start_sample": int(row["start_sample"]),
+                    "end_sample": int(row["end_sample"]),
+                    "aci": float(row["aci"]),
+                    "ndsi": float(row["ndsi"]),
+                    "acoustic_entropy": float(row["acoustic_entropy"]),
+                    "temporal_entropy": float(row["temporal_entropy"]),
+                    "spectral_entropy": float(row["spectral_entropy"]),
+                    "bioacoustic_index": float(row["bioacoustic_index"]),
+                    "anthrophony_power": float(row["anthrophony_power"]),
+                    "biophony_power": float(row["biophony_power"]),
+                    "parameters": json.loads(row["parameters_json"]),
+                    "created_at": str(row["created_at"]),
+                }
+                for row in rows
+            ]

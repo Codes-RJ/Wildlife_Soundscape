@@ -500,7 +500,6 @@ def physical_max_delay(
         float,
         float,
     ],
-    *,
     speed_of_sound_mps: float,
 ) -> float:
     """

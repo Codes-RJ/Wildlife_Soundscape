@@ -153,6 +153,22 @@ def __getattr__(
 
         return create_classifier_backend
 
+    if name == "BirdNETTaxonomy":
+
+        from .birdnet_context import (
+            BirdNETTaxonomy,
+        )
+
+        return BirdNETTaxonomy
+
+    if name == "BirdNETGeoContext":
+
+        from .birdnet_context import (
+            BirdNETGeoContext,
+        )
+
+        return BirdNETGeoContext
+
     raise AttributeError(
         (
             f"module {__name__!r} "
@@ -168,6 +184,8 @@ def __getattr__(
 
 __all__ = (
     "AcousticClass",
+    "BirdNETGeoContext",
+    "BirdNETTaxonomy",
     "ClassificationInput",
     "ClassificationResult",
     "ClassifierBackend",

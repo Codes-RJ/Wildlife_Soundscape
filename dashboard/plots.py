@@ -2754,6 +2754,7 @@ def build_behavior_indicator_chart(
                     status_text,
                     evidence_text,
                     materialized,
+                    strict=False,
                 )
             ],
 
@@ -2847,3 +2848,133 @@ def activity_summary_metrics(
                 activity.class_summaries
             ),
     }
+
+
+# ======================================================================
+# CONTINUOUS ECOACOUSTIC INDICES TIMELINE
+# ======================================================================
+
+
+def build_soundscape_indices_timeline(
+    records: Sequence[Mapping[str, Any]],
+) -> go.Figure:
+    """
+    Build multi-panel Plotly time series for continuous ecoacoustic indices.
+    """
+    from plotly.subplots import make_subplots
+
+    if not records:
+        fig = go.Figure()
+        fig.update_layout(
+            title="Continuous Ecoacoustic Soundscape Indices",
+            annotations=[
+                {
+                    "text": "No continuous soundscape index data recorded for selected session/node.",
+                    "xref": "paper",
+                    "yref": "paper",
+                    "showarrow": False,
+                    "font": {"size": 14, "color": "gray"},
+                }
+            ],
+            template="plotly_dark",
+        )
+        return fig
+
+    # Sort records chronologically
+    sorted_records = sorted(records, key=lambda r: str(r.get("created_at", "")))
+    timestamps = [str(r.get("created_at", "")) for r in sorted_records]
+    nodes = [r.get("node_id", 1) for r in sorted_records]
+
+    acis = [float(r.get("aci", 0.0)) for r in sorted_records]
+    ndsis = [float(r.get("ndsi", 0.0)) for r in sorted_records]
+    entropies = [float(r.get("acoustic_entropy", 0.0)) for r in sorted_records]
+    bis = [float(r.get("bioacoustic_index", 0.0)) for r in sorted_records]
+
+    fig = make_subplots(
+        rows=3,
+        cols=1,
+        shared_xaxes=True,
+        vertical_spacing=0.08,
+        subplot_titles=(
+            "Acoustic Complexity Index (ACI) & Bioacoustic Index (BI)",
+            "Normalized Difference Soundscape Index (NDSI)",
+            "Acoustic Entropy (H = Ht * Hf)",
+        ),
+    )
+
+    # Panel 1: ACI & BI
+    fig.add_trace(
+        go.Scatter(
+            x=timestamps,
+            y=acis,
+            mode="lines+markers",
+            name="ACI",
+            line={"color": "#00CC96", "width": 2},
+            hovertemplate="Time: %{x}<br>ACI: %{y:.2f}<br>Node: %{text}",
+            text=[f"Node {n}" for n in nodes],
+        ),
+        row=1,
+        col=1,
+    )
+    fig.add_trace(
+        go.Scatter(
+            x=timestamps,
+            y=bis,
+            mode="lines+markers",
+            name="Bioacoustic Index (BI)",
+            line={"color": "#636EFA", "width": 2, "dash": "dot"},
+            hovertemplate="Time: %{x}<br>BI: %{y:.2f}",
+        ),
+        row=1,
+        col=1,
+    )
+
+    # Panel 2: NDSI
+    fig.add_trace(
+        go.Scatter(
+            x=timestamps,
+            y=ndsis,
+            mode="lines+markers",
+            name="NDSI",
+            line={"color": "#FFA15A", "width": 2},
+            hovertemplate="Time: %{x}<br>NDSI: %{y:.3f}",
+        ),
+        row=2,
+        col=1,
+    )
+    fig.add_hline(
+        y=0.0,
+        line_dash="dash",
+        line_color="gray",
+        row=2,
+        col=1,
+    )
+
+    # Panel 3: Entropy
+    fig.add_trace(
+        go.Scatter(
+            x=timestamps,
+            y=entropies,
+            mode="lines+markers",
+            name="Entropy (H)",
+            line={"color": "#AB63FA", "width": 2},
+            hovertemplate="Time: %{x}<br>H: %{y:.3f}",
+        ),
+        row=3,
+        col=1,
+    )
+
+    fig.update_yaxes(title_text="ACI / BI", row=1, col=1)
+    fig.update_yaxes(title_text="NDSI [-1, +1]", range=[-1.05, 1.05], row=2, col=1)
+    fig.update_yaxes(title_text="Entropy [0, 1]", range=[-0.05, 1.05], row=3, col=1)
+    fig.update_xaxes(title_text="Timestamp", row=3, col=1)
+
+    fig.update_layout(
+        height=700,
+        template="plotly_dark",
+        title_text="Continuous Soundscape Ecoacoustic Metrics",
+        showlegend=True,
+        margin={"l": 60, "r": 40, "t": 60, "b": 40},
+    )
+
+    return fig

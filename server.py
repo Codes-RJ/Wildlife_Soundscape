@@ -1325,6 +1325,7 @@ class ReceiverServer:
         ) in zip(
             node_ids,
             results,
+            strict=False,
         ):
 
             if isinstance(

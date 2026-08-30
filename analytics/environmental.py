@@ -675,6 +675,7 @@ def finite_pairs(
     for x_value, y_value in zip(
         x_values,
         y_values,
+        strict=False,
     ):
 
         x_numeric = (
@@ -1985,6 +1986,7 @@ def benjamini_hochberg_adjust(
     ) in zip(
         ordered,
         adjusted_sorted,
+        strict=False,
     ):
 
         output[

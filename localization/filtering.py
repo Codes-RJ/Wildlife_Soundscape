@@ -61,9 +61,8 @@ def _validate_audio(
         == 0
     ):
 
-        return np.ascontiguousarray(
-            x,
-            dtype=np.float64,
+        raise ValueError(
+            "Localization audio cannot be empty."
         )
 
     if not np.all(

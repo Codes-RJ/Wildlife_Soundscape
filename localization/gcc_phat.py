@@ -231,6 +231,8 @@ def gcc_phat(
     interpolation: int = 8,
     epsilon: float = DEFAULT_EPSILON,
     min_peak_ratio: float = 1.0,
+    beta: float = 1.0,
+    frequency_band_hz: tuple[float, float] | None = None,
 ) -> GCCPHATResult:
     """
     Estimate the arrival-time difference between two microphone signals
@@ -441,6 +443,125 @@ def gcc_phat(
         )
 
     # ==================================================================
+    # FRACTIONAL PHAT WEIGHTING (BETA)
+    # ==================================================================
+
+    try:
+
+        beta = float(
+            beta
+        )
+
+    except (
+        TypeError,
+        ValueError,
+    ) as exc:
+
+        raise TypeError(
+            (
+                "beta must be a numeric value."
+            )
+        ) from exc
+
+    if (
+        not math.isfinite(
+            beta
+        )
+        or not (
+            0.0
+            <= beta
+            <= 1.0
+        )
+    ):
+
+        raise ValueError(
+            (
+                "beta must be finite and lie between 0 and 1."
+            )
+        )
+
+    # ==================================================================
+    # FREQUENCY BAND-LIMITING
+    # ==================================================================
+
+    if (
+        frequency_band_hz
+        is not None
+    ):
+
+        if not isinstance(
+            frequency_band_hz,
+            (tuple, list),
+        ) or len(frequency_band_hz) != 2:
+
+            raise TypeError(
+                (
+                    "frequency_band_hz must be a tuple of (low_hz, high_hz) or None."
+                )
+            )
+
+        try:
+
+            low_hz = float(
+                frequency_band_hz[0]
+            )
+
+            high_hz = float(
+                frequency_band_hz[1]
+            )
+
+        except (
+            TypeError,
+            ValueError,
+        ) as exc:
+
+            raise TypeError(
+                (
+                    "frequency_band_hz elements must be numeric."
+                )
+            ) from exc
+
+        if not (
+            math.isfinite(low_hz)
+            and math.isfinite(high_hz)
+        ):
+
+            raise ValueError(
+                (
+                    "frequency_band_hz elements must be finite."
+                )
+            )
+
+        if low_hz < 0.0:
+
+            raise ValueError(
+                (
+                    "frequency_band_hz lower bound must be non-negative."
+                )
+            )
+
+        if high_hz <= low_hz:
+
+            raise ValueError(
+                (
+                    "frequency_band_hz upper bound must be strictly greater than lower bound."
+                )
+            )
+
+        nyquist = (
+            sample_rate
+            / 2.0
+        )
+
+        if high_hz > nyquist:
+
+            raise ValueError(
+                (
+                    f"frequency_band_hz upper bound ({high_hz} Hz) exceeds Nyquist ({nyquist} Hz)."
+                )
+            )
+
+    # ==================================================================
     # PHYSICAL DELAY LIMIT
     # ==================================================================
 
@@ -530,7 +651,7 @@ def gcc_phat(
         != y.size
     ):
 
-        return _invalid_result(
+        raise ValueError(
             (
                 "signal/reference window "
                 "length mismatch"
@@ -656,16 +777,69 @@ def gcc_phat(
         cross_spectrum
     )
 
-    phat[
-        informative_bins
-    ] = (
-        cross_spectrum[
+    if beta == 1.0:
+
+        phat[
             informative_bins
-        ]
-        / magnitude[
+        ] = (
+            cross_spectrum[
+                informative_bins
+            ]
+            / magnitude[
+                informative_bins
+            ]
+        )
+
+    elif beta == 0.0:
+
+        phat[
             informative_bins
-        ]
-    )
+        ] = (
+            cross_spectrum[
+                informative_bins
+            ]
+        )
+
+    else:
+
+        phat[
+            informative_bins
+        ] = (
+            cross_spectrum[
+                informative_bins
+            ]
+            / (
+                magnitude[
+                    informative_bins
+                ]
+                ** beta
+            )
+        )
+
+    # ==================================================================
+    # BAND LIMITING
+    # ==================================================================
+
+    if (
+        frequency_band_hz
+        is not None
+    ):
+
+        freq_grid = np.linspace(
+            0.0,
+            sample_rate / 2.0,
+            len(cross_spectrum),
+        )
+
+        band_mask = (
+            (freq_grid >= frequency_band_hz[0])
+            & (freq_grid <= frequency_band_hz[1])
+        )
+
+        phat = (
+            phat
+            * band_mask
+        )
 
     # ==================================================================
     # INTERPOLATED CORRELATION

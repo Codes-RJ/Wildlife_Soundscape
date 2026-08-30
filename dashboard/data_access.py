@@ -630,6 +630,42 @@ class DashboardDataAccess:
         )
 
     # ==================================================================
+    # SOUNDSCAPE INDICES
+    # ==================================================================
+
+    def soundscape_indices(
+        self,
+        *,
+        session_id: int | None = None,
+        node_id: int | None = None,
+        limit: int | None = None,
+    ) -> list[
+        dict[
+            str,
+            Any,
+        ]
+    ]:
+        """
+        Return persisted continuous ecoacoustic index records.
+        """
+        session_id = _optional_session_id(session_id)
+        node_id = (
+            _optional_positive_int(node_id, name="node_id")
+            if node_id is not None
+            else None
+        )
+        limit_val = (
+            _optional_positive_int(limit, name="limit")
+            or 1000
+        )
+
+        return self.database.get_soundscape_indices(
+            session_id=session_id,
+            node_id=node_id,
+            limit=limit_val,
+        )
+
+    # ==================================================================
     # ONE EVENT
     # ==================================================================
 

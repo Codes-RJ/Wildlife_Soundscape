@@ -116,6 +116,7 @@ pip-delete-this-directory.txt
 # ======================================================================
 
 .pytest_cache/
+.pytest_temp/
 
 .coverage
 .coverage.*

@@ -1473,31 +1473,6 @@ class EventPipeline:
                 None
             )
 
-        backend = (
-            self.classifier_backend
-        )
-
-        if (
-            backend
-            is None
-        ):
-
-            return (
-                None
-            )
-
-        # ==============================================================
-        # BACKEND DOES NOT REQUIRE AUDIO
-        # ==============================================================
-
-        if not (
-            backend.requires_audio
-        ):
-
-            return (
-                None
-            )
-
         # ==============================================================
         # CONFIGURATION POLICY
         # ==============================================================

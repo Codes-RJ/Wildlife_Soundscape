@@ -526,6 +526,7 @@ def euclidean_distance_m(
             in zip(
                 a,
                 b,
+                strict=False,
             )
         )
     )

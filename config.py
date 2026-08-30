@@ -2832,6 +2832,30 @@ class ClassificationConfig:
         0.20
     )
 
+    latitude: float | None = (
+        None
+    )
+
+    longitude: float | None = (
+        None
+    )
+
+    week: int | None = (
+        None
+    )
+
+    use_geo_filter: bool = (
+        False
+    )
+
+    geo_min_confidence: float = (
+        0.03
+    )
+
+    taxonomy_path: Path | None = (
+        None
+    )
+
     # ==================================================================
     # VALIDATION
     # ==================================================================
@@ -3010,6 +3034,64 @@ class ClassificationConfig:
                     "must be between 0 and 1."
                 )
             )
+
+        if not isinstance(
+            self.use_geo_filter,
+            bool,
+        ):
+
+            raise TypeError(
+                (
+                    "Classification "
+                    "use_geo_filter "
+                    "must be bool."
+                )
+            )
+
+        if self.latitude is not None:
+            lat = _require_finite(
+                self.latitude,
+                name="Classification latitude",
+            )
+            if not (-90.0 <= lat <= 90.0):
+                raise ValueError(
+                    f"Classification latitude must be in [-90, 90], got {lat}."
+                )
+
+        if self.longitude is not None:
+            lon = _require_finite(
+                self.longitude,
+                name="Classification longitude",
+            )
+            if not (-180.0 <= lon <= 180.0):
+                raise ValueError(
+                    f"Classification longitude must be in [-180, 180], got {lon}."
+                )
+
+        if self.week is not None:
+            _require_positive_int(
+                self.week,
+                name="Classification week",
+            )
+            if not (1 <= self.week <= 48):
+                raise ValueError(
+                    f"Classification week must be between 1 and 48, got {self.week}."
+                )
+
+        geo_min_conf = _require_finite(
+            self.geo_min_confidence,
+            name="Classification geo_min_confidence",
+        )
+        if not (0.0 <= geo_min_conf <= 1.0):
+            raise ValueError(
+                f"Classification geo_min_confidence must be in [0, 1], got {geo_min_conf}."
+            )
+
+        if (
+            self.taxonomy_path is not None
+            and not isinstance(self.taxonomy_path, Path)
+        ):
+            raise TypeError("Classification taxonomy_path must be Path or None.")
 
 
 # ======================================================================

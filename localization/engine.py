@@ -1603,8 +1603,9 @@ class LocalizationEngine:
             ):
 
                 reason = (
-                    "calibrated delay outside "
-                    "physical pair limit"
+                    "delay outside physical pair limit"
+                    if calibration_offset_s == 0.0
+                    else "calibrated delay outside physical pair limit"
                 )
 
             else:
