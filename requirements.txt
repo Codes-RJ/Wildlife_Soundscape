@@ -1,17 +1,75 @@
 # ================================================================
 # Wildlife Soundscape Mapping & Behavior Analysis System
-# Core Python Backend Dependencies
+# Python Dependencies
 # ================================================================
 
-# Numerical computing
+
+# ================================================================
+# NUMERICAL COMPUTING
+# ================================================================
+
 numpy>=2.0,<3.0
 
-# Signal processing, filtering and numerical optimization
+
+# ================================================================
+# SCIENTIFIC / SIGNAL PROCESSING
+# ================================================================
+
+# Filtering, optimization, statistics and numerical algorithms.
+#
+# Used by:
+#   localization
+#   environmental analytics
+#   DSP
 scipy>=1.14,<2.0
 
-# Acoustic DSP:
-# STFT, MFCC, Mel spectrograms and spectral features
+
+# ================================================================
+# ACOUSTIC DSP
+# ================================================================
+
+# STFT
+# Mel spectrograms
+# MFCC
+# spectral centroid
+# spectral bandwidth
+# spectral rolloff
+# spectral flatness
+# other acoustic descriptors
 librosa>=0.11,<2.0
 
-# Automated testing
+
+# ================================================================
+# DASHBOARD
+# ================================================================
+
+# Local research/web dashboard.
+#
+# Used by:
+#   dashboard/app.py
+#   dashboard/live_view.py
+#   dashboard/analysis_view.py
+#
+# Minimum version is intentionally above the introduction of
+# Streamlit fragment-based reruns used by the live dashboard.
+streamlit>=1.37,<2.0
+
+
+# Interactive scientific visualizations.
+#
+# Used for:
+#   acoustic-event timelines
+#   localization scatter plots
+#   spatial occupancy heatmaps
+#   environmental plots
+#   correlation matrices
+#   waveforms
+#   spectrograms
+plotly>=5.24,<7.0
+
+
+# ================================================================
+# AUTOMATED TESTING
+# ================================================================
+
 pytest>=8,<10

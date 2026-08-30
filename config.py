@@ -1,5 +1,11 @@
 from __future__ import annotations
 
+
+# ======================================================================
+# STANDARD LIBRARY
+# ======================================================================
+
+
 import math
 
 from dataclasses import (
@@ -7,7 +13,9 @@ from dataclasses import (
     field,
 )
 
-from pathlib import Path
+from pathlib import (
+    Path,
+)
 
 
 # ======================================================================
@@ -25,13 +33,16 @@ UINT8_MAX = (
     0xFF
 )
 
+
 UINT16_MAX = (
     0xFFFF
 )
 
+
 UINT32_MAX = (
     0xFFFFFFFF
 )
+
 
 INT16_MAX = (
     0x7FFF
@@ -52,9 +63,20 @@ def _require_finite(
     Require a finite numeric configuration value.
     """
 
-    result = float(
-        value
-    )
+    try:
+
+        result = float(
+            value
+        )
+
+    except (
+        TypeError,
+        ValueError,
+    ) as exc:
+
+        raise TypeError(
+            f"{name} must be numeric."
+        ) from exc
 
     if not math.isfinite(
         result
@@ -64,7 +86,9 @@ def _require_finite(
             f"{name} must be finite."
         )
 
-    return result
+    return (
+        result
+    )
 
 
 def _require_positive_int(
@@ -94,13 +118,18 @@ def _require_positive_int(
             f"{name} must be an integer."
         )
 
-    if value <= 0:
+    if (
+        value
+        <= 0
+    ):
 
         raise ValueError(
             f"{name} must be greater than 0."
         )
 
-    return value
+    return (
+        value
+    )
 
 
 # ======================================================================
@@ -158,10 +187,27 @@ class NetworkConfig:
                 "Network host must be a string."
             )
 
-        if not self.host.strip():
+        if not (
+            self.host.strip()
+        ):
 
             raise ValueError(
                 "Network host cannot be empty."
+            )
+
+        if (
+            isinstance(
+                self.port,
+                bool,
+            )
+            or not isinstance(
+                self.port,
+                int,
+            )
+        ):
+
+            raise TypeError(
+                "Network port must be an integer."
             )
 
         if not (
@@ -185,7 +231,10 @@ class NetworkConfig:
             )
         )
 
-        if read_timeout <= 0:
+        if (
+            read_timeout
+            <= 0
+        ):
 
             raise ValueError(
                 (
@@ -202,7 +251,10 @@ class NetworkConfig:
             )
         )
 
-        if hello_timeout <= 0:
+        if (
+            hello_timeout
+            <= 0
+        ):
 
             raise ValueError(
                 (
@@ -211,17 +263,11 @@ class NetworkConfig:
                 )
             )
 
-        if (
-            self.max_payload_bytes
-            <= 0
-        ):
-
-            raise ValueError(
-                (
-                    "Network max_payload_bytes "
-                    "must be greater than 0."
-                )
-            )
+        _require_positive_int(
+            self.max_payload_bytes,
+            name=
+                "Network max_payload_bytes",
+        )
 
         if (
             self.max_payload_bytes
@@ -364,7 +410,8 @@ class AudioConfig:
 
         return max(
             8,
-            required + 2,
+            required
+            + 2,
         )
 
     # ==================================================================
@@ -449,12 +496,33 @@ class AudioConfig:
             )
         )
 
-        if buffer_seconds <= 0:
+        if (
+            buffer_seconds
+            <= 0
+        ):
 
             raise ValueError(
                 (
                     "Audio buffer_seconds must "
                     "be greater than 0."
+                )
+            )
+
+        if (
+            isinstance(
+                self.sync_tolerance_samples,
+                bool,
+            )
+            or not isinstance(
+                self.sync_tolerance_samples,
+                int,
+            )
+        ):
+
+            raise TypeError(
+                (
+                    "Audio sync_tolerance_samples "
+                    "must be an integer."
                 )
             )
 
@@ -481,6 +549,15 @@ class AudioConfig:
                     "Audio sync_tolerance_samples "
                     "exceeds HELLO int16 capacity."
                 )
+            )
+
+        if not isinstance(
+            self.record_wav,
+            bool,
+        ):
+
+            raise TypeError(
+                "Audio record_wav must be bool."
             )
 
 
@@ -654,7 +731,9 @@ class LocalizationConfig:
             )
         )
 
-        if missing_positions:
+        if (
+            missing_positions
+        ):
 
             raise ValueError(
                 (
@@ -759,48 +838,64 @@ class LocalizationConfig:
             False
         )
 
-        coordinate_count = len(
-            coordinates
+        coordinate_count = (
+            len(
+                coordinates
+            )
         )
 
         for i in range(
-            coordinate_count - 2
+            coordinate_count
+            - 2
         ):
 
             x1, y1 = (
-                coordinates[i]
+                coordinates[
+                    i
+                ]
             )
 
             for j in range(
-                i + 1,
-                coordinate_count - 1,
+                i
+                + 1,
+                coordinate_count
+                - 1,
             ):
 
                 x2, y2 = (
-                    coordinates[j]
+                    coordinates[
+                        j
+                    ]
                 )
 
                 for k in range(
-                    j + 1,
+                    j
+                    + 1,
                     coordinate_count,
                 ):
 
                     x3, y3 = (
-                        coordinates[k]
+                        coordinates[
+                            k
+                        ]
                     )
 
                     twice_area = abs(
                         (
-                            x2 - x1
+                            x2
+                            - x1
                         )
                         * (
-                            y3 - y1
+                            y3
+                            - y1
                         )
                         - (
-                            y2 - y1
+                            y2
+                            - y1
                         )
                         * (
-                            x3 - x1
+                            x3
+                            - x1
                         )
                     )
 
@@ -815,13 +910,21 @@ class LocalizationConfig:
 
                         break
 
-                if non_collinear:
+                if (
+                    non_collinear
+                ):
+
                     break
 
-            if non_collinear:
+            if (
+                non_collinear
+            ):
+
                 break
 
-        if not non_collinear:
+        if not (
+            non_collinear
+        ):
 
             raise ValueError(
                 (
@@ -841,6 +944,25 @@ class LocalizationConfig:
             name=
                 "Localization window_samples",
         )
+
+        if (
+            isinstance(
+                self.max_alignment_search_samples,
+                bool,
+            )
+            or not isinstance(
+                self.max_alignment_search_samples,
+                int,
+            )
+        ):
+
+            raise TypeError(
+                (
+                    "Localization "
+                    "max_alignment_search_samples "
+                    "must be an integer."
+                )
+            )
 
         if (
             self.max_alignment_search_samples
@@ -893,7 +1015,10 @@ class LocalizationConfig:
             )
         )
 
-        if minimum_rms < 0:
+        if (
+            minimum_rms
+            < 0
+        ):
 
             raise ValueError(
                 (
@@ -914,13 +1039,29 @@ class LocalizationConfig:
             )
         )
 
-        if sound_speed <= 0:
+        if (
+            sound_speed
+            <= 0
+        ):
 
             raise ValueError(
                 (
                     "Localization fallback "
                     "speed_of_sound_mps must "
                     "be greater than 0."
+                )
+            )
+
+        if not isinstance(
+            self.use_environmental_speed,
+            bool,
+        ):
+
+            raise TypeError(
+                (
+                    "Localization "
+                    "use_environmental_speed "
+                    "must be bool."
                 )
             )
 
@@ -933,7 +1074,9 @@ class LocalizationConfig:
             / 2.0
         )
 
-        if self.bandpass_enabled:
+        if (
+            self.bandpass_enabled
+        ):
 
             low_hz = (
                 _require_finite(
@@ -982,6 +1125,19 @@ class LocalizationConfig:
         # SOLVER
         # ==============================================================
 
+        if not isinstance(
+            self.constrain_to_array_bounds,
+            bool,
+        ):
+
+            raise TypeError(
+                (
+                    "Localization "
+                    "constrain_to_array_bounds "
+                    "must be bool."
+                )
+            )
+
         margin = (
             _require_finite(
                 self.bounds_margin_m,
@@ -990,7 +1146,10 @@ class LocalizationConfig:
             )
         )
 
-        if margin < 0:
+        if (
+            margin
+            < 0
+        ):
 
             raise ValueError(
                 (
@@ -1103,6 +1262,15 @@ class EventDetectionConfig:
         Validate detector thresholds and temporal settings.
         """
 
+        if not isinstance(
+            self.enabled,
+            bool,
+        ):
+
+            raise TypeError(
+                "Event detection enabled must be bool."
+            )
+
         _require_positive_int(
             self.noise_history_blocks,
             name=
@@ -1148,8 +1316,10 @@ class EventDetectionConfig:
             )
         )
 
-        # Normalized digital full scale is 0 dBFS.
-        if initial_noise > 0:
+        if (
+            initial_noise
+            > 0
+        ):
 
             raise ValueError(
                 (
@@ -1181,7 +1351,10 @@ class EventDetectionConfig:
             )
         )
 
-        if trigger_margin <= 0:
+        if (
+            trigger_margin
+            <= 0
+        ):
 
             raise ValueError(
                 (
@@ -1191,7 +1364,10 @@ class EventDetectionConfig:
                 )
             )
 
-        if release_margin < 0:
+        if (
+            release_margin
+            < 0
+        ):
 
             raise ValueError(
                 (
@@ -1226,7 +1402,10 @@ class EventDetectionConfig:
             )
         )
 
-        if spectral_flux < 0:
+        if (
+            spectral_flux
+            < 0
+        ):
 
             raise ValueError(
                 (
@@ -1356,7 +1535,10 @@ class EventDetectionConfig:
             )
         )
 
-        if minimum_ms <= 0:
+        if (
+            minimum_ms
+            <= 0
+        ):
 
             raise ValueError(
                 (
@@ -1365,7 +1547,10 @@ class EventDetectionConfig:
                 )
             )
 
-        if maximum_s <= 0:
+        if (
+            maximum_s
+            <= 0
+        ):
 
             raise ValueError(
                 (
@@ -1387,7 +1572,10 @@ class EventDetectionConfig:
                 )
             )
 
-        if pre_pad < 0:
+        if (
+            pre_pad
+            < 0
+        ):
 
             raise ValueError(
                 (
@@ -1396,7 +1584,10 @@ class EventDetectionConfig:
                 )
             )
 
-        if post_pad < 0:
+        if (
+            post_pad
+            < 0
+        ):
 
             raise ValueError(
                 (
@@ -1550,14 +1741,11 @@ class DSPConfig:
         Validate DSP settings against acquisition sample rate.
         """
 
-        if sample_rate <= 0:
-
-            raise ValueError(
-                (
-                    "sample_rate must be "
-                    "greater than 0."
-                )
-            )
+        _require_positive_int(
+            sample_rate,
+            name=
+                "DSP sample_rate",
+        )
 
         nyquist = (
             sample_rate
@@ -1568,7 +1756,9 @@ class DSPConfig:
         # PREPROCESSING
         # ==============================================================
 
-        if self.bandpass_enabled:
+        if (
+            self.bandpass_enabled
+        ):
 
             low_hz = (
                 _require_finite(
@@ -1586,7 +1776,10 @@ class DSPConfig:
                 )
             )
 
-            if low_hz <= 0:
+            if (
+                low_hz
+                <= 0
+            ):
 
                 raise ValueError(
                     (
@@ -1595,7 +1788,10 @@ class DSPConfig:
                     )
                 )
 
-            if high_hz <= low_hz:
+            if (
+                high_hz
+                <= low_hz
+            ):
 
                 raise ValueError(
                     (
@@ -1605,7 +1801,10 @@ class DSPConfig:
                     )
                 )
 
-            if high_hz >= nyquist:
+            if (
+                high_hz
+                >= nyquist
+            ):
 
                 raise ValueError(
                     (
@@ -1719,7 +1918,10 @@ class DSPConfig:
             )
         )
 
-        if fmin < 0:
+        if (
+            fmin
+            < 0
+        ):
 
             raise ValueError(
                 (
@@ -1728,7 +1930,10 @@ class DSPConfig:
                 )
             )
 
-        if fmax <= fmin:
+        if (
+            fmax
+            <= fmin
+        ):
 
             raise ValueError(
                 (
@@ -1737,7 +1942,10 @@ class DSPConfig:
                 )
             )
 
-        if fmax > nyquist:
+        if (
+            fmax
+            > nyquist
+        ):
 
             raise ValueError(
                 (
@@ -1874,7 +2082,10 @@ class DSPConfig:
             )
         )
 
-        if digital_floor <= 0:
+        if (
+            digital_floor
+            <= 0
+        ):
 
             raise ValueError(
                 (
@@ -1975,6 +2186,18 @@ class ClassificationConfig:
         """
 
         if not isinstance(
+            self.enabled,
+            bool,
+        ):
+
+            raise TypeError(
+                (
+                    "Classification enabled "
+                    "must be bool."
+                )
+            )
+
+        if not isinstance(
             self.backend,
             str,
         ):
@@ -1992,7 +2215,9 @@ class ClassificationConfig:
             .lower()
         )
 
-        if not backend:
+        if not (
+            backend
+        ):
 
             raise ValueError(
                 (
@@ -2019,6 +2244,32 @@ class ClassificationConfig:
                     f"backend '{self.backend}'. "
                     "Supported values: "
                     f"{sorted(supported_backends)}"
+                )
+            )
+
+        if not isinstance(
+            self.fallback_to_heuristic,
+            bool,
+        ):
+
+            raise TypeError(
+                (
+                    "Classification "
+                    "fallback_to_heuristic "
+                    "must be bool."
+                )
+            )
+
+        if not isinstance(
+            self.provide_model_audio,
+            bool,
+        ):
+
+            raise TypeError(
+                (
+                    "Classification "
+                    "provide_model_audio "
+                    "must be bool."
                 )
             )
 
@@ -2176,6 +2427,591 @@ class PersistenceConfig:
                 )
             )
 
+        if not isinstance(
+            self.save_event_wav,
+            bool,
+        ):
+
+            raise TypeError(
+                (
+                    "Persistence save_event_wav "
+                    "must be bool."
+                )
+            )
+
+
+# ======================================================================
+# RESEARCH ANALYTICS CONFIGURATION
+# ======================================================================
+
+
+@dataclass(
+    frozen=True,
+    slots=True,
+)
+class AnalyticsConfig:
+    """
+    Research-analytics configuration.
+
+    This section controls higher-level analysis over persisted events.
+
+    It does not affect:
+
+        ESP32 acquisition
+        protocol timing
+        event detection
+        DSP
+        classification
+        TDOA localization
+
+    Therefore analytics parameters can be adjusted for exploratory
+    research without changing the underlying recorded observations.
+    """
+
+    # ------------------------------------------------------------------
+    # MASTER SWITCH
+    # ------------------------------------------------------------------
+
+    enabled: bool = (
+        True
+    )
+
+    # ------------------------------------------------------------------
+    # TEMPORAL ACTIVITY
+    # ------------------------------------------------------------------
+
+    # Default temporal aggregation width.
+    #
+    # 3600 seconds = 1 hour.
+    bucket_seconds: int = (
+        3600
+    )
+
+    # ------------------------------------------------------------------
+    # ENVIRONMENTAL ANALYSIS
+    # ------------------------------------------------------------------
+
+    # BME280 exists on Node 1 in the current three-node hardware design.
+    environmental_node_id: int | None = (
+        1
+    )
+
+    # Spearman significance threshold.
+    environmental_alpha: float = (
+        0.05
+    )
+
+    # Minimum finite paired observations required before a correlation
+    # coefficient is reported.
+    environmental_min_samples: int = (
+        5
+    )
+
+    # Coefficients whose magnitude is <= this value are described as
+    # directionally neutral.
+    neutral_threshold: float = (
+        0.05
+    )
+
+    # ------------------------------------------------------------------
+    # SPATIAL ANALYSIS
+    # ------------------------------------------------------------------
+
+    # Rectangular grid-cell side length.
+    cell_size_m: float = (
+        0.25
+    )
+
+    # Defensive limit against accidentally creating extremely large
+    # heatmap grids.
+    max_grid_cells: int = (
+        10_000
+    )
+
+    # Maximum temporal gap between consecutive localized acoustic events
+    # considered for transition analysis.
+    #
+    # None disables the limit.
+    max_transition_gap_s: float | None = (
+        300.0
+    )
+
+    # Require matching broad acoustic classes for transitions when True.
+    #
+    # Even with this enabled, the transition is NOT interpreted as a
+    # verified trajectory of one individual animal.
+    same_class_transitions_only: bool = (
+        False
+    )
+
+    # ------------------------------------------------------------------
+    # CONSERVATIVE BEHAVIOR-INDICATOR MINIMUMS
+    # ------------------------------------------------------------------
+
+    min_activity_events: int = (
+        5
+    )
+
+    min_localized_events: int = (
+        5
+    )
+
+    min_transitions: int = (
+        3
+    )
+
+    # ==================================================================
+    # VALIDATION
+    # ==================================================================
+
+    def validate(
+        self,
+    ) -> None:
+        """
+        Validate research-analytics parameters.
+        """
+
+        if not isinstance(
+            self.enabled,
+            bool,
+        ):
+
+            raise TypeError(
+                (
+                    "Analytics enabled "
+                    "must be bool."
+                )
+            )
+
+        # ==============================================================
+        # TEMPORAL
+        # ==============================================================
+
+        _require_positive_int(
+            self.bucket_seconds,
+            name=
+                "Analytics bucket_seconds",
+        )
+
+        # ==============================================================
+        # ENVIRONMENTAL NODE
+        # ==============================================================
+
+        if (
+            self.environmental_node_id
+            is not None
+        ):
+
+            _require_positive_int(
+                self.environmental_node_id,
+                name=
+                    (
+                        "Analytics "
+                        "environmental_node_id"
+                    ),
+            )
+
+            if (
+                self.environmental_node_id
+                > UINT8_MAX
+            ):
+
+                raise ValueError(
+                    (
+                        "Analytics "
+                        "environmental_node_id "
+                        "must fit Protocol-v4 "
+                        "uint8 nodeId."
+                    )
+                )
+
+        # ==============================================================
+        # STATISTICS
+        # ==============================================================
+
+        alpha = (
+            _require_finite(
+                self.environmental_alpha,
+                name=
+                    (
+                        "Analytics "
+                        "environmental_alpha"
+                    ),
+            )
+        )
+
+        if not (
+            0.0
+            < alpha
+            < 1.0
+        ):
+
+            raise ValueError(
+                (
+                    "Analytics "
+                    "environmental_alpha "
+                    "must be in (0, 1)."
+                )
+            )
+
+        _require_positive_int(
+            self.environmental_min_samples,
+            name=
+                (
+                    "Analytics "
+                    "environmental_min_samples"
+                ),
+        )
+
+        if (
+            self.environmental_min_samples
+            < 3
+        ):
+
+            raise ValueError(
+                (
+                    "Analytics "
+                    "environmental_min_samples "
+                    "must be at least 3."
+                )
+            )
+
+        neutral = (
+            _require_finite(
+                self.neutral_threshold,
+                name=
+                    (
+                        "Analytics "
+                        "neutral_threshold"
+                    ),
+            )
+        )
+
+        if not (
+            0.0
+            <= neutral
+            <= 1.0
+        ):
+
+            raise ValueError(
+                (
+                    "Analytics "
+                    "neutral_threshold "
+                    "must be in [0, 1]."
+                )
+            )
+
+        # ==============================================================
+        # SPATIAL
+        # ==============================================================
+
+        cell_size = (
+            _require_finite(
+                self.cell_size_m,
+                name=
+                    "Analytics cell_size_m",
+            )
+        )
+
+        if (
+            cell_size
+            <= 0.0
+        ):
+
+            raise ValueError(
+                (
+                    "Analytics cell_size_m "
+                    "must be greater than 0."
+                )
+            )
+
+        _require_positive_int(
+            self.max_grid_cells,
+            name=
+                "Analytics max_grid_cells",
+        )
+
+        if (
+            self.max_transition_gap_s
+            is not None
+        ):
+
+            transition_gap = (
+                _require_finite(
+                    self.max_transition_gap_s,
+                    name=
+                        (
+                            "Analytics "
+                            "max_transition_gap_s"
+                        ),
+                )
+            )
+
+            if (
+                transition_gap
+                <= 0.0
+            ):
+
+                raise ValueError(
+                    (
+                        "Analytics "
+                        "max_transition_gap_s "
+                        "must be greater than 0 "
+                        "or None."
+                    )
+                )
+
+        if not isinstance(
+            self.same_class_transitions_only,
+            bool,
+        ):
+
+            raise TypeError(
+                (
+                    "Analytics "
+                    "same_class_transitions_only "
+                    "must be bool."
+                )
+            )
+
+        # ==============================================================
+        # INDICATOR MINIMUMS
+        # ==============================================================
+
+        _require_positive_int(
+            self.min_activity_events,
+            name=
+                (
+                    "Analytics "
+                    "min_activity_events"
+                ),
+        )
+
+        _require_positive_int(
+            self.min_localized_events,
+            name=
+                (
+                    "Analytics "
+                    "min_localized_events"
+                ),
+        )
+
+        _require_positive_int(
+            self.min_transitions,
+            name=
+                (
+                    "Analytics "
+                    "min_transitions"
+                ),
+        )
+
+
+# ======================================================================
+# DASHBOARD CONFIGURATION
+# ======================================================================
+
+
+@dataclass(
+    frozen=True,
+    slots=True,
+)
+class DashboardConfig:
+    """
+    Local research/dashboard presentation configuration.
+
+    These settings affect only visualization and UI data volume.
+
+    They do not alter scientific source data or persisted event records.
+    """
+
+    # ------------------------------------------------------------------
+    # MASTER SWITCH
+    # ------------------------------------------------------------------
+
+    enabled: bool = (
+        True
+    )
+
+    # ------------------------------------------------------------------
+    # IDENTITY
+    # ------------------------------------------------------------------
+
+    page_title: str = (
+        "Wildlife Soundscape Monitor"
+    )
+
+    # ------------------------------------------------------------------
+    # LIVE VIEW
+    # ------------------------------------------------------------------
+
+    auto_refresh: bool = (
+        True
+    )
+
+    refresh_interval_s: float = (
+        2.0
+    )
+
+    # ------------------------------------------------------------------
+    # DATABASE VIEW LIMITS
+    # ------------------------------------------------------------------
+
+    recent_events_limit: int = (
+        50
+    )
+
+    session_list_limit: int = (
+        100
+    )
+
+    # ------------------------------------------------------------------
+    # VISUALIZATION LIMITS
+    # ------------------------------------------------------------------
+
+    # Defensive cap used when plotting dense research datasets.
+    max_plot_points: int = (
+        5000
+    )
+
+    # Maximum duration of event audio displayed/decoded in one dashboard
+    # preview.
+    max_audio_preview_s: float = (
+        30.0
+    )
+
+    # ==================================================================
+    # VALIDATION
+    # ==================================================================
+
+    def validate(
+        self,
+    ) -> None:
+        """
+        Validate dashboard/UI parameters.
+        """
+
+        if not isinstance(
+            self.enabled,
+            bool,
+        ):
+
+            raise TypeError(
+                (
+                    "Dashboard enabled "
+                    "must be bool."
+                )
+            )
+
+        if not isinstance(
+            self.page_title,
+            str,
+        ):
+
+            raise TypeError(
+                (
+                    "Dashboard page_title "
+                    "must be a string."
+                )
+            )
+
+        if not (
+            self.page_title.strip()
+        ):
+
+            raise ValueError(
+                (
+                    "Dashboard page_title "
+                    "cannot be empty."
+                )
+            )
+
+        if not isinstance(
+            self.auto_refresh,
+            bool,
+        ):
+
+            raise TypeError(
+                (
+                    "Dashboard auto_refresh "
+                    "must be bool."
+                )
+            )
+
+        refresh_interval = (
+            _require_finite(
+                self.refresh_interval_s,
+                name=
+                    (
+                        "Dashboard "
+                        "refresh_interval_s"
+                    ),
+            )
+        )
+
+        if (
+            refresh_interval
+            <= 0.0
+        ):
+
+            raise ValueError(
+                (
+                    "Dashboard "
+                    "refresh_interval_s "
+                    "must be greater than 0."
+                )
+            )
+
+        _require_positive_int(
+            self.recent_events_limit,
+            name=
+                (
+                    "Dashboard "
+                    "recent_events_limit"
+                ),
+        )
+
+        _require_positive_int(
+            self.session_list_limit,
+            name=
+                (
+                    "Dashboard "
+                    "session_list_limit"
+                ),
+        )
+
+        _require_positive_int(
+            self.max_plot_points,
+            name=
+                (
+                    "Dashboard "
+                    "max_plot_points"
+                ),
+        )
+
+        max_audio_preview = (
+            _require_finite(
+                self.max_audio_preview_s,
+                name=
+                    (
+                        "Dashboard "
+                        "max_audio_preview_s"
+                    ),
+            )
+        )
+
+        if (
+            max_audio_preview
+            <= 0.0
+        ):
+
+            raise ValueError(
+                (
+                    "Dashboard "
+                    "max_audio_preview_s "
+                    "must be greater than 0."
+                )
+            )
+
 
 # ======================================================================
 # APPLICATION CONFIGURATION
@@ -2226,6 +3062,16 @@ class AppConfig:
     persistence: PersistenceConfig = field(
         default_factory=
             PersistenceConfig
+    )
+
+    analytics: AnalyticsConfig = field(
+        default_factory=
+            AnalyticsConfig
+    )
+
+    dashboard: DashboardConfig = field(
+        default_factory=
+            DashboardConfig
     )
 
     # ------------------------------------------------------------------
@@ -2286,6 +3132,10 @@ class AppConfig:
         self.classification.validate()
 
         self.persistence.validate()
+
+        self.analytics.validate()
+
+        self.dashboard.validate()
 
         # ==============================================================
         # EXPECTED NODE SET
@@ -2382,6 +3232,24 @@ class AppConfig:
                     self.expected_nodes
                 )
         )
+
+        # ==============================================================
+        # ENVIRONMENTAL ANALYTICS NODE
+        # ==============================================================
+
+        if (
+            self.analytics.environmental_node_id
+            is not None
+            and self.analytics.environmental_node_id
+            not in self.expected_nodes
+        ):
+
+            raise ValueError(
+                (
+                    "Analytics environmental_node_id "
+                    "must be one of expected_nodes."
+                )
+            )
 
         # ==============================================================
         # AUDIO PAYLOAD vs NETWORK PAYLOAD LIMIT
@@ -2551,7 +3419,10 @@ class AppConfig:
             )
         )
 
-        if status_interval <= 0:
+        if (
+            status_interval
+            <= 0
+        ):
 
             raise ValueError(
                 (
