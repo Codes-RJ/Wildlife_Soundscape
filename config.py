@@ -22,10 +22,11 @@ from pathlib import (
 # PROTOCOL LIMITS
 # ======================================================================
 #
-# These values mirror fields already frozen in Protocol v4.
+# These values mirror fields frozen in Protocol v4.
 #
-# Keeping the limits here prevents configuration from producing values
-# that Python accepts but the ESP32 binary protocol cannot represent.
+# Keeping protocol limits in configuration validation prevents a valid
+# Python configuration from producing values that cannot be represented
+# by the ESP32 wire protocol.
 # ======================================================================
 
 
@@ -449,7 +450,6 @@ class AudioConfig:
                 "Audio frames_per_block",
         )
 
-        # HELLO framesPerPacket is uint16.
         if (
             self.frames_per_block
             > UINT16_MAX
@@ -538,7 +538,6 @@ class AudioConfig:
                 )
             )
 
-        # HELLO syncToleranceSamples is int16.
         if (
             self.sync_tolerance_samples
             > INT16_MAX
@@ -558,6 +557,687 @@ class AudioConfig:
 
             raise TypeError(
                 "Audio record_wav must be bool."
+            )
+
+
+# ======================================================================
+# TDOA CALIBRATION CONFIGURATION
+# ======================================================================
+
+
+@dataclass(
+    frozen=True,
+    slots=True,
+)
+class TDOACalibrationConfig:
+    """
+    Runtime TDOA timing-calibration configuration.
+
+    Calibration model
+    -----------------
+    Each microphone/node has one estimated timing bias relative to an
+    arbitrary calibration reference node.
+
+    For nodes A and B:
+
+        pair_offset(A, B)
+            =
+        bias_B - bias_A
+
+    The runtime corrected TDOA is therefore:
+
+        corrected_tdoa
+            =
+        measured_tdoa - pair_offset
+
+
+    Why node biases are stored
+    --------------------------
+    Storing node biases instead of three unrelated pair offsets
+    guarantees internally consistent calibration:
+
+        offset(1, 2)
+        +
+        offset(2, 3)
+        =
+        offset(1, 3)
+
+
+    Safety
+    ------
+    Calibration is disabled by default.
+
+    Real node biases must be measured using controlled calibration data
+    before `enabled` is changed to True.
+
+    Zero offsets must not be presented as experimentally calibrated
+    values.
+    """
+
+    # ------------------------------------------------------------------
+    # MASTER SWITCH
+    # ------------------------------------------------------------------
+
+    enabled: bool = (
+        False
+    )
+
+    # ------------------------------------------------------------------
+    # CALIBRATION REFERENCE
+    # ------------------------------------------------------------------
+    #
+    # Bias for this node is fixed at exactly zero.
+    #
+    # Pairwise bias differences are independent of which node is chosen
+    # as this reference.
+    # ------------------------------------------------------------------
+
+    reference_node: int = (
+        1
+    )
+
+    # ------------------------------------------------------------------
+    # ESTIMATED NODE BIASES
+    # ------------------------------------------------------------------
+    #
+    # Units:
+    #     seconds
+    #
+    # Example only after actual calibration:
+    #
+    # {
+    #     1: 0.0,
+    #     2: 0.000020,
+    #     3: -0.000010,
+    # }
+    #
+    # The default is intentionally empty because calibration has not yet
+    # been physically measured.
+    # ------------------------------------------------------------------
+
+    node_biases_s: dict[
+        int,
+        float,
+    ] = field(
+        default_factory=dict
+    )
+
+    # ------------------------------------------------------------------
+    # CALIBRATION PROVENANCE
+    # ------------------------------------------------------------------
+
+    result_path: Path = (
+        Path(
+            "data/calibration/tdoa_calibration.json"
+        )
+    )
+
+    generated_at: str | None = (
+        None
+    )
+
+    # ------------------------------------------------------------------
+    # FIT QUALITY
+    # ------------------------------------------------------------------
+    #
+    # RMS disagreement between directly observed pair residuals and the
+    # coherent per-node timing-bias model.
+    #
+    # This is populated from TDOACalibrationResult when calibration is
+    # accepted for runtime use.
+    # ------------------------------------------------------------------
+
+    rms_pair_consistency_error_s: float | None = (
+        None
+    )
+
+    # Maximum accepted consistency error expressed in AUDIO samples.
+    #
+    # At 48 kHz:
+    #
+    #     1 sample ≈ 20.83 microseconds
+    # ------------------------------------------------------------------
+
+    max_consistency_error_samples: float = (
+        1.0
+    )
+
+    # ==================================================================
+    # DERIVED CALIBRATION VALUES
+    # ==================================================================
+
+    def pair_offset_s(
+        self,
+        node_a: int,
+        node_b: int,
+    ) -> float:
+        """
+        Return calibrated timing offset for requested pair orientation.
+
+        Convention
+        ----------
+        Offset corresponds to:
+
+            arrival_B - arrival_A
+
+        If calibration is disabled, zero is returned.
+
+        Raises
+        ------
+        KeyError
+            If calibration is enabled but one of the required node
+            biases is unavailable.
+        """
+
+        if (
+            node_a
+            == node_b
+        ):
+
+            raise ValueError(
+                (
+                    "TDOA calibration requires "
+                    "two different node IDs."
+                )
+            )
+
+        if not (
+            self.enabled
+        ):
+
+            return (
+                0.0
+            )
+
+        try:
+
+            bias_a = (
+                self.node_biases_s[
+                    node_a
+                ]
+            )
+
+            bias_b = (
+                self.node_biases_s[
+                    node_b
+                ]
+            )
+
+        except KeyError as exc:
+
+            raise KeyError(
+                (
+                    "Missing TDOA calibration bias "
+                    f"for node {exc.args[0]}."
+                )
+            ) from exc
+
+        return (
+            bias_b
+            - bias_a
+        )
+
+    def pair_offset_samples(
+        self,
+        node_a: int,
+        node_b: int,
+        *,
+        sample_rate: int,
+    ) -> float:
+        """
+        Return calibrated pair timing offset in samples.
+        """
+
+        _require_positive_int(
+            sample_rate,
+            name=
+                (
+                    "TDOA calibration "
+                    "sample_rate"
+                ),
+        )
+
+        return (
+            self.pair_offset_s(
+                node_a,
+                node_b,
+            )
+            * sample_rate
+        )
+
+    def correct_tdoa_s(
+        self,
+        node_a: int,
+        node_b: int,
+        measured_tdoa_s: float,
+    ) -> float:
+        """
+        Apply configured timing calibration to one TDOA measurement.
+        """
+
+        measured = (
+            _require_finite(
+                measured_tdoa_s,
+                name=
+                    (
+                        "Measured TDOA"
+                    ),
+            )
+        )
+
+        return (
+            measured
+            - self.pair_offset_s(
+                node_a,
+                node_b,
+            )
+        )
+
+    def maximum_absolute_pair_offset_s(
+        self,
+    ) -> float:
+        """
+        Return largest configured absolute pair timing offset.
+
+        This value is useful when constructing a GCC-PHAT search window,
+        because systematic channel delay can slightly extend the
+        observed delay beyond the purely geometric propagation limit.
+        """
+
+        if (
+            not self.enabled
+            or len(
+                self.node_biases_s
+            )
+            < 2
+        ):
+
+            return (
+                0.0
+            )
+
+        biases = tuple(
+            float(
+                value
+            )
+            for value
+            in self.node_biases_s.values()
+        )
+
+        return (
+            max(
+                biases
+            )
+            - min(
+                biases
+            )
+        )
+
+    def maximum_absolute_pair_offset_samples(
+        self,
+        *,
+        sample_rate: int,
+    ) -> float:
+        """
+        Return maximum configured absolute pair offset in samples.
+        """
+
+        _require_positive_int(
+            sample_rate,
+            name=
+                (
+                    "TDOA calibration "
+                    "sample_rate"
+                ),
+        )
+
+        return (
+            self.maximum_absolute_pair_offset_s()
+            * sample_rate
+        )
+
+    # ==================================================================
+    # VALIDATION
+    # ==================================================================
+
+    def validate(
+        self,
+        *,
+        sample_rate: int,
+        expected_nodes: frozenset[int],
+    ) -> None:
+        """
+        Validate runtime calibration configuration.
+
+        Calibration remains intentionally strict when enabled.
+
+        A calibration cannot be enabled unless:
+
+            every expected node has a bias
+            reference-node bias is zero
+            calibration fit quality is available
+            fit quality satisfies configured acceptance threshold
+        """
+
+        if not isinstance(
+            self.enabled,
+            bool,
+        ):
+
+            raise TypeError(
+                (
+                    "TDOA calibration enabled "
+                    "must be bool."
+                )
+            )
+
+        _require_positive_int(
+            sample_rate,
+            name=
+                (
+                    "TDOA calibration "
+                    "sample_rate"
+                ),
+        )
+
+        _require_positive_int(
+            self.reference_node,
+            name=
+                (
+                    "TDOA calibration "
+                    "reference_node"
+                ),
+        )
+
+        if (
+            self.reference_node
+            not in expected_nodes
+        ):
+
+            raise ValueError(
+                (
+                    "TDOA calibration reference_node "
+                    "must be one of expected_nodes."
+                )
+            )
+
+        # ==============================================================
+        # RESULT PATH
+        # ==============================================================
+
+        if not isinstance(
+            self.result_path,
+            Path,
+        ):
+
+            raise TypeError(
+                (
+                    "TDOA calibration result_path "
+                    "must be pathlib.Path."
+                )
+            )
+
+        if not (
+            self.result_path.name
+        ):
+
+            raise ValueError(
+                (
+                    "TDOA calibration result_path "
+                    "must include a filename."
+                )
+            )
+
+        # ==============================================================
+        # TIMESTAMP / PROVENANCE
+        # ==============================================================
+
+        if (
+            self.generated_at
+            is not None
+        ):
+
+            if not isinstance(
+                self.generated_at,
+                str,
+            ):
+
+                raise TypeError(
+                    (
+                        "TDOA calibration generated_at "
+                        "must be a string or None."
+                    )
+                )
+
+            if not (
+                self.generated_at.strip()
+            ):
+
+                raise ValueError(
+                    (
+                        "TDOA calibration generated_at "
+                        "cannot be empty when provided."
+                    )
+                )
+
+        # ==============================================================
+        # NODE BIASES
+        # ==============================================================
+
+        if not isinstance(
+            self.node_biases_s,
+            dict,
+        ):
+
+            raise TypeError(
+                (
+                    "TDOA calibration node_biases_s "
+                    "must be a dictionary."
+                )
+            )
+
+        normalized_biases: dict[
+            int,
+            float,
+        ] = {}
+
+        for node_id, raw_bias in (
+            self.node_biases_s.items()
+        ):
+
+            if (
+                isinstance(
+                    node_id,
+                    bool,
+                )
+                or not isinstance(
+                    node_id,
+                    int,
+                )
+            ):
+
+                raise TypeError(
+                    (
+                        "TDOA calibration node-bias "
+                        "keys must be integer node IDs."
+                    )
+                )
+
+            if (
+                node_id
+                not in expected_nodes
+            ):
+
+                raise ValueError(
+                    (
+                        "TDOA calibration contains "
+                        f"unexpected node {node_id}."
+                    )
+                )
+
+            bias = (
+                _require_finite(
+                    raw_bias,
+                    name=
+                        (
+                            "TDOA calibration bias "
+                            f"for node {node_id}"
+                        ),
+                )
+            )
+
+            normalized_biases[
+                node_id
+            ] = (
+                bias
+            )
+
+        # ==============================================================
+        # CONSISTENCY THRESHOLD
+        # ==============================================================
+
+        max_consistency_samples = (
+            _require_finite(
+                self.max_consistency_error_samples,
+                name=
+                    (
+                        "TDOA calibration "
+                        "max_consistency_error_samples"
+                    ),
+            )
+        )
+
+        if (
+            max_consistency_samples
+            <= 0.0
+        ):
+
+            raise ValueError(
+                (
+                    "TDOA calibration "
+                    "max_consistency_error_samples "
+                    "must be greater than 0."
+                )
+            )
+
+        # ==============================================================
+        # FIT QUALITY
+        # ==============================================================
+
+        consistency_error_s: float | None = (
+            None
+        )
+
+        if (
+            self.rms_pair_consistency_error_s
+            is not None
+        ):
+
+            consistency_error_s = (
+                _require_finite(
+                    self.rms_pair_consistency_error_s,
+                    name=
+                        (
+                            "TDOA calibration "
+                            "rms_pair_consistency_error_s"
+                        ),
+                )
+            )
+
+            if (
+                consistency_error_s
+                < 0.0
+            ):
+
+                raise ValueError(
+                    (
+                        "TDOA calibration "
+                        "rms_pair_consistency_error_s "
+                        "cannot be negative."
+                    )
+                )
+
+        # ==============================================================
+        # STRICT REQUIREMENTS ONLY WHEN CALIBRATION IS ACTIVE
+        # ==============================================================
+
+        if not (
+            self.enabled
+        ):
+
+            return
+
+        missing_biases = (
+            expected_nodes
+            - set(
+                normalized_biases
+            )
+        )
+
+        if (
+            missing_biases
+        ):
+
+            raise ValueError(
+                (
+                    "Enabled TDOA calibration is "
+                    "missing timing biases for "
+                    f"node(s): {sorted(missing_biases)}."
+                )
+            )
+
+        reference_bias = (
+            normalized_biases[
+                self.reference_node
+            ]
+        )
+
+        if (
+            abs(
+                reference_bias
+            )
+            > 1e-12
+        ):
+
+            raise ValueError(
+                (
+                    "TDOA calibration reference-node "
+                    "bias must be zero."
+                )
+            )
+
+        if (
+            consistency_error_s
+            is None
+        ):
+
+            raise ValueError(
+                (
+                    "Enabled TDOA calibration requires "
+                    "rms_pair_consistency_error_s from "
+                    "the calibration fit."
+                )
+            )
+
+        consistency_error_samples = (
+            consistency_error_s
+            * sample_rate
+        )
+
+        if (
+            consistency_error_samples
+            > max_consistency_samples
+        ):
+
+            raise ValueError(
+                (
+                    "TDOA calibration fit is outside "
+                    "the configured quality threshold. "
+                    f"RMS consistency error="
+                    f"{consistency_error_samples:.3f} samples, "
+                    f"maximum allowed="
+                    f"{max_consistency_samples:.3f} samples."
+                )
             )
 
 
@@ -680,6 +1360,21 @@ class LocalizationConfig:
 
     bandpass_order: int = (
         4
+    )
+
+    # ------------------------------------------------------------------
+    # TDOA TIMING CALIBRATION
+    # ------------------------------------------------------------------
+    #
+    # Disabled until controlled physical calibration has been performed.
+    #
+    # Calibration values are applied AFTER raw GCC-PHAT TDOA
+    # measurement and BEFORE the geometric localization solver.
+    # ------------------------------------------------------------------
+
+    tdoa_calibration: TDOACalibrationConfig = field(
+        default_factory=
+            TDOACalibrationConfig
     )
 
     # ------------------------------------------------------------------
@@ -829,9 +1524,6 @@ class LocalizationConfig:
 
         # --------------------------------------------------------------
         # NON-COLLINEAR ARRAY
-        # --------------------------------------------------------------
-        #
-        # A 2-D TDOA solver requires at least one non-collinear triple.
         # --------------------------------------------------------------
 
         non_collinear = (
@@ -1119,6 +1811,18 @@ class LocalizationConfig:
             self.bandpass_order,
             name=
                 "Localization bandpass_order",
+        )
+
+        # ==============================================================
+        # TDOA CALIBRATION
+        # ==============================================================
+
+        self.tdoa_calibration.validate(
+            sample_rate=
+                sample_rate,
+
+            expected_nodes=
+                expected_nodes,
         )
 
         # ==============================================================
@@ -1440,10 +2144,6 @@ class EventDetectionConfig:
                 )
             )
 
-        # ==============================================================
-        # TEMPORAL SETTINGS
-        # ==============================================================
-
         _require_positive_int(
             self.attack_blocks,
             name=
@@ -1486,10 +2186,6 @@ class EventDetectionConfig:
                     "of expected nodes."
                 )
             )
-
-        # ==============================================================
-        # EVENT LENGTH
-        # ==============================================================
 
         minimum_ms = (
             _require_finite(
@@ -1623,10 +2319,6 @@ class DSPConfig:
     Raw PCM recordings remain untouched.
     """
 
-    # ------------------------------------------------------------------
-    # PREPROCESSING
-    # ------------------------------------------------------------------
-
     remove_dc: bool = (
         True
     )
@@ -1647,10 +2339,6 @@ class DSPConfig:
         4
     )
 
-    # ------------------------------------------------------------------
-    # MODEL INPUT NORMALIZATION
-    # ------------------------------------------------------------------
-
     normalize_for_model: bool = (
         True
     )
@@ -1659,10 +2347,6 @@ class DSPConfig:
         0.98
     )
 
-    # ------------------------------------------------------------------
-    # FFT / STFT
-    # ------------------------------------------------------------------
-
     n_fft: int = (
         2048
     )
@@ -1670,10 +2354,6 @@ class DSPConfig:
     hop_length: int = (
         512
     )
-
-    # ------------------------------------------------------------------
-    # MFCC
-    # ------------------------------------------------------------------
 
     n_mfcc: int = (
         13
@@ -1691,17 +2371,9 @@ class DSPConfig:
         16_000.0
     )
 
-    # ------------------------------------------------------------------
-    # SPECTRAL FEATURES
-    # ------------------------------------------------------------------
-
     roll_percent: float = (
         0.85
     )
-
-    # ------------------------------------------------------------------
-    # SNR / BEST-NODE ESTIMATION
-    # ------------------------------------------------------------------
 
     snr_frame_length: int = (
         512
@@ -1723,7 +2395,6 @@ class DSPConfig:
         64
     )
 
-    # One PCM16 least-significant count after conversion to [-1, 1].
     digital_noise_floor: float = (
         1.0
         / 32768.0
@@ -1752,9 +2423,23 @@ class DSPConfig:
             / 2.0
         )
 
-        # ==============================================================
-        # PREPROCESSING
-        # ==============================================================
+        if not isinstance(
+            self.remove_dc,
+            bool,
+        ):
+
+            raise TypeError(
+                "DSP remove_dc must be bool."
+            )
+
+        if not isinstance(
+            self.bandpass_enabled,
+            bool,
+        ):
+
+            raise TypeError(
+                "DSP bandpass_enabled must be bool."
+            )
 
         if (
             self.bandpass_enabled
@@ -1820,9 +2505,17 @@ class DSPConfig:
                 "DSP filter_order",
         )
 
-        # ==============================================================
-        # MODEL NORMALIZATION
-        # ==============================================================
+        if not isinstance(
+            self.normalize_for_model,
+            bool,
+        ):
+
+            raise TypeError(
+                (
+                    "DSP normalize_for_model "
+                    "must be bool."
+                )
+            )
 
         model_peak = (
             _require_finite(
@@ -1844,10 +2537,6 @@ class DSPConfig:
                     "must be in (0, 1]."
                 )
             )
-
-        # ==============================================================
-        # STFT
-        # ==============================================================
 
         _require_positive_int(
             self.n_fft,
@@ -1872,10 +2561,6 @@ class DSPConfig:
                     "exceed n_fft."
                 )
             )
-
-        # ==============================================================
-        # MFCC
-        # ==============================================================
 
         _require_positive_int(
             self.n_mfcc,
@@ -1955,10 +2640,6 @@ class DSPConfig:
                 )
             )
 
-        # ==============================================================
-        # SPECTRAL FEATURES
-        # ==============================================================
-
         roll_percent = (
             _require_finite(
                 self.roll_percent,
@@ -1979,10 +2660,6 @@ class DSPConfig:
                     "be between 0 and 1."
                 )
             )
-
-        # ==============================================================
-        # SNR / CHANNEL QUALITY
-        # ==============================================================
 
         _require_positive_int(
             self.snr_frame_length,
@@ -2119,17 +2796,9 @@ class ClassificationConfig:
         ensemble
     """
 
-    # ------------------------------------------------------------------
-    # MASTER SWITCH
-    # ------------------------------------------------------------------
-
     enabled: bool = (
         True
     )
-
-    # ------------------------------------------------------------------
-    # BACKEND
-    # ------------------------------------------------------------------
 
     backend: str = (
         "heuristic"
@@ -2139,17 +2808,9 @@ class ClassificationConfig:
         True
     )
 
-    # ------------------------------------------------------------------
-    # MODEL AUDIO
-    # ------------------------------------------------------------------
-
     provide_model_audio: bool = (
         True
     )
-
-    # ------------------------------------------------------------------
-    # FUTURE TRAINED-MODEL SETTINGS
-    # ------------------------------------------------------------------
 
     model_path: Path | None = (
         None
@@ -2468,85 +3129,45 @@ class AnalyticsConfig:
     research without changing the underlying recorded observations.
     """
 
-    # ------------------------------------------------------------------
-    # MASTER SWITCH
-    # ------------------------------------------------------------------
-
     enabled: bool = (
         True
     )
 
-    # ------------------------------------------------------------------
-    # TEMPORAL ACTIVITY
-    # ------------------------------------------------------------------
-
-    # Default temporal aggregation width.
-    #
-    # 3600 seconds = 1 hour.
     bucket_seconds: int = (
         3600
     )
 
-    # ------------------------------------------------------------------
-    # ENVIRONMENTAL ANALYSIS
-    # ------------------------------------------------------------------
-
-    # BME280 exists on Node 1 in the current three-node hardware design.
     environmental_node_id: int | None = (
         1
     )
 
-    # Spearman significance threshold.
     environmental_alpha: float = (
         0.05
     )
 
-    # Minimum finite paired observations required before a correlation
-    # coefficient is reported.
     environmental_min_samples: int = (
         5
     )
 
-    # Coefficients whose magnitude is <= this value are described as
-    # directionally neutral.
     neutral_threshold: float = (
         0.05
     )
 
-    # ------------------------------------------------------------------
-    # SPATIAL ANALYSIS
-    # ------------------------------------------------------------------
-
-    # Rectangular grid-cell side length.
     cell_size_m: float = (
         0.25
     )
 
-    # Defensive limit against accidentally creating extremely large
-    # heatmap grids.
     max_grid_cells: int = (
         10_000
     )
 
-    # Maximum temporal gap between consecutive localized acoustic events
-    # considered for transition analysis.
-    #
-    # None disables the limit.
     max_transition_gap_s: float | None = (
         300.0
     )
 
-    # Require matching broad acoustic classes for transitions when True.
-    #
-    # Even with this enabled, the transition is NOT interpreted as a
-    # verified trajectory of one individual animal.
     same_class_transitions_only: bool = (
         False
     )
-
-    # ------------------------------------------------------------------
-    # CONSERVATIVE BEHAVIOR-INDICATOR MINIMUMS
-    # ------------------------------------------------------------------
 
     min_activity_events: int = (
         5
@@ -2583,19 +3204,11 @@ class AnalyticsConfig:
                 )
             )
 
-        # ==============================================================
-        # TEMPORAL
-        # ==============================================================
-
         _require_positive_int(
             self.bucket_seconds,
             name=
                 "Analytics bucket_seconds",
         )
-
-        # ==============================================================
-        # ENVIRONMENTAL NODE
-        # ==============================================================
 
         if (
             self.environmental_node_id
@@ -2624,10 +3237,6 @@ class AnalyticsConfig:
                         "uint8 nodeId."
                     )
                 )
-
-        # ==============================================================
-        # STATISTICS
-        # ==============================================================
 
         alpha = (
             _require_finite(
@@ -2701,10 +3310,6 @@ class AnalyticsConfig:
                 )
             )
 
-        # ==============================================================
-        # SPATIAL
-        # ==============================================================
-
         cell_size = (
             _require_finite(
                 self.cell_size_m,
@@ -2774,10 +3379,6 @@ class AnalyticsConfig:
                 )
             )
 
-        # ==============================================================
-        # INDICATOR MINIMUMS
-        # ==============================================================
-
         _require_positive_int(
             self.min_activity_events,
             name=
@@ -2824,25 +3425,13 @@ class DashboardConfig:
     They do not alter scientific source data or persisted event records.
     """
 
-    # ------------------------------------------------------------------
-    # MASTER SWITCH
-    # ------------------------------------------------------------------
-
     enabled: bool = (
         True
     )
 
-    # ------------------------------------------------------------------
-    # IDENTITY
-    # ------------------------------------------------------------------
-
     page_title: str = (
         "Wildlife Soundscape Monitor"
     )
-
-    # ------------------------------------------------------------------
-    # LIVE VIEW
-    # ------------------------------------------------------------------
 
     auto_refresh: bool = (
         True
@@ -2852,10 +3441,6 @@ class DashboardConfig:
         2.0
     )
 
-    # ------------------------------------------------------------------
-    # DATABASE VIEW LIMITS
-    # ------------------------------------------------------------------
-
     recent_events_limit: int = (
         50
     )
@@ -2864,17 +3449,10 @@ class DashboardConfig:
         100
     )
 
-    # ------------------------------------------------------------------
-    # VISUALIZATION LIMITS
-    # ------------------------------------------------------------------
-
-    # Defensive cap used when plotting dense research datasets.
     max_plot_points: int = (
         5000
     )
 
-    # Maximum duration of event audio displayed/decoded in one dashboard
-    # preview.
     max_audio_preview_s: float = (
         30.0
     )
@@ -3211,7 +3789,7 @@ class AppConfig:
                 )
 
         # ==============================================================
-        # LOCALIZATION
+        # LOCALIZATION + CALIBRATION
         # ==============================================================
 
         self.localization.validate(
@@ -3275,11 +3853,6 @@ class AppConfig:
         # ==============================================================
         # COARSE ALIGNMENT CONTRACT
         # ==============================================================
-        #
-        # The localization search should not claim a larger coarse
-        # alignment correction than the stream-level alignment tolerance
-        # accepted by the system.
-        # ==============================================================
 
         if (
             self.localization
@@ -3299,17 +3872,6 @@ class AppConfig:
 
         # ==============================================================
         # EVENT BUFFER RETENTION
-        # ==============================================================
-        #
-        # Event processing occurs after the event has completed.
-        #
-        # Therefore the stream buffer must still contain:
-        #
-        #   pre-trigger audio
-        #   maximum event
-        #   post-trigger audio
-        #   detector release latency
-        #   a small block-level operational margin
         # ==============================================================
 
         detector_release_s = (

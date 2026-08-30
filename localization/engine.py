@@ -1,36 +1,77 @@
 from __future__ import annotations
 
+
+# ======================================================================
+# STANDARD LIBRARY
+# ======================================================================
+
+
 import itertools
 import math
 
-from dataclasses import dataclass
+from dataclasses import (
+    dataclass,
+)
+
+
+# ======================================================================
+# THIRD PARTY
+# ======================================================================
+
 
 import numpy as np
+
+
+# ======================================================================
+# PROJECT CONFIGURATION
+# ======================================================================
+
 
 from config import (
     LocalizationConfig,
 )
 
+
+# ======================================================================
+# ENVIRONMENT
+# ======================================================================
+
+
 from environment import (
     calculate_speed_of_sound_mps,
 )
+
+
+# ======================================================================
+# STREAMING
+# ======================================================================
+
 
 from stream_manager import (
     StreamManager,
 )
 
+
+# ======================================================================
+# LOCALIZATION COMPONENTS
+# ======================================================================
+
+
 from .filtering import (
     bandpass_filter,
 )
+
 
 from .gcc_phat import (
     gcc_phat,
 )
 
+
 from .solver import (
     PositionResult,
     solve_position,
 )
+
 
 from .tdoa import (
     TDOAMeasurement,
@@ -65,7 +106,15 @@ class LocalizationResult:
         Nonlinear position-solver result.
 
     measurements
-        Pairwise TDOA measurements used or rejected by the solver.
+        Pairwise TDOA measurements supplied to the position solver.
+
+        IMPORTANT:
+
+        When TDOA calibration is enabled, delay_seconds and
+        delay_samples contain the CALIBRATED delays.
+
+        When calibration is disabled, they contain the raw GCC-PHAT
+        delays.
 
     window_start_sample
         Absolute shared-clock sampleIndex at which the localization
@@ -75,8 +124,11 @@ class LocalizationResult:
         Number of samples in each node waveform.
 
     speed_of_sound_mps
-        Propagation speed actually used by GCC physical constraints and
-        the position solver.
+        Propagation speed actually used by:
+
+            physical delay constraints
+            GCC-PHAT search windows
+            position solver
 
     node_rms
         Raw PCM RMS for each participating microphone.
@@ -84,7 +136,11 @@ class LocalizationResult:
     environment_used
         Environmental tuple:
 
-            (temperature_c, humidity_percent, pressure_hpa)
+            (
+                temperature_c,
+                humidity_percent,
+                pressure_hpa,
+            )
 
         when environmental sound-speed correction was successfully used.
 
@@ -128,7 +184,7 @@ class LocalizationResult:
         self,
     ) -> bool:
         """
-        Convenience view of the nonlinear solver success state.
+        Convenience view of nonlinear solver success.
         """
 
         return bool(
@@ -158,9 +214,19 @@ class LocalizationEngine:
                     ↓
               microphone pairs
                     ↓
-          physical delay constraints
+       geometric physical-delay limit
+                    ↓
+       optional calibration allowance
                     ↓
                 GCC-PHAT
+                    ↓
+             raw pair TDOA
+                    ↓
+        optional timing calibration
+                    ↓
+          corrected pair TDOA
+                    ↓
+      corrected physical-limit check
                     ↓
            TDOA measurements
                     ↓
@@ -171,9 +237,29 @@ class LocalizationEngine:
     ----------------
     Coarse synchronization comes from the shared-clock sampleIndex.
 
-    GCC-PHAT estimates the remaining waveform/acoustic propagation delay.
+    GPIO27 is a session/start marker only.
+
+    GCC-PHAT estimates waveform/acoustic propagation delay.
 
     TCP arrival time and ESP32 localMicros are never used for TDOA.
+
+
+    Calibration model
+    -----------------
+    When enabled:
+
+        pair_offset(A, B)
+            =
+        bias_B - bias_A
+
+    and:
+
+        corrected_tdoa
+            =
+        raw_gcc_tdoa - pair_offset
+
+    Calibration therefore compensates repeatable channel-specific
+    timing bias before the geometric solver is invoked.
     """
 
     # ==================================================================
@@ -277,7 +363,9 @@ class LocalizationEngine:
                 )
             )
 
-        return result
+        return (
+            result
+        )
 
     # ==================================================================
     # START SAMPLE
@@ -325,7 +413,9 @@ class LocalizationEngine:
                 )
             )
 
-        return start_sample
+        return (
+            start_sample
+        )
 
     # ==================================================================
     # ARRAY BOUNDS
@@ -354,11 +444,15 @@ class LocalizationEngine:
             self.config.constrain_to_array_bounds
         ):
 
-            return None
+            return (
+                None
+            )
 
         xs = [
             float(
-                xy[0]
+                xy[
+                    0
+                ]
             )
             for xy
             in self.config.node_positions.values()
@@ -366,7 +460,9 @@ class LocalizationEngine:
 
         ys = [
             float(
-                xy[1]
+                xy[
+                    1
+                ]
             )
             for xy
             in self.config.node_positions.values()
@@ -436,9 +532,14 @@ class LocalizationEngine:
                 )
             )
 
-            if state is None:
+            if (
+                state
+                is None
+            ):
 
-                return None
+                return (
+                    None
+                )
 
             session_id = (
                 state.session_id
@@ -451,7 +552,9 @@ class LocalizationEngine:
                 == 0
             ):
 
-                return None
+                return (
+                    None
+                )
 
             session_ids.add(
                 int(
@@ -466,7 +569,9 @@ class LocalizationEngine:
             != 1
         ):
 
-            return None
+            return (
+                None
+            )
 
         return next(
             iter(
@@ -521,7 +626,9 @@ class LocalizationEngine:
                 )
             )
 
-        return value
+        return (
+            value
+        )
 
     # ==================================================================
     # SPEED OF SOUND RESOLUTION
@@ -542,7 +649,7 @@ class LocalizationEngine:
         | None,
     ]:
         """
-        Resolve the propagation speed used for one localization window.
+        Resolve propagation speed for one localization window.
 
         Priority
         --------
@@ -625,7 +732,7 @@ class LocalizationEngine:
 
                     # --------------------------------------------------
                     # Invalid environmental telemetry must not destroy
-                    # localization. Fall through to configured speed.
+                    # localization. Fall through to configured fallback.
                     # --------------------------------------------------
 
                     pass
@@ -670,6 +777,224 @@ class LocalizationEngine:
         )
 
     # ==================================================================
+    # CALIBRATION OFFSET
+    # ==================================================================
+
+    def _pair_calibration_offset_s(
+        self,
+        node_a: int,
+        node_b: int,
+    ) -> float:
+        """
+        Resolve configured systematic TDOA offset for one pair.
+
+        Convention
+        ----------
+        Returned value corresponds to:
+
+            arrival_B - arrival_A
+
+        With calibration disabled this method returns exactly zero.
+        """
+
+        offset = (
+            self.config
+            .tdoa_calibration
+            .pair_offset_s(
+                node_a,
+                node_b,
+            )
+        )
+
+        try:
+
+            offset = float(
+                offset
+            )
+
+        except (
+            TypeError,
+            ValueError,
+        ) as exc:
+
+            raise TypeError(
+                (
+                    "Configured TDOA calibration "
+                    f"offset for pair "
+                    f"({node_a}, {node_b}) "
+                    "must be numeric."
+                )
+            ) from exc
+
+        if not math.isfinite(
+            offset
+        ):
+
+            raise ValueError(
+                (
+                    "Configured TDOA calibration "
+                    f"offset for pair "
+                    f"({node_a}, {node_b}) "
+                    "must be finite."
+                )
+            )
+
+        return (
+            offset
+        )
+
+    # ==================================================================
+    # CALIBRATION CORRECTION
+    # ==================================================================
+
+    def _correct_pair_delay_s(
+        self,
+        node_a: int,
+        node_b: int,
+        measured_delay_s: float,
+    ) -> float:
+        """
+        Apply configured timing calibration to a raw GCC-PHAT delay.
+
+        corrected
+            =
+        measured - pair_offset
+        """
+
+        try:
+
+            measured = float(
+                measured_delay_s
+            )
+
+        except (
+            TypeError,
+            ValueError,
+        ) as exc:
+
+            raise TypeError(
+                (
+                    "GCC-PHAT delay must "
+                    "be numeric."
+                )
+            ) from exc
+
+        if not math.isfinite(
+            measured
+        ):
+
+            raise ValueError(
+                (
+                    "GCC-PHAT delay must "
+                    "be finite."
+                )
+            )
+
+        corrected = (
+            self.config
+            .tdoa_calibration
+            .correct_tdoa_s(
+                node_a,
+                node_b,
+                measured,
+            )
+        )
+
+        corrected = float(
+            corrected
+        )
+
+        if not math.isfinite(
+            corrected
+        ):
+
+            raise ValueError(
+                (
+                    "Calibrated TDOA must "
+                    "be finite."
+                )
+            )
+
+        return (
+            corrected
+        )
+
+    # ==================================================================
+    # GCC SEARCH LIMIT
+    # ==================================================================
+
+    def _gcc_search_limit_s(
+        self,
+        *,
+        physical_max_delay_s: float,
+        calibration_offset_s: float,
+    ) -> float:
+        """
+        Build GCC-PHAT search interval.
+
+        Why this is larger than the geometric limit
+        --------------------------------------------
+        The physical propagation delay is bounded by microphone spacing.
+
+        However, before calibration is applied, the raw measured delay
+        can additionally contain systematic channel timing bias:
+
+            raw_delay
+                ≈
+            physical_delay + calibration_offset
+
+        Therefore GCC-PHAT must be allowed to observe:
+
+            physical_max
+            +
+            abs(calibration_offset)
+
+        After measurement, calibration is removed and the corrected
+        delay is checked against the original physical limit.
+        """
+
+        physical_limit = float(
+            physical_max_delay_s
+        )
+
+        offset = float(
+            calibration_offset_s
+        )
+
+        if (
+            not math.isfinite(
+                physical_limit
+            )
+            or physical_limit
+            < 0.0
+        ):
+
+            raise ValueError(
+                (
+                    "physical_max_delay_s must "
+                    "be finite and non-negative."
+                )
+            )
+
+        if not math.isfinite(
+            offset
+        ):
+
+            raise ValueError(
+                (
+                    "calibration_offset_s must "
+                    "be finite."
+                )
+            )
+
+        return (
+            physical_limit
+            + abs(
+                offset
+            )
+        )
+
+    # ==================================================================
     # LOCALIZE EXPLICIT WINDOW
     # ==================================================================
 
@@ -681,7 +1006,8 @@ class LocalizationEngine:
         speed_of_sound_mps: float | None = None,
     ) -> LocalizationResult:
         """
-        Localize an acoustic source from one common absolute sample window.
+        Localize an acoustic source from one common absolute sample
+        window.
         """
 
         # ==============================================================
@@ -726,8 +1052,8 @@ class LocalizationEngine:
         # ENVIRONMENT LOOKUP POSITION
         # ==============================================================
         #
-        # Use the temporal center of the localization window rather than
-        # its leading edge when selecting nearby telemetry.
+        # Use temporal center of localization window instead of leading
+        # edge when selecting nearby environmental telemetry.
         # ==============================================================
 
         environment_lookup_sample = (
@@ -807,7 +1133,8 @@ class LocalizationEngine:
             )
 
             if (
-                state is None
+                state
+                is None
                 or state.session_id
                 != common_session
             ):
@@ -936,9 +1263,11 @@ class LocalizationEngine:
 
             else:
 
-                conditioned = np.ascontiguousarray(
-                    raw,
-                    dtype=np.float64,
+                conditioned = (
+                    np.ascontiguousarray(
+                        raw,
+                        dtype=np.float64,
+                    )
                 )
 
             if (
@@ -953,6 +1282,20 @@ class LocalizationEngine:
                         f"node {node_id} conditioned "
                         "localization waveform has "
                         "an invalid shape."
+                    )
+                )
+
+            if not np.all(
+                np.isfinite(
+                    conditioned
+                )
+            ):
+
+                raise ValueError(
+                    (
+                        f"node {node_id} conditioned "
+                        "localization waveform contains "
+                        "non-finite samples."
                     )
                 )
 
@@ -997,10 +1340,14 @@ class LocalizationEngine:
         ):
 
             # ----------------------------------------------------------
-            # PHYSICAL PAIR LIMIT
+            # GEOMETRIC PHYSICAL PAIR LIMIT
+            # ----------------------------------------------------------
+            #
+            # This is the maximum physically possible acoustic
+            # propagation delay between the microphones.
             # ----------------------------------------------------------
 
-            max_delay_seconds = (
+            physical_max_delay_seconds = (
                 physical_max_delay(
                     self.config
                     .node_positions[
@@ -1014,6 +1361,61 @@ class LocalizationEngine:
 
                     speed_of_sound_mps=
                         speed_of_sound,
+                )
+            )
+
+            physical_max_delay_seconds = float(
+                physical_max_delay_seconds
+            )
+
+            if (
+                not math.isfinite(
+                    physical_max_delay_seconds
+                )
+                or physical_max_delay_seconds
+                < 0.0
+            ):
+
+                raise ValueError(
+                    (
+                        "physical_max_delay returned "
+                        "an invalid pair limit for "
+                        f"nodes ({node_a}, {node_b})."
+                    )
+                )
+
+            # ----------------------------------------------------------
+            # CONFIGURED PAIR CALIBRATION OFFSET
+            # ----------------------------------------------------------
+
+            calibration_offset_s = (
+                self._pair_calibration_offset_s(
+                    node_a,
+                    node_b,
+                )
+            )
+
+            # ----------------------------------------------------------
+            # RAW GCC SEARCH LIMIT
+            # ----------------------------------------------------------
+            #
+            # GCC must search far enough to observe the physical delay
+            # PLUS any known systematic hardware/channel offset.
+            #
+            # With calibration disabled:
+            #
+            #     calibration_offset = 0
+            #
+            # and this becomes exactly the original physical limit.
+            # ----------------------------------------------------------
+
+            gcc_search_limit_s = (
+                self._gcc_search_limit_s(
+                    physical_max_delay_s=
+                        physical_max_delay_seconds,
+
+                    calibration_offset_s=
+                        calibration_offset_s,
                 )
             )
 
@@ -1051,7 +1453,7 @@ class LocalizationEngine:
                             0.0,
 
                         max_delay_seconds=
-                            max_delay_seconds,
+                            physical_max_delay_seconds,
 
                         valid=
                             False,
@@ -1076,11 +1478,17 @@ class LocalizationEngine:
             # Therefore:
             #
             #     positive delay
-            #         B arrives later than A
+            #         =
+            #     B arrives later than A
             #
-            # which exactly matches:
+            # matching:
             #
-            #     TDOAMeasurement(node_a=A, node_b=B)
+            #     TDOAMeasurement(
+            #         node_a=A,
+            #         node_b=B,
+            #     )
+            #
+            # GCC returns RAW measured channel delay.
             # ----------------------------------------------------------
 
             gcc_result = (
@@ -1097,7 +1505,7 @@ class LocalizationEngine:
                         sample_rate,
 
                     max_delay_seconds=
-                        max_delay_seconds,
+                        gcc_search_limit_s,
 
                     interpolation=
                         self.config.interpolation,
@@ -1108,26 +1516,75 @@ class LocalizationEngine:
             )
 
             # ----------------------------------------------------------
+            # RAW DELAY
+            # ----------------------------------------------------------
+
+            raw_delay_seconds = float(
+                gcc_result.delay_seconds
+            )
+
+            if not math.isfinite(
+                raw_delay_seconds
+            ):
+
+                raise ValueError(
+                    (
+                        "GCC-PHAT produced a "
+                        "non-finite delay."
+                    )
+                )
+
+            # ----------------------------------------------------------
+            # TIMING CALIBRATION
+            # ----------------------------------------------------------
+            #
+            # corrected:
+            #
+            #     raw - (bias_B - bias_A)
+            #
+            # With calibration disabled this is exactly:
+            #
+            #     corrected = raw
+            # ----------------------------------------------------------
+
+            corrected_delay_seconds = (
+                self._correct_pair_delay_s(
+                    node_a,
+                    node_b,
+                    raw_delay_seconds,
+                )
+            )
+
+            corrected_delay_samples = (
+                corrected_delay_seconds
+                * sample_rate
+            )
+
+            # ----------------------------------------------------------
             # DEFENSIVE PHYSICAL CHECK
             # ----------------------------------------------------------
             #
-            # GCC-PHAT already searches only the physically feasible
-            # interval. This second check protects the interface if the
-            # lower-level implementation changes later.
+            # IMPORTANT:
+            #
+            # Physical validity is checked AFTER calibration.
+            #
+            # Raw GCC delay may legitimately exceed the geometric limit
+            # by a known systematic timing offset.
             # ----------------------------------------------------------
 
             physical_tolerance = max(
                 1e-12,
-                max_delay_seconds
+
+                physical_max_delay_seconds
                 * 1e-9,
             )
 
             physically_valid = (
                 abs(
-                    gcc_result.delay_seconds
+                    corrected_delay_seconds
                 )
                 <= (
-                    max_delay_seconds
+                    physical_max_delay_seconds
                     + physical_tolerance
                 )
             )
@@ -1137,11 +1594,17 @@ class LocalizationEngine:
                 and physically_valid
             )
 
-            if not physically_valid:
+            # ----------------------------------------------------------
+            # REASON
+            # ----------------------------------------------------------
+
+            if not (
+                physically_valid
+            ):
 
                 reason = (
-                    "delay outside physical "
-                    "pair limit"
+                    "calibrated delay outside "
+                    "physical pair limit"
                 )
 
             else:
@@ -1163,8 +1626,10 @@ class LocalizationEngine:
             ):
 
                 # TDOAMeasurement deliberately stores finite diagnostic
-                # values. A saturated uniqueness ratio is represented by
-                # a large finite value rather than infinity.
+                # values.
+                #
+                # A saturated uniqueness ratio is represented by a large
+                # finite number instead of infinity.
                 peak_ratio = (
                     float(
                         np.finfo(
@@ -1174,7 +1639,13 @@ class LocalizationEngine:
                 )
 
             # ----------------------------------------------------------
-            # MEASUREMENT
+            # CALIBRATED MEASUREMENT
+            # ----------------------------------------------------------
+            #
+            # The solver receives corrected_delay_seconds.
+            #
+            # The original public TDOAMeasurement contract therefore does
+            # not need to change.
             # ----------------------------------------------------------
 
             measurements.append(
@@ -1186,24 +1657,16 @@ class LocalizationEngine:
                         node_b,
 
                     delay_seconds=
-                        float(
-                            gcc_result
-                            .delay_seconds
-                        ),
+                        corrected_delay_seconds,
 
                     delay_samples=
-                        float(
-                            gcc_result
-                            .delay_samples
-                        ),
+                        corrected_delay_samples,
 
                     peak_ratio=
                         peak_ratio,
 
                     max_delay_seconds=
-                        float(
-                            max_delay_seconds
-                        ),
+                        physical_max_delay_seconds,
 
                     valid=
                         valid,
@@ -1214,7 +1677,33 @@ class LocalizationEngine:
             )
 
         # ==============================================================
+        # FINAL SESSION CONSISTENCY CHECK
+        # ==============================================================
+        #
+        # Pairwise correlation can take non-trivial CPU time.
+        #
+        # Do not solve a position if a new acquisition session replaced
+        # the one from which the waveforms were extracted.
+        # ==============================================================
+
+        if (
+            self._common_stream_session()
+            != common_session
+        ):
+
+            raise RuntimeError(
+                (
+                    "Acquisition session changed "
+                    "during TDOA estimation."
+                )
+            )
+
+        # ==============================================================
         # NONLINEAR POSITION SOLVE
+        # ==============================================================
+        #
+        # measurements now contain calibrated TDOAs when calibration is
+        # enabled.
         # ==============================================================
 
         position = (
@@ -1295,7 +1784,9 @@ class LocalizationEngine:
             is None
         ):
 
-            return None
+            return (
+                None
+            )
 
         # ==============================================================
         # NEWEST AVAILABLE END PER NODE
@@ -1316,13 +1807,16 @@ class LocalizationEngine:
             )
 
             if (
-                state is None
+                state
+                is None
                 or state.session_id
                 != common_session
                 or not state.audio_blocks
             ):
 
-                return None
+                return (
+                    None
+                )
 
             latest_block = (
                 state.audio_blocks[
@@ -1335,7 +1829,9 @@ class LocalizationEngine:
                 != common_session
             ):
 
-                return None
+                return (
+                    None
+                )
 
             latest_ends.append(
                 int(
@@ -1356,7 +1852,9 @@ class LocalizationEngine:
             < window_samples
         ):
 
-            return None
+            return (
+                None
+            )
 
         start_sample = (
             common_end
@@ -1372,7 +1870,9 @@ class LocalizationEngine:
             != common_session
         ):
 
-            return None
+            return (
+                None
+            )
 
         return (
             self.locate_window(
