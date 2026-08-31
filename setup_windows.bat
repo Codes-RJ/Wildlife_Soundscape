@@ -1,7 +1,12 @@
 @echo off
-python -m venv .venv
-call .venv\Scripts\activate
-python -m pip install --upgrade pip
-python -m pip install -r requirements-dev.txt
-python -m pytest -q
-pause
+setlocal
+
+python -m venv .venv || exit /b 1
+.venv\Scripts\python.exe -m pip install --upgrade pip || exit /b 1
+.venv\Scripts\python.exe -m pip install -r requirements-dev.txt || exit /b 1
+
+set "NUMBA_CACHE_DIR=%TEMP%\wildlife-soundscape-numba-cache"
+.venv\Scripts\python.exe -m ruff check . || exit /b 1
+.venv\Scripts\python.exe -m pytest -q || exit /b 1
+
+echo Development environment is ready.

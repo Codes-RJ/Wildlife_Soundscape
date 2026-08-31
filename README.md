@@ -1926,9 +1926,11 @@ Representative architecture:
 ```text
 Wildlife_Soundscape/
 │
-├── Node_1_Master.ino
-├── Node_2_Slave.ino
-├── Node_3_Slave.ino
+├── firmware/
+│   ├── Node_1_Master/Node_1_Master.ino
+│   ├── Node_2_Slave/Node_2_Slave.ino
+│   ├── Node_3_Slave/Node_3_Slave.ino
+│   └── README.md
 │
 ├── config.py
 ├── database.py
@@ -2002,14 +2004,20 @@ Wildlife_Soundscape/
 │   ├── exports/
 │   └── calibration/
 │
-├── PROTOCOL.md
-├── RELEASE_NOTES.md
+├── docs/
+│   ├── README.md
+│   ├── protocol.md
+│   ├── release-notes.md
+│   └── roadmap.md
+├── DEVELOPMENT.md
 ├── requirements.txt
 ├── README.md
 └── .gitignore
 ```
 
-The repository structure should be re-audited during final cleanup so README filenames exactly match the final Git tree.
+The Python application currently retains root-level compatibility modules.
+The planned installable `src/wildlife_soundscape` migration is tracked in
+`docs/roadmap.md` and will be performed separately from functional changes.
 
 ---
 
