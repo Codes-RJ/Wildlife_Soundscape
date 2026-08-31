@@ -6,4 +6,4 @@ if not exist ".venv\Scripts\python.exe" (
     exit /b 1
 )
 
-.venv\Scripts\python.exe simulator.py
+.venv\Scripts\wildlife-simulator.exe

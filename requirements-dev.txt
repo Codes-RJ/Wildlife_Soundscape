@@ -2,6 +2,8 @@
 # Wildlife Soundscape Mapping & Behavior Analysis System
 # Development Dependencies
 # ======================================================================
+# Compatibility input for environments that do not install the authoritative
+# pyproject.toml ``dev`` optional dependency group.
 #
 # PURPOSE
 # -------

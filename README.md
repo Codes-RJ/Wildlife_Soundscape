@@ -1945,6 +1945,12 @@ Wildlife_Soundscape/
 ├── simulator.py
 ├── stream_manager.py
 │
+├── src/
+│   └── wildlife_soundscape/
+│       ├── __init__.py
+│       ├── __main__.py
+│       └── cli.py
+│
 ├── analytics/
 │   ├── __init__.py
 │   ├── models.py
@@ -2033,13 +2039,13 @@ streamlit
 plotly
 ```
 
-See:
+The authoritative dependency constraints and optional dependency groups are in:
 
 ```text
-requirements.txt
+pyproject.toml
 ```
 
-for the authoritative dependency constraints.
+`requirements.txt` and `requirements-dev.txt` remain compatibility inputs.
 
 The optional BirdNET backend uses additional dependencies and should remain separate from the minimum core installation.
 
@@ -2081,15 +2087,18 @@ python -m pip install --upgrade pip
 Install dependencies:
 
 ```powershell
-python -m pip install -r requirements.txt
+python -m pip install -e .
 ```
 
 For development, testing, and static analysis, install the development
 environment instead. It includes the runtime requirements transitively:
 
 ```powershell
-python -m pip install -r requirements-dev.txt
+python -m pip install -e ".[dev]"
 ```
+
+The requirement files remain available as compatibility inputs for deployment
+environments that do not yet install from `pyproject.toml`.
 
 ---
 
@@ -2235,14 +2244,17 @@ The simulator allows development of the laptop processing stack without physical
 Terminal 1:
 
 ```powershell
-python main.py
+wildlife-receiver
 ```
 
 Terminal 2:
 
 ```powershell
-python simulator.py
+wildlife-simulator
 ```
+
+The legacy `python main.py` and `python simulator.py` commands remain supported
+during the package migration.
 
 Available CLI operations may include:
 

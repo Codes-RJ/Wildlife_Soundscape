@@ -2,6 +2,8 @@
 # Wildlife Soundscape Mapping & Behavior Analysis System
 # Python Dependencies
 # ================================================================
+# Compatibility input for environments that do not install from
+# pyproject.toml, which is the authoritative dependency definition.
 
 
 # ================================================================

@@ -21,18 +21,22 @@ jobs:
           python-version: "3.13"
           cache: pip
           cache-dependency-path: |
+            pyproject.toml
             requirements.txt
             requirements-dev.txt
 
       - name: Install development dependencies
-        run: python -m pip install -r requirements-dev.txt
+        run: python -m pip install -e ".[dev]"
 
       - name: Compile Python sources
         run: >-
           python -m compileall -q
-          analytics calibration classification dashboard dsp localization tools
+          src analytics calibration classification dashboard dsp localization tools
           config.py database.py environment.py event_detector.py event_pipeline.py
           main.py models.py node.py protocol.py server.py simulator.py stream_manager.py
+
+      - name: Build wheel
+        run: python -m build --wheel --no-isolation
 
       - name: Lint
         run: python -m ruff check .

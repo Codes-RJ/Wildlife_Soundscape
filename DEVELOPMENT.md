@@ -13,14 +13,17 @@ python -m pip install --upgrade pip
 Install only the application runtime:
 
 ```powershell
-python -m pip install -r requirements.txt
+python -m pip install -e .
 ```
 
 Install the full development environment, including the runtime:
 
 ```powershell
-python -m pip install -r requirements-dev.txt
+python -m pip install -e ".[dev]"
 ```
+
+The requirement files remain compatibility inputs for environments that do not
+yet install from `pyproject.toml`.
 
 `setup_windows.bat` performs the development installation and runs the test
 suite automatically.
@@ -53,14 +56,16 @@ python tools/benchmark_gcc_variants.py `
 Receiver:
 
 ```powershell
-python main.py
+wildlife-receiver
 ```
 
 Simulator, in another terminal:
 
 ```powershell
-python simulator.py
+wildlife-simulator
 ```
+
+The receiver can also be started with `python -m wildlife_soundscape`.
 
 Dashboard:
 
@@ -80,5 +85,7 @@ streamlit run dashboard/app.py
 - `data/` contains runtime outputs and directory placeholders; generated data
   is not source code and should not be committed.
 - `docs/` contains protocol, release, and architectural documentation.
+- `src/wildlife_soundscape/` contains the new stable package facade and console
+  entry points during the compatibility migration.
 
 See `docs/roadmap.md` for the staged package and module-boundary migration.

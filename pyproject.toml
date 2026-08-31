@@ -15,21 +15,80 @@
 #   coverage.py / pytest-cov
 #
 #
-# IMPORTANT
-# ---------
-# This repository is currently an application/research prototype rather
-# than a distributable Python package.
-#
-# Therefore this file intentionally does NOT yet define:
-#
-#   [project]
-#   package metadata
-#   package publishing information
-#   console-script entry points
-#
-# Those can be added later if the project is formally packaged.
+# The project is packaged through a compatibility-first migration. New public
+# entry points live under ``src/wildlife_soundscape`` while established
+# top-level modules remain available until their imports are migrated.
 #
 # ======================================================================
+
+[build-system]
+requires = ["setuptools>=75", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "wildlife-soundscape"
+version = "0.1.0"
+description = "Synchronized wildlife acoustic monitoring, localization, and research analytics"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "numpy>=2.0,<3.0",
+    "scipy>=1.14,<2.0",
+    "librosa>=0.11,<2.0",
+    "streamlit>=1.37,<2.0",
+    "plotly>=5.24,<7.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8,<10",
+    "pytest-cov>=5,<8",
+    "ruff>=0.8,<1.0",
+    "mypy>=1.11,<2.0",
+    "typing_extensions>=4.12,<5.0",
+    "pytest-timeout>=2.3,<3.0",
+    "pytest-asyncio>=0.24,<2.0",
+    "hypothesis>=6.115,<7.0",
+    "psutil>=6,<8",
+    "build>=1.2,<2.0",
+]
+birdnet = ["birdnet[onnx]>=1.1,<2.0"]
+
+[project.scripts]
+wildlife-receiver = "wildlife_soundscape.cli:receiver"
+wildlife-simulator = "wildlife_soundscape.cli:simulator"
+wildlife-export-events = "wildlife_soundscape.cli:export_events"
+wildlife-export-research = "wildlife_soundscape.cli:export_research"
+wildlife-benchmark-gcc = "wildlife_soundscape.cli:benchmark_gcc"
+
+[tool.setuptools]
+packages = [
+    "analytics",
+    "calibration",
+    "classification",
+    "dashboard",
+    "dsp",
+    "localization",
+    "tools",
+    "wildlife_soundscape",
+]
+py-modules = [
+    "config",
+    "database",
+    "environment",
+    "event_detector",
+    "event_pipeline",
+    "main",
+    "models",
+    "node",
+    "protocol",
+    "server",
+    "simulator",
+    "stream_manager",
+]
+
+[tool.setuptools.package-dir]
+wildlife_soundscape = "src/wildlife_soundscape"
 
 
 # ======================================================================
@@ -90,6 +149,7 @@ python_functions = [
 
 pythonpath = [
     ".",
+    "src",
 ]
 
 
