@@ -19,6 +19,7 @@ from analytics.indices import (
     calculate_soundscape_indices,
 )
 from analytics.soundscape_service import SoundscapeService
+from config import AnalyticsConfig
 from database import EventDatabase
 
 
@@ -52,6 +53,21 @@ def test_soundscape_indices_config_defaults_and_validation() -> None:
     # Exceeding Nyquist
     with pytest.raises(ValueError):
         SoundscapeIndicesConfig(sample_rate=16000, ndsi_biophony_max_hz=10000.0)
+
+
+def test_application_soundscape_config_validation() -> None:
+    config = AnalyticsConfig()
+    assert config.soundscape_enabled
+    assert config.soundscape_window_seconds == 60.0
+
+    with pytest.raises(TypeError):
+        AnalyticsConfig(soundscape_enabled=1).validate()
+
+    with pytest.raises(ValueError):
+        AnalyticsConfig(soundscape_window_seconds=0.0).validate()
+
+    with pytest.raises(ValueError):
+        AnalyticsConfig(soundscape_window_seconds=float("nan")).validate()
 
 
 # ======================================================================
@@ -232,3 +248,95 @@ def test_soundscape_service_streaming_buffer(tmp_path: Path) -> None:
     # Verify DB persistence
     records = db.get_soundscape_indices(session_id=session_id)
     assert len(records) == 1
+    assert records[0]["start_sample"] == 0
+    assert records[0]["end_sample"] == sr
+
+
+def test_soundscape_service_does_not_join_across_gap(tmp_path: Path) -> None:
+    db = EventDatabase(tmp_path / "gap.db")
+    session_id = 100
+    db.start_session(session_id, "Gap Test")
+    service = SoundscapeService(window_duration_seconds=0.02, database=db)
+    window_samples = service.window_samples
+
+    first = np.ones(window_samples // 2, dtype=np.float32)
+    second = np.ones(window_samples // 2, dtype=np.float32)
+
+    assert service.append_audio(
+        1,
+        first,
+        session_id=session_id,
+        start_sample=0,
+    ) is None
+
+    # The missing region resets the partial window instead of compressing it.
+    assert service.append_audio(
+        1,
+        second,
+        session_id=session_id,
+        start_sample=window_samples,
+    ) is None
+    assert db.get_soundscape_indices(session_id=session_id) == []
+
+    result = service.append_audio(
+        1,
+        second,
+        session_id=session_id,
+        start_sample=window_samples + second.size,
+    )
+    assert result is not None
+
+    records = db.get_soundscape_indices(session_id=session_id)
+    assert len(records) == 1
+    assert records[0]["start_sample"] == window_samples
+    assert records[0]["end_sample"] == 2 * window_samples
+
+
+def test_soundscape_service_isolates_sessions_and_trims_duplicates(
+    tmp_path: Path,
+) -> None:
+    db = EventDatabase(tmp_path / "sessions.db")
+    first_session = 101
+    second_session = 102
+    db.start_session(first_session, "First")
+    db.start_session(second_session, "Second")
+    service = SoundscapeService(window_duration_seconds=0.02, database=db)
+    half_window = service.window_samples // 2
+    chunk = np.ones(half_window, dtype=np.float32)
+
+    assert service.append_audio(
+        1,
+        chunk,
+        session_id=first_session,
+        start_sample=0,
+    ) is None
+
+    # A session change clears the half-window from the previous session.
+    assert service.append_audio(
+        1,
+        chunk,
+        session_id=second_session,
+        start_sample=0,
+    ) is None
+
+    # A fully duplicated chunk is ignored rather than double-counted.
+    assert service.append_audio(
+        1,
+        chunk,
+        session_id=second_session,
+        start_sample=0,
+    ) is None
+
+    result = service.append_audio(
+        1,
+        chunk,
+        session_id=second_session,
+        start_sample=half_window,
+    )
+    assert result is not None
+    assert db.get_soundscape_indices(session_id=first_session) == []
+
+    records = db.get_soundscape_indices(session_id=second_session)
+    assert len(records) == 1
+    assert records[0]["start_sample"] == 0
+    assert records[0]["end_sample"] == service.window_samples

@@ -3215,6 +3215,18 @@ class AnalyticsConfig:
         True
     )
 
+    # ------------------------------------------------------------------
+    # CONTINUOUS SOUNDSCAPE INDICES
+    # ------------------------------------------------------------------
+
+    soundscape_enabled: bool = (
+        True
+    )
+
+    soundscape_window_seconds: float = (
+        60.0
+    )
+
     bucket_seconds: int = (
         3600
     )
@@ -3283,6 +3295,43 @@ class AnalyticsConfig:
                 (
                     "Analytics enabled "
                     "must be bool."
+                )
+            )
+
+        if not isinstance(
+            self.soundscape_enabled,
+            bool,
+        ):
+
+            raise TypeError(
+                (
+                    "Analytics "
+                    "soundscape_enabled "
+                    "must be bool."
+                )
+            )
+
+        soundscape_window = (
+            _require_finite(
+                self.soundscape_window_seconds,
+                name=
+                    (
+                        "Analytics "
+                        "soundscape_window_seconds"
+                    ),
+            )
+        )
+
+        if (
+            soundscape_window
+            <= 0.0
+        ):
+
+            raise ValueError(
+                (
+                    "Analytics "
+                    "soundscape_window_seconds "
+                    "must be greater than 0."
                 )
             )
 

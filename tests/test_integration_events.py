@@ -291,6 +291,23 @@ def make_integration_config(
     )
 
     # ==============================================================
+    # CONTINUOUS SOUNDSCAPE ANALYTICS
+    # ==============================================================
+    # A one-second window proves that receiver audio reaches the persistent
+    # soundscape path without running CPU-heavy spectral analysis for every
+    # 21 ms network block.
+
+    analytics = replace(
+        CONFIG.analytics,
+
+        soundscape_enabled=
+            True,
+
+        soundscape_window_seconds=
+            1.0,
+    )
+
+    # ==============================================================
     # COMPLETE APPLICATION CONFIGURATION
     # ==============================================================
 
@@ -305,6 +322,9 @@ def make_integration_config(
 
         persistence=
             persistence,
+
+        analytics=
+            analytics,
 
         recordings_dir=
             tmp_path
@@ -1106,6 +1126,16 @@ async def run_event_integration(
             == session_id
         )
 
+        assert (
+            server.soundscape
+            is not None
+        )
+
+        assert (
+            server.soundscape.active_session_id
+            == session_id
+        )
+
         # ==========================================================
         # WAIT FOR THREE-NODE AUDIO
         # ==========================================================
@@ -1156,6 +1186,33 @@ async def run_event_integration(
 
             session_id=
                 session_id,
+        )
+
+        # ==========================================================
+        # CONTINUOUS SOUNDSCAPE PERSISTENCE
+        # ==========================================================
+
+        soundscape_rows = (
+            server.events.database
+            .get_soundscape_indices(
+                session_id=session_id
+            )
+        )
+
+        assert soundscape_rows
+
+        assert set(
+            row["node_id"]
+            for row in soundscape_rows
+        ) == set(
+            NODE_IDS
+        )
+
+        assert all(
+            row["end_sample"]
+            - row["start_sample"]
+            == config.audio.sample_rate
+            for row in soundscape_rows
         )
 
         # ==========================================================
@@ -1233,6 +1290,16 @@ async def run_event_integration(
 
         assert (
             server.events.active_session_id
+            is None
+        )
+
+        assert (
+            server.soundscape
+            is not None
+        )
+
+        assert (
+            server.soundscape.active_session_id
             is None
         )
 

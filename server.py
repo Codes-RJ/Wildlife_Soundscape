@@ -7,6 +7,9 @@ import secrets
 
 import numpy as np
 
+from analytics.indices import SoundscapeIndicesConfig
+from analytics.soundscape_service import SoundscapeService
+
 from config import AppConfig
 
 from event_pipeline import EventPipeline
@@ -209,6 +212,30 @@ class ReceiverServer:
             self.streams,
             config,
         )
+
+        # ==============================================================
+        # CONTINUOUS SOUNDSCAPE ANALYTICS
+        # ==============================================================
+
+        self.soundscape: SoundscapeService | None
+
+        if (
+            config.analytics.enabled
+            and config.analytics.soundscape_enabled
+        ):
+
+            self.soundscape = SoundscapeService(
+                config=SoundscapeIndicesConfig(
+                    sample_rate=config.audio.sample_rate,
+                ),
+                window_duration_seconds=
+                    config.analytics.soundscape_window_seconds,
+                database=self.events.database,
+            )
+
+        else:
+
+            self.soundscape = None
 
         # ==============================================================
         # TCP LISTENER
@@ -893,6 +920,19 @@ class ReceiverServer:
             )
 
             # ==========================================================
+            # CONTINUOUS SOUNDSCAPE SESSION
+            # ==========================================================
+
+            if (
+                self.soundscape
+                is not None
+            ):
+
+                self.soundscape.start_session(
+                    session_id
+                )
+
+            # ==========================================================
             # CLEAR PREVIOUS PCM
             # ==========================================================
             #
@@ -1097,6 +1137,19 @@ class ReceiverServer:
 
                 self.events.stop_session()
 
+        if (
+            self.soundscape
+            is not None
+        ):
+
+            with contextlib.suppress(
+                Exception
+            ):
+
+                self.soundscape.stop_session(
+                    session_id
+                )
+
         # ==============================================================
         # SERVER SESSION STATE
         # ==============================================================
@@ -1157,6 +1210,15 @@ class ReceiverServer:
                 Exception
             ):
                 self.recorder.stop()
+
+            if (
+                self.soundscape
+                is not None
+            ):
+                with contextlib.suppress(
+                    Exception
+                ):
+                    self.soundscape.stop_session()
 
             if (
                 self.events.active_session_id
@@ -1256,14 +1318,37 @@ class ReceiverServer:
                 )
             )
 
-        finally:
+        if (
+            self.soundscape
+            is not None
+        ):
 
-            # This must happen even when local persistence encounters a
-            # failure. Otherwise the server can become permanently stuck
-            # in an active-session state.
-            self.active_session_id = (
-                None
-            )
+            try:
+
+                self.soundscape.stop_session(
+                    session_id
+                )
+
+            except Exception as exc:
+
+                cleanup_errors.append(
+                    exc
+                )
+
+                logger.exception(
+                    (
+                        "Soundscape analytics "
+                        "session shutdown failed"
+                    )
+                )
+
+        # This must happen even when local persistence encounters a
+        # failure. Otherwise the server can become permanently stuck in
+        # an active-session state. Every cleanup operation above records
+        # its error instead of propagating immediately.
+        self.active_session_id = (
+            None
+        )
 
         logger.info(
             (
@@ -2338,6 +2423,42 @@ class ReceiverServer:
             self.streams.add_audio(
                 block
             )
+
+            # ----------------------------------------------------------
+            # CONTINUOUS SOUNDSCAPE INDICES
+            # ----------------------------------------------------------
+
+            if (
+                self.soundscape
+                is not None
+            ):
+
+                try:
+
+                    self.soundscape.append_audio(
+                        block.node_id,
+                        block.samples,
+                        session_id=block.session_id,
+                        start_sample=block.sample_index,
+                    )
+
+                except Exception:
+
+                    # Continuous research analytics are optional. A
+                    # calculation or persistence failure must remain
+                    # visible without interrupting acquisition.
+                    logger.exception(
+                        (
+                            "Continuous soundscape "
+                            "processing failed "
+                            "| node=%d "
+                            "| session=0x%08X "
+                            "| sample=%d"
+                        ),
+                        block.node_id,
+                        block.session_id,
+                        block.sample_index,
+                    )
 
             # ----------------------------------------------------------
             # CONTINUOUS WAV
