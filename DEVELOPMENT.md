@@ -25,8 +25,8 @@ python -m pip install -e ".[dev]"
 The requirement files remain compatibility inputs for environments that do not
 yet install from `pyproject.toml`.
 
-`setup_windows.bat` performs the development installation and runs the test
-suite automatically.
+`scripts\setup_windows.bat` performs the development installation and runs the
+test suite automatically.
 
 ## Validation
 
@@ -52,6 +52,21 @@ python tools/benchmark_gcc_variants.py `
 ```
 
 ## Application entry points
+
+Launch the complete live stack (receiver and dashboard) from one file:
+
+```powershell
+.\scripts\run_live.bat
+```
+
+Launch the complete simulated stack (receiver, simulator, and dashboard):
+
+```powershell
+.\scripts\run_demo.bat
+```
+
+These launchers run the services concurrently in separate command windows and
+start acquisition automatically after all configured nodes connect.
 
 Receiver:
 
@@ -85,6 +100,7 @@ streamlit run dashboard/app.py
 - `data/` contains runtime outputs and directory placeholders; generated data
   is not source code and should not be committed.
 - `docs/` contains protocol, release, and architectural documentation.
+- `scripts/` contains all Windows setup, launch, and validation scripts.
 - `src/wildlife_soundscape/` contains the new stable package facade and console
   entry points during the compatibility migration.
 

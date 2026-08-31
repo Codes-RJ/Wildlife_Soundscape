@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import argparse
 import asyncio
 import contextlib
 import json
@@ -2216,7 +2217,62 @@ def print_startup_info(
 # ======================================================================
 
 
-async def main_async() -> None:
+async def start_acquisition_when_ready(
+    server: ReceiverServer,
+    session_label: str,
+    *,
+    poll_interval_seconds: float = 0.25,
+) -> int:
+    """Wait for every configured node, then start one acquisition session."""
+
+    previous_missing: tuple[int, ...] | None = None
+
+    while True:
+
+        missing = tuple(
+            node_id
+            for node_id in server.config.expected_nodes
+            if (
+                (connection := server.connections.get(node_id)) is None
+                or not connection.state.connected
+                or connection.writer.is_closing()
+            )
+        )
+
+        if not missing:
+
+            break
+
+        if missing != previous_missing:
+
+            print(
+                "Automatic acquisition is waiting for nodes: "
+                f"{list(missing)}"
+            )
+            previous_missing = missing
+
+        await asyncio.sleep(
+            poll_interval_seconds
+        )
+
+    session_id = await server.start_acquisition(
+        session_label
+    )
+
+    print(
+        "Automatic acquisition started: "
+        f"{_format_session_id(session_id)} "
+        f"label={session_label!r}"
+    )
+
+    return session_id
+
+
+async def main_async(
+    *,
+    auto_start: bool = False,
+    session_label: str = "launcher",
+) -> None:
     """
     Initialize and run the laptop receiver application.
     """
@@ -2263,6 +2319,17 @@ async def main_async() -> None:
                     "receiver-status-loop",
             )
         )
+
+        # ==============================================================
+        # OPTIONAL AUTOMATIC ACQUISITION
+        # ==============================================================
+
+        if auto_start:
+
+            await start_acquisition_when_ready(
+                server,
+                session_label,
+            )
 
         # ==============================================================
         # INTERACTIVE CLI
@@ -2324,15 +2391,45 @@ async def main_async() -> None:
 # ======================================================================
 
 
-def main() -> None:
+def build_argument_parser() -> argparse.ArgumentParser:
+    """Build the receiver command-line parser."""
+
+    parser = argparse.ArgumentParser(
+        description="Wildlife Soundscape receiver",
+    )
+    parser.add_argument(
+        "--auto-start",
+        action="store_true",
+        help=(
+            "wait for all configured nodes and automatically start acquisition"
+        ),
+    )
+    parser.add_argument(
+        "--session-label",
+        default="launcher",
+        help="label used by --auto-start (default: launcher)",
+    )
+    return parser
+
+
+def main(
+    argv: list[str] | None = None,
+) -> None:
     """
     Application entry point.
     """
 
+    args = build_argument_parser().parse_args(
+        argv
+    )
+
     try:
 
         asyncio.run(
-            main_async()
+            main_async(
+                auto_start=args.auto_start,
+                session_label=args.session_label,
+            )
         )
 
     except KeyboardInterrupt:

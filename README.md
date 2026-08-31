@@ -2241,6 +2241,15 @@ The laptop should preferably have a stable local IP during experiments.
 
 The simulator allows development of the laptop processing stack without physical ESP32 nodes.
 
+One-click Windows launch:
+
+```powershell
+.\scripts\run_demo.bat
+```
+
+This starts the receiver, three-node simulator, automatic acquisition, and
+Streamlit dashboard concurrently in separate command windows.
+
 Terminal 1:
 
 ```powershell
@@ -2298,6 +2307,15 @@ It does **not validate**:
 ---
 
 # 52. Running With Hardware
+
+One-click Windows launch:
+
+```powershell
+.\scripts\run_live.bat
+```
+
+This starts the receiver and Streamlit dashboard. The receiver waits until all
+configured physical nodes connect and then begins acquisition automatically.
 
 Recommended bring-up order:
 

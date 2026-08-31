@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import asyncio
 import sys
 from types import SimpleNamespace
+from unittest.mock import AsyncMock
 
+import main as receiver_main
 import wildlife_soundscape
 from wildlife_soundscape import cli
 
@@ -66,3 +69,31 @@ def test_benchmark_entry_point_delegates(monkeypatch) -> None:
     cli.benchmark_gcc()
 
     assert calls == ["benchmark"]
+
+
+def test_receiver_parser_supports_automatic_acquisition() -> None:
+    args = receiver_main.build_argument_parser().parse_args(
+        ["--auto-start", "--session-label", "demo"]
+    )
+
+    assert args.auto_start is True
+    assert args.session_label == "demo"
+
+
+def test_automatic_acquisition_starts_after_nodes_are_ready() -> None:
+    connection = SimpleNamespace(
+        state=SimpleNamespace(connected=True),
+        writer=SimpleNamespace(is_closing=lambda: False),
+    )
+    server = SimpleNamespace(
+        config=SimpleNamespace(expected_nodes=(1, 2, 3)),
+        connections={1: connection, 2: connection, 3: connection},
+        start_acquisition=AsyncMock(return_value=0x1234),
+    )
+
+    session_id = asyncio.run(
+        receiver_main.start_acquisition_when_ready(server, "demo")
+    )
+
+    assert session_id == 0x1234
+    server.start_acquisition.assert_awaited_once_with("demo")
