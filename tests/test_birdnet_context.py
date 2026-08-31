@@ -140,7 +140,18 @@ def test_birdnet_geo_context_query_mock_model() -> None:
     )
 
     class FakeGeoModel:
-        def predict(self, latitude: float, longitude: float, week: int | None = None) -> dict[str, float]:
+        def predict(
+            self,
+            latitude: float,
+            longitude: float,
+            *,
+            week: int | None = None,
+            min_confidence: float = 0.03,
+        ) -> dict[str, float]:
+            assert latitude == 12.97
+            assert longitude == 77.59
+            assert week == 10
+            assert min_confidence == 0.1
             return {
                 "Corvus splendens_House Crow": 0.85,
                 "Psittacula krameri_Rose-ringed Parakeet": 0.40,
@@ -152,6 +163,32 @@ def test_birdnet_geo_context_query_mock_model() -> None:
     assert "Corvus splendens_House Crow" in priors
     assert priors["Corvus splendens_House Crow"] == 0.85
     assert "Rare Species" not in priors  # filtered by min_confidence
+
+
+def test_birdnet_geo_context_reads_official_tabular_result() -> None:
+    geo = BirdNETGeoContext(
+        enabled=True,
+        latitude=12.97,
+        longitude=77.59,
+        min_confidence=0.1,
+    )
+
+    class FakeGeoResult:
+        def to_csv(self, path: str) -> None:
+            Path(path).write_text(
+                "species_name,confidence\n"
+                "Corvus splendens_House Crow,0.85\n"
+                "Rare Species,0.02\n",
+                encoding="utf-8",
+            )
+
+    class FakeGeoModel:
+        def predict(self, *args, **kwargs) -> FakeGeoResult:
+            return FakeGeoResult()
+
+    assert geo.query_geo_prior(FakeGeoModel()) == {
+        "Corvus splendens_House Crow": 0.85,
+    }
 
 
 # ======================================================================
@@ -225,3 +262,95 @@ def test_birdnet_backend_taxonomy_mapping_and_abstention() -> None:
     assert res_unknown.second_confidence is None
     assert res_unknown.scores["species:Uncataloged_Mystery_Critter"] == 0.95
     assert "safe abstention" in " ".join(res_unknown.reasons)
+
+
+def test_birdnet_backend_lazily_loads_and_traces_geo_model(monkeypatch) -> None:
+    taxonomy = BirdNETTaxonomy({"Corvus splendens_House Crow": TAXON_GROUP_AVES})
+
+    class FakeDataFrame:
+        def to_csv(self, path: Path | str) -> None:
+            Path(path).write_text(
+                "species_name,confidence\nCorvus splendens_House Crow,0.92\n",
+                encoding="utf-8",
+            )
+
+    class FakeAcousticModel:
+        def predict(self, *args, **kwargs) -> FakeDataFrame:
+            return FakeDataFrame()
+
+    class FakeGeoModel:
+        def predict(self, *args, **kwargs) -> dict[str, float]:
+            return {"Corvus splendens_House Crow": 0.77}
+
+    load_calls: list[tuple] = []
+
+    class FakeBirdNETModule:
+        @staticmethod
+        def load(*args, **kwargs) -> FakeGeoModel:
+            load_calls.append((*args, kwargs))
+            return FakeGeoModel()
+
+    backend = BirdNETClassifierBackend(
+        taxonomy=taxonomy,
+        model=FakeAcousticModel(),
+        geo_context=BirdNETGeoContext(
+            enabled=True,
+            latitude=12.97,
+            longitude=77.59,
+            week=10,
+        ),
+    )
+    monkeypatch.setattr(backend, "_load_birdnet_module", lambda: FakeBirdNETModule())
+
+    model_input = ClassificationInput(
+        features=None,
+        sample_rate=48000,
+        model_audio=np.zeros(48000, dtype=np.float32),
+    )
+    result = backend.classify(model_input)
+    backend.classify(model_input)
+
+    assert load_calls == [("geo", "3.0", "onnx", {"precision": "fp32"})]
+    assert result.scores["birdnet:geo:Corvus splendens_House Crow"] == 0.77
+    assert "did not alter acoustic confidence" in " ".join(result.reasons)
+
+
+def test_birdnet_backend_geo_load_failure_preserves_acoustic_result(monkeypatch) -> None:
+    taxonomy = BirdNETTaxonomy({"Corvus splendens_House Crow": TAXON_GROUP_AVES})
+
+    class FakeDataFrame:
+        def to_csv(self, path: Path | str) -> None:
+            Path(path).write_text(
+                "species_name,confidence\nCorvus splendens_House Crow,0.92\n",
+                encoding="utf-8",
+            )
+
+    class FakeAcousticModel:
+        def predict(self, *args, **kwargs) -> FakeDataFrame:
+            return FakeDataFrame()
+
+    backend = BirdNETClassifierBackend(
+        taxonomy=taxonomy,
+        model=FakeAcousticModel(),
+        geo_context=BirdNETGeoContext(
+            enabled=True,
+            latitude=12.97,
+            longitude=77.59,
+        ),
+    )
+
+    def fail_load():
+        raise RuntimeError("geo dependency unavailable")
+
+    monkeypatch.setattr(backend, "_load_birdnet_module", fail_load)
+    result = backend.classify(
+        ClassificationInput(
+            features=None,
+            sample_rate=48000,
+            model_audio=np.zeros(48000, dtype=np.float32),
+        )
+    )
+
+    assert result.label == AcousticClass.BIRD
+    assert result.confidence == 0.92
+    assert "geo dependency unavailable" in " ".join(result.reasons)

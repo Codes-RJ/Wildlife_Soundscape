@@ -1318,6 +1318,22 @@ class LocalizationConfig:
         8
     )
 
+    # Frequency-domain GCC weighting. A value of 1.0 is the established
+    # PHAT baseline; lower values retain progressively more magnitude
+    # information for controlled research comparisons.
+    gcc_beta: float = (
+        1.0
+    )
+
+    # Optional FFT-bin mask applied inside GCC after the localization
+    # pre-filter. None preserves the established full-spectrum behavior.
+    gcc_frequency_band_hz: tuple[
+        float,
+        float,
+    ] | None = (
+        None
+    )
+
     # ------------------------------------------------------------------
     # QUALITY THRESHOLDS
     # ------------------------------------------------------------------
@@ -1674,6 +1690,89 @@ class LocalizationConfig:
             name=
                 "Localization interpolation",
         )
+
+        gcc_beta = (
+            _require_finite(
+                self.gcc_beta,
+                name=
+                    "Localization gcc_beta",
+            )
+        )
+
+        if not (
+            0.0
+            <= gcc_beta
+            <= 1.0
+        ):
+
+            raise ValueError(
+                (
+                    "Localization gcc_beta "
+                    "must be in [0, 1]."
+                )
+            )
+
+        if (
+            self.gcc_frequency_band_hz
+            is not None
+        ):
+
+            if (
+                not isinstance(
+                    self.gcc_frequency_band_hz,
+                    tuple,
+                )
+                or len(
+                    self.gcc_frequency_band_hz
+                )
+                != 2
+            ):
+
+                raise TypeError(
+                    (
+                        "Localization "
+                        "gcc_frequency_band_hz must "
+                        "be a (low_hz, high_hz) tuple "
+                        "or None."
+                    )
+                )
+
+            gcc_low_hz = (
+                _require_finite(
+                    self.gcc_frequency_band_hz[0],
+                    name=
+                        (
+                            "Localization GCC "
+                            "frequency-band lower bound"
+                        ),
+                )
+            )
+
+            gcc_high_hz = (
+                _require_finite(
+                    self.gcc_frequency_band_hz[1],
+                    name=
+                        (
+                            "Localization GCC "
+                            "frequency-band upper bound"
+                        ),
+                )
+            )
+
+            if not (
+                0.0
+                <= gcc_low_hz
+                < gcc_high_hz
+                <= sample_rate / 2.0
+            ):
+
+                raise ValueError(
+                    (
+                        "Localization GCC frequency "
+                        "band must satisfy "
+                        "0 <= low < high <= Nyquist."
+                    )
+                )
 
         # ==============================================================
         # QUALITY

@@ -2,6 +2,6 @@
 python -m venv .venv
 call .venv\Scripts\activate
 python -m pip install --upgrade pip
-pip install -r requirements.txt
-pytest -q
+python -m pip install -r requirements-dev.txt
+python -m pytest -q
 pause

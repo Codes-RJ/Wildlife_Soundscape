@@ -10,12 +10,11 @@ This allows full interactive exploration of the Streamlit dashboard:
 
 from __future__ import annotations
 
-import json
 import math
-import numpy as np
-from pathlib import Path
 import wave
-import time
+from pathlib import Path
+
+import numpy as np
 
 from analytics.indices import SoundscapeIndicesConfig, SoundscapeIndicesResult
 from config import CONFIG
@@ -64,9 +63,8 @@ def generate_demo_dataset() -> None:
     ]
 
     base_sample = 0
-    current_time = time.time() - 3600  # 1 hour ago
 
-    for i, (tax_class, species_name, conf, sec_name, sec_conf, dom_freq, snr, x_pos, y_pos) in enumerate(species_events):
+    for i, (tax_class, species_name, conf, _sec_name, sec_conf, dom_freq, snr, x_pos, y_pos) in enumerate(species_events):
         event_id = i + 1
         event_dur_s = 0.65 + 0.3 * (i % 3)
         dur_samples = int(event_dur_s * sample_rate)

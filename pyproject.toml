@@ -311,6 +311,12 @@ ignore = []
 # Tests may intentionally use assertions and test-specific patterns.
 "tests/**/*.py" = []
 
+# These entry points bootstrap the repository root before importing
+# project modules so they also work when launched directly by path.
+"dashboard/app.py" = ["E402"]
+"tests/conftest.py" = ["E402"]
+"tests/test_integration_events.py" = ["E402"]
+
 
 # ======================================================================
 # MYPY

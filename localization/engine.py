@@ -1512,6 +1512,12 @@ class LocalizationEngine:
 
                     min_peak_ratio=
                         self.config.min_peak_ratio,
+
+                    beta=
+                        self.config.gcc_beta,
+
+                    frequency_band_hz=
+                        self.config.gcc_frequency_band_hz,
                 )
             )
 

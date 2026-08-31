@@ -2023,7 +2023,6 @@ scipy
 librosa
 streamlit
 plotly
-pytest
 ```
 
 See:
@@ -2035,6 +2034,13 @@ requirements.txt
 for the authoritative dependency constraints.
 
 The optional BirdNET backend uses additional dependencies and should remain separate from the minimum core installation.
+
+Development and validation dependencies, including pytest, Ruff, mypy,
+and coverage tooling, are defined separately in:
+
+```text
+requirements-dev.txt
+```
 
 ---
 
@@ -2067,7 +2073,14 @@ python -m pip install --upgrade pip
 Install dependencies:
 
 ```powershell
-pip install -r requirements.txt
+python -m pip install -r requirements.txt
+```
+
+For development, testing, and static analysis, install the development
+environment instead. It includes the runtime requirements transitively:
+
+```powershell
+python -m pip install -r requirements-dev.txt
 ```
 
 ---

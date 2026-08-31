@@ -60,12 +60,8 @@
 #   export tests
 #   future regression tests
 #
-# NOTE:
-# pytest currently also exists in requirements.txt.
-#
-# During final dependency cleanup we may move pytest completely into
-# this development file. Keeping the explicit requirement here is safe
-# and documents that pytest is fundamentally a development dependency.
+# pytest is intentionally development-only and is not installed by the
+# minimal runtime requirements file.
 # ======================================================================
 
 pytest>=8,<10

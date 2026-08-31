@@ -421,6 +421,8 @@ def install_successful_gcc(
         max_delay_seconds,
         interpolation,
         min_peak_ratio,
+        beta,
+        frequency_band_hz,
     ):
 
         calls.append(
@@ -446,6 +448,12 @@ def install_successful_gcc(
 
                 "min_peak_ratio":
                     min_peak_ratio,
+
+                "beta":
+                    beta,
+
+                "frequency_band_hz":
+                    frequency_band_hz,
             }
         )
 
@@ -2022,6 +2030,15 @@ def test_gcc_receives_localization_configuration(
 
         min_peak_ratio=
             1.35,
+
+        gcc_beta=
+            0.75,
+
+        gcc_frequency_band_hz=
+            (
+                1000.0,
+                8000.0,
+            ),
     )
 
     engine = LocalizationEngine(
@@ -2069,6 +2086,25 @@ def test_gcc_receives_localization_configuration(
                 "max_delay_seconds"
             ]
             > 0.0
+        )
+
+        assert (
+            call[
+                "beta"
+            ]
+            == pytest.approx(
+                0.75
+            )
+        )
+
+        assert (
+            call[
+                "frequency_band_hz"
+            ]
+            == (
+                1000.0,
+                8000.0,
+            )
         )
 
 
@@ -2317,6 +2353,8 @@ def test_delay_outside_physical_pair_limit_is_rejected(
         max_delay_seconds,
         interpolation,
         min_peak_ratio,
+        beta,
+        frequency_band_hz,
     ):
 
         return make_gcc_result(

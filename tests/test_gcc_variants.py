@@ -4,12 +4,61 @@ Tests for GCC-PHAT-beta fractional weighting and frequency band-limiting.
 
 from __future__ import annotations
 
+import json
+from dataclasses import asdict
+from dataclasses import replace
 
 import numpy as np
 import pytest
 
+from config import CONFIG
 from localization.gcc_phat import gcc_phat
 from tools.benchmark_gcc_variants import run_benchmark
+
+
+def test_localization_config_validates_gcc_research_options() -> None:
+    valid = replace(
+        CONFIG.localization,
+        gcc_beta=0.75,
+        gcc_frequency_band_hz=(1000.0, 8000.0),
+    )
+    valid.validate(
+        sample_rate=CONFIG.audio.sample_rate,
+        expected_nodes=CONFIG.expected_nodes,
+    )
+
+    for invalid_beta in (-0.1, 1.1, float("nan")):
+        with pytest.raises(ValueError):
+            replace(
+                CONFIG.localization,
+                gcc_beta=invalid_beta,
+            ).validate(
+                sample_rate=CONFIG.audio.sample_rate,
+                expected_nodes=CONFIG.expected_nodes,
+            )
+
+    with pytest.raises(TypeError):
+        replace(
+            CONFIG.localization,
+            gcc_frequency_band_hz=[1000.0, 8000.0],  # type: ignore[arg-type]
+        ).validate(
+            sample_rate=CONFIG.audio.sample_rate,
+            expected_nodes=CONFIG.expected_nodes,
+        )
+
+    for invalid_band in (
+        (8000.0, 1000.0),
+        (-1.0, 8000.0),
+        (1000.0, 30000.0),
+    ):
+        with pytest.raises(ValueError):
+            replace(
+                CONFIG.localization,
+                gcc_frequency_band_hz=invalid_band,
+            ).validate(
+                sample_rate=CONFIG.audio.sample_rate,
+                expected_nodes=CONFIG.expected_nodes,
+            )
 
 
 def test_gcc_phat_beta_validation() -> None:
@@ -85,3 +134,13 @@ def test_benchmark_gcc_variants_runner() -> None:
         assert r.scenario == "synthetic_chirp_noise"
         assert r.pos_error_m is not None
         assert r.pos_error_m < 1.0  # sub-meter accuracy under 20 dB SNR
+        assert type(r.success) is bool
+        assert np.isfinite(r.true_tdoa_21_s)
+        assert np.isfinite(r.measured_tdoa_21_s)
+        assert np.isfinite(r.true_tdoa_31_s)
+        assert np.isfinite(r.measured_tdoa_31_s)
+        assert np.isfinite(r.true_tdoa_32_s)
+        assert np.isfinite(r.measured_tdoa_32_s)
+
+    # Every benchmark row must remain directly exportable by the CLI.
+    json.dumps([asdict(result) for result in results])

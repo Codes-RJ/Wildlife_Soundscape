@@ -33,6 +33,7 @@ from __future__ import annotations
 
 import csv
 import math
+import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Mapping
@@ -248,28 +249,56 @@ class BirdNETGeoContext:
 
         try:
             kwargs: dict[str, Any] = {
-                "latitude": self.latitude,
-                "longitude": self.longitude,
+                "min_confidence": self.min_confidence,
             }
             if self.week is not None:
                 kwargs["week"] = self.week
 
             # Query official birdnet GeoModel predict method
             if hasattr(geo_model, "predict"):
-                predictions = geo_model.predict(**kwargs)
-                if isinstance(predictions, dict):
+                predictions = geo_model.predict(
+                    self.latitude,
+                    self.longitude,
+                    **kwargs,
+                )
+                if isinstance(predictions, Mapping):
                     return {
                         str(k): float(v)
                         for k, v in predictions.items()
-                        if float(v) >= self.min_confidence
+                        if math.isfinite(float(v))
+                        and float(v) >= self.min_confidence
                     }
                 elif isinstance(predictions, (list, tuple)):
                     res: dict[str, float] = {}
                     for item in predictions:
                         if hasattr(item, "species_name") and hasattr(item, "confidence"):
-                            if item.confidence >= self.min_confidence:
-                                res[str(item.species_name)] = float(item.confidence)
+                            confidence = float(item.confidence)
+                            if math.isfinite(confidence) and confidence >= self.min_confidence:
+                                res[str(item.species_name)] = confidence
                     return res
+
+                # Official BirdNET GeoPredictionResult exposes to_csv().
+                to_csv = getattr(predictions, "to_csv", None)
+                if callable(to_csv):
+                    with tempfile.TemporaryDirectory(prefix="wildlife-birdnet-geo-") as directory:
+                        csv_path = Path(directory) / "geo_predictions.csv"
+                        try:
+                            to_csv(str(csv_path))
+                        except TypeError:
+                            to_csv(csv_path)
+
+                        result: dict[str, float] = {}
+                        with csv_path.open("r", encoding="utf-8-sig", newline="") as handle:
+                            for row in csv.DictReader(handle):
+                                species_name = str(row.get("species_name", "")).strip()
+                                confidence = float(row.get("confidence", "nan"))
+                                if (
+                                    species_name
+                                    and math.isfinite(confidence)
+                                    and confidence >= self.min_confidence
+                                ):
+                                    result[species_name] = confidence
+                        return result
         except Exception:
             return None
 

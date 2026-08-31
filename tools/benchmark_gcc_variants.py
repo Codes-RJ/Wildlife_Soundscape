@@ -18,14 +18,18 @@ import argparse
 import csv
 import json
 import math
+import sys
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
 import numpy as np
 
-from localization.gcc_phat import gcc_phat
-from localization.solver import solve_position
-from localization.tdoa import TDOAMeasurement
+if __package__ in (None, ""):
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from localization.gcc_phat import gcc_phat  # noqa: E402
+from localization.solver import solve_position  # noqa: E402
+from localization.tdoa import TDOAMeasurement  # noqa: E402
 
 
 @dataclass(frozen=True, slots=True)
@@ -40,6 +44,12 @@ class BenchmarkResultRow:
     estimated_x_m: float | None
     estimated_y_m: float | None
     pos_error_m: float | None
+    true_tdoa_21_s: float
+    measured_tdoa_21_s: float
+    true_tdoa_31_s: float
+    measured_tdoa_31_s: float
+    true_tdoa_32_s: float
+    measured_tdoa_32_s: float
     tdoa_rms_error_s: float
     success: bool
     reason: str
@@ -121,6 +131,7 @@ def run_benchmark(
             for band in bands:
                 tdoa_measurements: list[TDOAMeasurement] = []
                 tdoa_errors: list[float] = []
+                measured_tdoas: dict[tuple[int, int], float] = {}
 
                 for na, nb, true_delay in pairs:
                     max_pair_delay = math.hypot(
@@ -139,6 +150,7 @@ def run_benchmark(
 
                     tdoa_err = abs(res.delay_seconds - true_delay)
                     tdoa_errors.append(tdoa_err)
+                    measured_tdoas[(na, nb)] = float(res.delay_seconds)
 
                     tdoa_measurements.append(
                         TDOAMeasurement(
@@ -175,12 +187,18 @@ def run_benchmark(
                         band_high_hz=band[1],
                         true_x_m=true_x,
                         true_y_m=true_y,
-                        estimated_x_m=pos_res.x if pos_res.success else None,
-                        estimated_y_m=pos_res.y if pos_res.success else None,
+                        estimated_x_m=float(pos_res.x) if pos_res.success else None,
+                        estimated_y_m=float(pos_res.y) if pos_res.success else None,
                         pos_error_m=pos_err,
+                        true_tdoa_21_s=float(true_tau_21),
+                        measured_tdoa_21_s=measured_tdoas[(1, 2)],
+                        true_tdoa_31_s=float(true_tau_31),
+                        measured_tdoa_31_s=measured_tdoas[(1, 3)],
+                        true_tdoa_32_s=float(true_tau_32),
+                        measured_tdoa_32_s=measured_tdoas[(2, 3)],
                         tdoa_rms_error_s=tdoa_rms,
-                        success=pos_res.success,
-                        reason=pos_res.message,
+                        success=bool(pos_res.success),
+                        reason=str(pos_res.message),
                     )
                 )
 

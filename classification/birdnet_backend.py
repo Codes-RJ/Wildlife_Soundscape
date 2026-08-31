@@ -783,6 +783,14 @@ class BirdNETClassifierBackend(
             geo_model
         )
 
+        self._geo_model_attempted = (
+            geo_model is not None
+        )
+
+        self._geo_model_error: str | None = (
+            None
+        )
+
         self._model = (
             model
         )
@@ -1011,6 +1019,47 @@ class BirdNETClassifierBackend(
         return (
             self._model
         )
+
+    # ==================================================================
+    # OPTIONAL GEOGRAPHIC MODEL LOAD
+    # ==================================================================
+
+    def _ensure_geo_model(
+        self,
+    ):
+        """Lazily initialize optional BirdNET geographic context."""
+
+        if not self.geo_context.enabled:
+            return None
+
+        if self._geo_model is not None:
+            return self._geo_model
+
+        if self._geo_model_attempted:
+            return None
+
+        self._geo_model_attempted = True
+
+        try:
+            birdnet = self._load_birdnet_module()
+            load_function = getattr(birdnet, "load", None)
+            if not callable(load_function):
+                raise RuntimeError(
+                    "Installed BirdNET package does not expose birdnet.load()."
+                )
+
+            self._geo_model = load_function(
+                "geo",
+                self.model_version,
+                self.model_backend,
+                precision=self.model_precision,
+            )
+        except Exception as exc:
+            detail = str(exc).strip() or type(exc).__name__
+            self._geo_model_error = detail
+            return None
+
+        return self._geo_model
 
     # ==================================================================
     # MODEL AUDIO NORMALIZATION
@@ -2219,11 +2268,27 @@ class BirdNETClassifierBackend(
         # GEOGRAPHIC PRIOR CONTEXT
         # ==============================================================
 
-        if self.geo_context.enabled and self._geo_model is not None:
-            geo_priors = self.geo_context.query_geo_prior(self._geo_model)
+        geo_context_reason: str | None = None
+        if self.geo_context.enabled:
+            geo_model = self._ensure_geo_model()
+            geo_priors = self.geo_context.query_geo_prior(geo_model)
             if geo_priors:
                 for sp, prior_conf in geo_priors.items():
                     scores[f"birdnet:geo:{sp}"] = float(prior_conf)
+                geo_context_reason = (
+                    "BirdNET geographic priors were attached as separate "
+                    "context scores and did not alter acoustic confidence"
+                )
+            elif self._geo_model_error is not None:
+                geo_context_reason = (
+                    "BirdNET geographic prior unavailable; acoustic "
+                    f"classification continued: {self._geo_model_error}"
+                )
+            else:
+                geo_context_reason = (
+                    "BirdNET geographic context returned no prior scores "
+                    "at or above its configured threshold"
+                )
 
         # ==============================================================
         # EXPLANATION
@@ -2239,6 +2304,9 @@ class BirdNETClassifierBackend(
                 f"{top_prediction.confidence:.3f})"
             ),
         ]
+
+        if geo_context_reason is not None:
+            reasons.append(geo_context_reason)
 
         if broad_label != AcousticClass.UNKNOWN:
             reasons.append(
