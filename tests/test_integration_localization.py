@@ -86,19 +86,19 @@ from pathlib import (
 # ======================================================================
 
 
-from config import (
+from wildlife_soundscape.core.config import (
     CONFIG,
 )
 
-from localization import (
+from wildlife_soundscape.localization import (
     LocalizationEngine,
 )
 
-from server import (
+from wildlife_soundscape.runtime.server import (
     ReceiverServer,
 )
 
-from simulator import (
+from wildlife_soundscape.runtime.simulator import (
     FakeNode,
     SharedSimulation,
 )

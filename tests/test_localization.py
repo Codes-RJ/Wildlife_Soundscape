@@ -101,25 +101,25 @@ import pytest
 # ======================================================================
 
 
-import localization.engine as engine_module
+import wildlife_soundscape.localization.engine as engine_module
 
 
-from config import (
+from wildlife_soundscape.core.config import (
     CONFIG,
     LocalizationConfig,
 )
 
-from localization.engine import (
+from wildlife_soundscape.localization.engine import (
     MIN_LOCALIZATION_WINDOW_SAMPLES,
     LocalizationEngine,
     LocalizationResult,
 )
 
-from protocol import (
+from wildlife_soundscape.core.protocol import (
     EnvironmentPayload,
 )
 
-from stream_manager import (
+from wildlife_soundscape.acquisition.stream_manager import (
     StreamManager,
 )
 
@@ -1402,18 +1402,22 @@ def test_locate_window_looks_up_environment_at_window_center(
         windows,
     )
 
-    lookup_samples = []
+    lookup_samples: list[int] = []
+
+    def get_environment_near(
+        sample_index: int,
+    ) -> None:
+
+        lookup_samples.append(
+            sample_index
+        )
+
+        return None
 
     monkeypatch.setattr(
         stream_manager,
         "get_environment_near",
-        lambda sample_index:
-            (
-                lookup_samples.append(
-                    sample_index
-                )
-                or None
-            ),
+        get_environment_near,
     )
 
     install_successful_gcc(

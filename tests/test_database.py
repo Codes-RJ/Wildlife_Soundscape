@@ -58,6 +58,10 @@ from __future__ import annotations
 import json
 import sqlite3
 
+from contextlib import (
+    closing,
+)
+
 from pathlib import (
     Path,
 )
@@ -80,24 +84,24 @@ import pytest
 # ======================================================================
 
 
-from classification.classifier import (
+from wildlife_soundscape.classification.classifier import (
     AcousticClass,
     ClassificationResult,
 )
 
-from database import (
+from wildlife_soundscape.storage.database import (
     EventDatabase,
 )
 
-from dsp.features import (
+from wildlife_soundscape.dsp.features import (
     AcousticFeatures,
 )
 
-from event_detector import (
+from wildlife_soundscape.pipeline.event_detector import (
     AcousticEvent,
 )
 
-from protocol import (
+from wildlife_soundscape.core.protocol import (
     EnvironmentPayload,
 )
 
@@ -396,8 +400,10 @@ def query_one(
     Read one raw SQLite row for schema-level persistence checks.
     """
 
-    with sqlite3.connect(
-        database.path
+    with closing(
+        sqlite3.connect(
+            database.path
+        )
     ) as connection:
 
         connection.row_factory = (
@@ -419,8 +425,10 @@ def query_all(
     Read raw SQLite rows.
     """
 
-    with sqlite3.connect(
-        database.path
+    with closing(
+        sqlite3.connect(
+            database.path
+        )
     ) as connection:
 
         connection.row_factory = (

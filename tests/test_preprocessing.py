@@ -42,7 +42,7 @@ import pytest
 # ======================================================================
 
 
-from dsp.preprocessing import (
+from wildlife_soundscape.dsp.preprocessing import (
     PreprocessingConfig,
     apply_bandpass_filter,
     peak_normalize,

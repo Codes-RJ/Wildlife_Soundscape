@@ -52,7 +52,7 @@ import pytest
 # ======================================================================
 
 
-from environment import (
+from wildlife_soundscape.core.environment import (
     calculate_speed_of_sound_mps,
 )
 

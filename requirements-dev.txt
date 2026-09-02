@@ -280,5 +280,16 @@ build>=1.2,<2.0
 
 
 # ======================================================================
-# 12. END OF DEVELOPMENT DEPENDENCIES
+# 12. DEPENDENCY VULNERABILITY AUDITING
+# ======================================================================
+#
+# Used by local validation and CI to identify published dependency
+# vulnerabilities before release.
+# ======================================================================
+
+pip-audit>=2.9,<3.0
+
+
+# ======================================================================
+# 13. END OF DEVELOPMENT DEPENDENCIES
 # ======================================================================

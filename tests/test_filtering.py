@@ -61,7 +61,7 @@ import pytest
 # ======================================================================
 
 
-from localization.filtering import (
+from wildlife_soundscape.localization.filtering import (
     bandpass_filter,
 )
 

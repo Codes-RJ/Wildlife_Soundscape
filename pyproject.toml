@@ -15,9 +15,8 @@
 #   coverage.py / pytest-cov
 #
 #
-# The project is packaged through a compatibility-first migration. New public
-# entry points live under ``src/wildlife_soundscape`` while established
-# top-level modules remain available until their imports are migrated.
+# All application code lives in the ``src/wildlife_soundscape`` package.
+# Public entry points import only from this package hierarchy.
 #
 # ======================================================================
 
@@ -51,6 +50,7 @@ dev = [
     "hypothesis>=6.115,<7.0",
     "psutil>=6,<8",
     "build>=1.2,<2.0",
+    "pip-audit>=2.9,<3.0",
 ]
 birdnet = ["birdnet[onnx]>=1.1,<2.0"]
 
@@ -62,33 +62,10 @@ wildlife-export-research = "wildlife_soundscape.cli:export_research"
 wildlife-benchmark-gcc = "wildlife_soundscape.cli:benchmark_gcc"
 
 [tool.setuptools]
-packages = [
-    "analytics",
-    "calibration",
-    "classification",
-    "dashboard",
-    "dsp",
-    "localization",
-    "tools",
-    "wildlife_soundscape",
-]
-py-modules = [
-    "config",
-    "database",
-    "environment",
-    "event_detector",
-    "event_pipeline",
-    "main",
-    "models",
-    "node",
-    "protocol",
-    "server",
-    "simulator",
-    "stream_manager",
-]
+package-dir = {"" = "src"}
 
-[tool.setuptools.package-dir]
-wildlife_soundscape = "src/wildlife_soundscape"
+[tool.setuptools.packages.find]
+where = ["src"]
 
 
 # ======================================================================
@@ -147,10 +124,7 @@ python_functions = [
 #
 # ----------------------------------------------------------------------
 
-pythonpath = [
-    ".",
-    "src",
-]
+pythonpath = ["src"]
 
 
 # ----------------------------------------------------------------------
@@ -178,6 +152,12 @@ addopts = [
     "-ra",
     "--strict-markers",
     "--strict-config",
+]
+
+# A SQLite connection that reaches garbage collection without being closed is
+# a resource-management bug. Keep that signal release-blocking.
+filterwarnings = [
+    "error::ResourceWarning",
 ]
 
 
@@ -373,7 +353,7 @@ ignore = []
 
 # These entry points bootstrap the repository root before importing
 # project modules so they also work when launched directly by path.
-"dashboard/app.py" = ["E402"]
+"src/wildlife_soundscape/dashboard/app.py" = ["E402"]
 "tests/conftest.py" = ["E402"]
 "tests/test_integration_events.py" = ["E402"]
 
@@ -548,7 +528,7 @@ branch = true
 # ----------------------------------------------------------------------
 
 source = [
-    ".",
+    "wildlife_soundscape",
 ]
 
 
@@ -603,17 +583,12 @@ precision = 2
 # COVERAGE FAILURE THRESHOLD
 # ----------------------------------------------------------------------
 #
-# No arbitrary repository-wide coverage percentage is enforced yet.
-#
-# A meaningful threshold should be chosen only after:
-#
-#   1. the final compatibility audit,
-#   2. the expanded test suite,
-#   3. baseline coverage measurement.
-#
-# Setting a target such as 80% before measuring the actual architecture
-# would be cosmetic rather than engineering-driven.
+# The initial 40% threshold is below the measured baseline and prevents
+# coverage regressions while untested research-facing subsystems receive
+# focused test coverage. Raise it deliberately as those gaps close.
 # ----------------------------------------------------------------------
+
+fail_under = 40
 
 
 # ----------------------------------------------------------------------

@@ -114,19 +114,19 @@ if (
 # ======================================================================
 
 
-from config import (
+from wildlife_soundscape.core.config import (
     AudioConfig,
 )
 
-from models import (
+from wildlife_soundscape.core.models import (
     AudioBlock,
 )
 
-from node import (
+from wildlife_soundscape.acquisition.node import (
     NodeState,
 )
 
-from stream_manager import (
+from wildlife_soundscape.acquisition.stream_manager import (
     StreamManager,
 )
 

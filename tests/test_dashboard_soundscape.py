@@ -9,10 +9,10 @@ from pathlib import Path
 import plotly.graph_objects as go
 import pytest
 
-from analytics.indices import SoundscapeIndicesConfig, SoundscapeIndicesResult
-from dashboard.data_access import DashboardDataAccess
-from dashboard.plots import build_soundscape_indices_timeline
-from database import EventDatabase
+from wildlife_soundscape.analytics.indices import SoundscapeIndicesConfig, SoundscapeIndicesResult
+from wildlife_soundscape.dashboard.data_access import DashboardDataAccess
+from wildlife_soundscape.dashboard.plots import build_soundscape_indices_timeline
+from wildlife_soundscape.storage.database import EventDatabase
 
 
 def test_dashboard_soundscape_indices_data_access(tmp_path: Path) -> None:

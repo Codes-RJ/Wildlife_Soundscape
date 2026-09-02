@@ -7,7 +7,7 @@ import sys
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
-import main as receiver_main
+import wildlife_soundscape.runtime.main as receiver_main
 import wildlife_soundscape
 from wildlife_soundscape import cli
 
@@ -20,7 +20,7 @@ def test_receiver_entry_point_delegates(monkeypatch) -> None:
     calls: list[str] = []
     monkeypatch.setitem(
         sys.modules,
-        "main",
+        "wildlife_soundscape.runtime.main",
         SimpleNamespace(main=lambda: calls.append("receiver")),
     )
 
@@ -33,7 +33,7 @@ def test_simulator_entry_point_delegates(monkeypatch) -> None:
     calls: list[str] = []
     monkeypatch.setitem(
         sys.modules,
-        "simulator",
+        "wildlife_soundscape.runtime.simulator",
         SimpleNamespace(main=lambda: calls.append("simulator")),
     )
 
@@ -45,12 +45,12 @@ def test_simulator_entry_point_delegates(monkeypatch) -> None:
 def test_export_entry_points_return_status(monkeypatch) -> None:
     monkeypatch.setitem(
         sys.modules,
-        "tools.export_events",
+        "wildlife_soundscape.tools.export_events",
         SimpleNamespace(main=lambda: 3),
     )
     monkeypatch.setitem(
         sys.modules,
-        "tools.export_research_metrics",
+        "wildlife_soundscape.tools.export_research_metrics",
         SimpleNamespace(main=lambda: 4),
     )
 
@@ -62,7 +62,7 @@ def test_benchmark_entry_point_delegates(monkeypatch) -> None:
     calls: list[str] = []
     monkeypatch.setitem(
         sys.modules,
-        "tools.benchmark_gcc_variants",
+        "wildlife_soundscape.tools.benchmark_gcc_variants",
         SimpleNamespace(main=lambda: calls.append("benchmark")),
     )
 

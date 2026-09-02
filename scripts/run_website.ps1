@@ -112,7 +112,7 @@ try {
     Write-Host '[3/3] Starting Streamlit dashboard...'
     $dashboardProcess = Start-WildlifeProcess `
         -FilePath $python `
-        -Arguments @('-m', 'streamlit', 'run', 'dashboard\app.py')
+        -Arguments @('-m', 'streamlit', 'run', 'src\wildlife_soundscape\dashboard\app.py')
     Wait-ForService -Process $dashboardProcess -Port 8501 -Name 'Dashboard'
 
     if ($Mode -eq 'demo') {

@@ -56,17 +56,17 @@ import pytest
 # ======================================================================
 
 
-from config import (
+from wildlife_soundscape.core.config import (
     AudioConfig,
     EventDetectionConfig,
 )
 
-from event_detector import (
+from wildlife_soundscape.pipeline.event_detector import (
     AcousticEvent,
     MultiNodeEventDetector,
 )
 
-from models import (
+from wildlife_soundscape.core.models import (
     AudioBlock,
 )
 

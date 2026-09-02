@@ -39,7 +39,7 @@ import pytest
 # ======================================================================
 
 
-from protocol import (
+from wildlife_soundscape.core.protocol import (
     CONTROL_SIZE,
     CONTROL_VERSION,
     ENVIRONMENT_STRUCT,

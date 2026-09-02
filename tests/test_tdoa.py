@@ -75,7 +75,7 @@ import pytest
 # ======================================================================
 
 
-from localization.tdoa import (
+from wildlife_soundscape.localization.tdoa import (
     TDOAMeasurement,
     physical_max_delay,
 )

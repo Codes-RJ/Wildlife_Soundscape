@@ -61,23 +61,23 @@ import pytest
 # ======================================================================
 
 
-from config import (
+from wildlife_soundscape.core.config import (
     AudioConfig,
 )
 
-from models import (
+from wildlife_soundscape.core.models import (
     AudioBlock,
 )
 
-from node import (
+from wildlife_soundscape.acquisition.node import (
     NodeState,
 )
 
-from protocol import (
+from wildlife_soundscape.core.protocol import (
     SyncPayload,
 )
 
-from stream_manager import (
+from wildlife_soundscape.acquisition.stream_manager import (
     StreamManager,
     WavRecorder,
 )

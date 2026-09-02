@@ -53,21 +53,21 @@ The repository contains 103 tracked source, firmware, documentation, and launch-
 
 | Path | Responsibility |
 |---|---|
-| `main.py`, `server.py` | Receiver CLI, asyncio TCP service, node/session control and packet dispatch |
-| `protocol.py`, `models.py`, `node.py` | Binary protocol, immutable transport models, per-node state and diagnostics |
-| `stream_manager.py` | Per-node sample buffers, aligned windows, environmental lookup, continuous WAV recording helper |
-| `event_detector.py`, `event_pipeline.py` | Multi-node acoustic event lifecycle and completed-event processing/persistence |
-| `config.py` | Typed, cross-validated application configuration and safe default values |
-| `database.py` | SQLite schema, migrations, writes, queries, analytics rows and soundscape-index persistence |
-| `dsp/` | PCM conversion, DC removal, filtering, normalisation, STFT/MFCC and feature extraction |
-| `localization/` | Band-pass conditioning, GCC-PHAT, TDOA validation and nonlinear location solving |
-| `calibration/` | Known-source TDOA observations, robust pair offsets, node-bias fitting and benchmarks |
-| `classification/` | Common classifier contract, heuristic backend, optional BirdNET backend/context and ensemble adapter |
-| `analytics/` | Activity, environmental, spatial, soundscape-index and conservative behaviour analysis |
-| `dashboard/` | Streamlit app, live/research pages, data access, Plotly figures and event-audio rendering |
+| `src/wildlife_soundscape/runtime/main.py`, `src/wildlife_soundscape/runtime/server.py` | Receiver CLI, asyncio TCP service, node/session control and packet dispatch |
+| `src/wildlife_soundscape/core/protocol.py`, `core/models.py`, `acquisition/node.py` | Binary protocol, immutable transport models, per-node state and diagnostics |
+| `src/wildlife_soundscape/acquisition/stream_manager.py` | Per-node sample buffers, aligned windows, environmental lookup, continuous WAV recording helper |
+| `src/wildlife_soundscape/pipeline/event_detector.py`, `pipeline/event_pipeline.py` | Multi-node acoustic event lifecycle and completed-event processing/persistence |
+| `src/wildlife_soundscape/core/config.py` | Typed, cross-validated application configuration and safe default values |
+| `src/wildlife_soundscape/storage/database.py` | SQLite schema, migrations, writes, queries, analytics rows and soundscape-index persistence |
+| `src/wildlife_soundscape/dsp/` | PCM conversion, DC removal, filtering, normalisation, STFT/MFCC and feature extraction |
+| `src/wildlife_soundscape/localization/` | Band-pass conditioning, GCC-PHAT, TDOA validation and nonlinear location solving |
+| `src/wildlife_soundscape/calibration/` | Known-source TDOA observations, robust pair offsets, node-bias fitting and benchmarks |
+| `src/wildlife_soundscape/classification/` | Common classifier contract, heuristic backend, optional BirdNET backend/context and ensemble adapter |
+| `src/wildlife_soundscape/analytics/` | Activity, environmental, spatial, soundscape-index and conservative behaviour analysis |
+| `src/wildlife_soundscape/dashboard/` | Streamlit app, live/research pages, data access, Plotly figures and event-audio rendering |
 | `firmware/` | Arduino/ESP32 firmware: `Node_1_Master`, `Node_2_Slave`, `Node_3_Slave` |
-| `simulator.py` | Protocol-compatible three-node synthetic acquisition simulator |
-| `tools/` | Event and research export, demo-session population, GCC variant benchmark |
+| `src/wildlife_soundscape/runtime/simulator.py` | Protocol-compatible three-node synthetic acquisition simulator |
+| `src/wildlife_soundscape/tools/` | Event and research export, demo-session population, GCC variant benchmark |
 | `scripts/` | Windows setup, validation and combined website/receiver/simulator/dashboard launchers |
 | `tests/` | Unit, integration, simulator, protocol, dashboard, DSP, localisation and persistence tests |
 | `docs/` | Protocol reference, release notes and repository roadmap |
@@ -171,7 +171,7 @@ There is no TLS, device authentication, signed firmware, encrypted transport, ro
 There are three distinct live-like modes, which should not be conflated:
 
 1. **Physical live acquisition:** flashed nodes connect to the local TCP receiver and stream real microphone/telemetry data. This is implemented in software but not hardware-validated by this audit.
-2. **Synthetic live demo:** `simulator.py` acts as three protocol-compatible nodes, giving the receiver/dashboard a changing stream without hardware.
+2. **Synthetic live demo:** `src/wildlife_soundscape/runtime/simulator.py` acts as three protocol-compatible nodes, giving the receiver/dashboard a changing stream without hardware.
 3. **Dashboard refresh:** Streamlit polls persisted local data on a default two-second refresh interval. It is not a direct browser audio stream and does not subscribe to a websocket.
 
 ## 7. Runtime pipeline
@@ -284,7 +284,7 @@ Packaged CLI tools include:
 - `wildlife-export-events` for event data;
 - `wildlife-export-research` for derived research metrics;
 - `wildlife-benchmark-gcc` for GCC variant evaluation;
-- `tools/populate_demo_session.py` for dashboard/demo data;
+- `src/wildlife_soundscape/tools/populate_demo_session.py` for dashboard/demo data;
 - calibration modules for known-source timing fits and localisation benchmarks.
 
 Raw event WAVs, detector event IDs, session/sample ranges, feature settings, classifier name/version, score/reason JSON, geometry and calibration configuration should travel together in any serious research export. The present code stores much of that provenance, but a formal experiment manifest and data-version registry are still recommended.
@@ -323,7 +323,7 @@ The behaviour subsystem derives status/score indicators only after minimum data 
 
 ## 10. Dashboard, visual design and interaction
 
-`dashboard/app.py` starts the local Streamlit application titled **Wildlife Soundscape Monitor**. Presentation configuration is local-only and defaults to automatic refresh every 2 seconds, 50 recent events, 100 listed sessions, 5,000 maximum plot points and 30-second audio previews.
+`src/wildlife_soundscape/dashboard/app.py` starts the local Streamlit application titled **Wildlife Soundscape Monitor**. Presentation configuration is local-only and defaults to automatic refresh every 2 seconds, 50 recent events, 100 listed sessions, 5,000 maximum plot points and 30-second audio previews.
 
 ### 10.1 Live Monitor
 
@@ -352,7 +352,7 @@ The user interface favours local research inspection over a polished public prod
 
 ### 11.1 Simulator model
 
-`simulator.py` implements three fake nodes that speak the same protocol and participate in the same session-control path as hardware. It has shared geometry, a synthetic source, distance-based delay/gain, a shared simulated sample timeline, master/slave arming and clock gates, HELLO/AUDIO/telemetry/SYNC/heartbeat packets, generated waveform events and commands. It gives the receiver, database, pipeline and dashboard changing test data without ESP32 devices.
+`src/wildlife_soundscape/runtime/simulator.py` implements three fake nodes that speak the same protocol and participate in the same session-control path as hardware. It has shared geometry, a synthetic source, distance-based delay/gain, a shared simulated sample timeline, master/slave arming and clock gates, HELLO/AUDIO/telemetry/SYNC/heartbeat packets, generated waveform events and commands. It gives the receiver, database, pipeline and dashboard changing test data without ESP32 devices.
 
 The simulator is valuable for software integration and repeatable localisation tests, but is not a substitute for field validation. It cannot reproduce microphone frequency response, wind/rain, wildlife call diversity, vegetation propagation, reverberation, RF packet loss patterns, sensor drift, animal movement/overlap, true temperature gradients, or labelling uncertainty.
 

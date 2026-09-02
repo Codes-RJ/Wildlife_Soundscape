@@ -53,16 +53,16 @@ import pytest
 # ======================================================================
 
 
-from models import (
+from wildlife_soundscape.core.models import (
     EnvironmentSample,
 )
 
-from node import (
+from wildlife_soundscape.acquisition.node import (
     NodeConnection,
     classify_sequence,
 )
 
-from protocol import (
+from wildlife_soundscape.core.protocol import (
     ControlCommand,
     EnvironmentPayload,
     PacketFlags,

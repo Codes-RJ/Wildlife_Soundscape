@@ -89,12 +89,12 @@ import pytest
 # ======================================================================
 
 
-from localization.solver import (
+from wildlife_soundscape.localization.solver import (
     PositionResult,
     solve_position,
 )
 
-from localization.tdoa import (
+from wildlife_soundscape.localization.tdoa import (
     TDOAMeasurement,
     physical_max_delay,
 )

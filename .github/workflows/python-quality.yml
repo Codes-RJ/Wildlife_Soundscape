@@ -29,17 +29,19 @@ jobs:
         run: python -m pip install -e ".[dev]"
 
       - name: Compile Python sources
-        run: >-
-          python -m compileall -q
-          src analytics calibration classification dashboard dsp localization tools
-          config.py database.py environment.py event_detector.py event_pipeline.py
-          main.py models.py node.py protocol.py server.py simulator.py stream_manager.py
+        run: python -m compileall -q src
 
-      - name: Build wheel
-        run: python -m build --wheel --no-isolation
+      - name: Build distributions
+        run: python -m build --wheel --sdist
 
       - name: Lint
-        run: python -m ruff check .
+        run: python -m ruff check src tests
 
-      - name: Test
-        run: python -m pytest -q
+      - name: Type check
+        run: python -m mypy src tests
+
+      - name: Test with coverage gate
+        run: python -m pytest -q --cov=wildlife_soundscape --cov-report=term-missing
+
+      - name: Audit dependencies
+        run: python -m pip_audit

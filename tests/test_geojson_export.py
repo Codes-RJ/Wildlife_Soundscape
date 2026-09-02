@@ -9,8 +9,8 @@ from pathlib import Path
 
 import pytest
 
-from database import EventDatabase
-from tools.export_events import (
+from wildlife_soundscape.storage.database import EventDatabase
+from wildlife_soundscape.tools.export_events import (
     EventExportOptions,
     ExportFormat,
     export_events,
@@ -146,7 +146,7 @@ def test_full_export_events_geojson(tmp_path: Path) -> None:
     db.start_session(session_id, "GeoJSON Test Session")
 
     # Add localized mock event
-    from localization.solver import PositionResult
+    from wildlife_soundscape.localization.solver import PositionResult
 
     class MockLocalization:
         position = PositionResult(
@@ -159,11 +159,11 @@ def test_full_export_events_geojson(tmp_path: Path) -> None:
             nfev=5,
             message="optimal",
         )
-        tdoa_measurements = []
-        node_positions = {}
+        tdoa_measurements: list[object] = []
+        node_positions: dict[int, tuple[float, float]] = {}
         speed_of_sound_mps = 343.0
 
-    from event_detector import AcousticEvent
+    from wildlife_soundscape.pipeline.event_detector import AcousticEvent
     event = AcousticEvent(
         event_id=1,
         session_id=session_id,

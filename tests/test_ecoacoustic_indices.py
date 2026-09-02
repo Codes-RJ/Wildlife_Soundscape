@@ -9,7 +9,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from analytics.indices import (
+from wildlife_soundscape.analytics.indices import (
     SoundscapeIndicesConfig,
     SoundscapeIndicesResult,
     calculate_aci,
@@ -18,9 +18,9 @@ from analytics.indices import (
     calculate_ndsi,
     calculate_soundscape_indices,
 )
-from analytics.soundscape_service import SoundscapeService
-from config import AnalyticsConfig
-from database import EventDatabase
+from wildlife_soundscape.analytics.soundscape_service import SoundscapeService
+from wildlife_soundscape.core.config import AnalyticsConfig
+from wildlife_soundscape.storage.database import EventDatabase
 
 
 # ======================================================================

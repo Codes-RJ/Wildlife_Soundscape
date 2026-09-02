@@ -51,7 +51,7 @@ import pytest
 # ======================================================================
 
 
-from dsp.features import (
+from wildlife_soundscape.dsp.features import (
     AcousticFeatures,
     FeatureConfig,
     calculate_crest_factor,
@@ -66,7 +66,7 @@ from dsp.features import (
     extract_acoustic_features,
 )
 
-from dsp.preprocessing import (
+from wildlife_soundscape.dsp.preprocessing import (
     PreprocessingConfig,
     preprocess_event_audio,
 )

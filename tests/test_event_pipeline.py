@@ -94,40 +94,40 @@ import pytest
 # ======================================================================
 
 
-import event_pipeline as event_pipeline_module
+import wildlife_soundscape.pipeline.event_pipeline as event_pipeline_module
 
 
-from classification.base import (
+from wildlife_soundscape.classification.base import (
     ClassificationInput,
     ClassifierBackend,
 )
 
-from classification.classifier import (
+from wildlife_soundscape.classification.classifier import (
     AcousticClass,
     ClassificationResult,
 )
 
-from config import (
+from wildlife_soundscape.core.config import (
     CONFIG,
 )
 
-from dsp.features import (
+from wildlife_soundscape.dsp.features import (
     AcousticFeatures,
 )
 
-from event_detector import (
+from wildlife_soundscape.pipeline.event_detector import (
     AcousticEvent,
 )
 
-from event_pipeline import (
+from wildlife_soundscape.pipeline.event_pipeline import (
     EventPipeline,
 )
 
-from protocol import (
+from wildlife_soundscape.core.protocol import (
     EnvironmentPayload,
 )
 
-from stream_manager import (
+from wildlife_soundscape.acquisition.stream_manager import (
     StreamManager,
 )
 
@@ -354,7 +354,7 @@ class FakeDetector:
             0
         )
 
-        self.process_calls = []
+        self.process_calls: list[object] = []
 
         self.events_to_return: list[
             AcousticEvent
@@ -408,7 +408,7 @@ class FakeLocalizer:
         self,
     ) -> None:
 
-        self.calls = []
+        self.calls: list[tuple[int, int]] = []
 
         self.result = (
             None
@@ -461,17 +461,17 @@ class FakeDatabase:
         self,
     ) -> None:
 
-        self.start_calls = []
+        self.start_calls: list[object] = []
 
-        self.stop_calls = []
+        self.stop_calls: list[object] = []
 
-        self.environment_calls = []
+        self.environment_calls: list[object] = []
 
-        self.event_calls = []
+        self.event_calls: list[object] = []
 
-        self.feature_calls = []
+        self.feature_calls: list[object] = []
 
-        self.classification_calls = []
+        self.classification_calls: list[object] = []
 
         self.start_error: (
             Exception
@@ -1586,7 +1586,7 @@ class WindowStream:
             samples_by_node
         )
 
-        self.window_calls = []
+        self.window_calls: list[object] = []
 
     def get_window(
         self,
@@ -2381,7 +2381,7 @@ class EnvironmentStream:
             environment
         )
 
-        self.environment_queries = []
+        self.environment_queries: list[int] = []
 
     def get_environment_near(
         self,

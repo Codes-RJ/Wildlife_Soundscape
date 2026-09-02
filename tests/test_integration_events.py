@@ -122,15 +122,15 @@ if (
 # ======================================================================
 
 
-from config import (
+from wildlife_soundscape.core.config import (
     CONFIG,
 )
 
-from server import (
+from wildlife_soundscape.runtime.server import (
     ReceiverServer,
 )
 
-from simulator import (
+from wildlife_soundscape.runtime.simulator import (
     FakeNode,
     SharedSimulation,
 )
@@ -675,8 +675,10 @@ def validate_session_closed(
         database_path.exists()
     )
 
-    with sqlite3.connect(
-        database_path
+    with contextlib.closing(
+        sqlite3.connect(
+            database_path
+        )
     ) as connection:
 
         row = connection.execute(

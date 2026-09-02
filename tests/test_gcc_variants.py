@@ -11,9 +11,9 @@ from dataclasses import replace
 import numpy as np
 import pytest
 
-from config import CONFIG
-from localization.gcc_phat import gcc_phat
-from tools.benchmark_gcc_variants import run_benchmark
+from wildlife_soundscape.core.config import CONFIG
+from wildlife_soundscape.localization.gcc_phat import gcc_phat
+from wildlife_soundscape.tools.benchmark_gcc_variants import run_benchmark
 
 
 def test_localization_config_validates_gcc_research_options() -> None:
@@ -40,7 +40,7 @@ def test_localization_config_validates_gcc_research_options() -> None:
     with pytest.raises(TypeError):
         replace(
             CONFIG.localization,
-            gcc_frequency_band_hz=[1000.0, 8000.0],  # type: ignore[arg-type]
+            gcc_frequency_band_hz=[1000.0, 8000.0],
         ).validate(
             sample_rate=CONFIG.audio.sample_rate,
             expected_nodes=CONFIG.expected_nodes,

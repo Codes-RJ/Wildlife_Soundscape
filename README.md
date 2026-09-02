@@ -868,14 +868,14 @@ Event Pipeline
 Major modules include:
 
 ```text
-protocol.py
-node.py
-server.py
-stream_manager.py
-event_detector.py
-event_pipeline.py
-environment.py
-database.py
+src/wildlife_soundscape/core/protocol.py
+src/wildlife_soundscape/acquisition/node.py
+src/wildlife_soundscape/runtime/server.py
+src/wildlife_soundscape/acquisition/stream_manager.py
+src/wildlife_soundscape/pipeline/event_detector.py
+src/wildlife_soundscape/pipeline/event_pipeline.py
+src/wildlife_soundscape/core/environment.py
+src/wildlife_soundscape/storage/database.py
 ```
 
 ---
@@ -1845,7 +1845,7 @@ Two export tools are planned/implemented for different purposes.
 ## Event exporter
 
 ```text
-tools/export_events.py
+src/wildlife_soundscape/tools/export_events.py
 ```
 
 Exports individual acoustic observations.
@@ -1861,13 +1861,13 @@ JSONL
 Example:
 
 ```powershell
-python -m tools.export_events --format csv
+python -m wildlife_soundscape.tools.export_events --format csv
 ```
 
 Session-specific export:
 
 ```powershell
-python -m tools.export_events --session-id 12345 --format json
+python -m wildlife_soundscape.tools.export_events --session-id 12345 --format json
 ```
 
 Conceptual exported fields include:
@@ -1889,7 +1889,7 @@ Conceptual exported fields include:
 ## Research-metrics exporter
 
 ```text
-tools/export_research_metrics.py
+src/wildlife_soundscape/tools/export_research_metrics.py
 ```
 
 Exports higher-level analytics.
@@ -1897,7 +1897,7 @@ Exports higher-level analytics.
 Example:
 
 ```powershell
-python -m tools.export_research_metrics --session-id 12345
+python -m wildlife_soundscape.tools.export_research_metrics --session-id 12345
 ```
 
 Conceptual output:
@@ -1921,112 +1921,43 @@ Exact table names depend on the final analytics-report structure.
 
 # 44. Repository Structure
 
-Representative architecture:
+All Python implementation code now has one canonical namespace:
+`src/wildlife_soundscape/`. The package map and old-to-new import trace are
+maintained in `docs/package-layout.md`.
 
 ```text
 Wildlife_Soundscape/
-│
+├── src/wildlife_soundscape/
+│   ├── core/           config, protocol, domain models, environment maths
+│   ├── acquisition/    node state and audio buffering
+│   ├── pipeline/       event detection and processing
+│   ├── storage/        SQLite persistence
+│   ├── runtime/        receiver, CLI and simulator
+│   ├── analytics/      research analytics and soundscape indices
+│   ├── calibration/    TDOA calibration and benchmarks
+│   ├── classification/ heuristic, BirdNET and ensemble backends
+│   ├── dashboard/      Streamlit UI, plots and event-audio inspection
+│   ├── dsp/            preprocessing and features
+│   ├── localization/   GCC-PHAT, TDOA and solver
+│   ├── tools/          exports, demo population and benchmarking
+│   ├── cli.py
+│   └── __main__.py
 ├── firmware/
-│   ├── Node_1_Master/Node_1_Master.ino
-│   ├── Node_2_Slave/Node_2_Slave.ino
-│   ├── Node_3_Slave/Node_3_Slave.ino
-│   └── README.md
-│
-├── config.py
-├── database.py
-├── environment.py
-├── event_detector.py
-├── event_pipeline.py
-├── main.py
-├── models.py
-├── node.py
-├── protocol.py
-├── server.py
-├── simulator.py
-├── stream_manager.py
-│
-├── src/
-│   └── wildlife_soundscape/
-│       ├── __init__.py
-│       ├── __main__.py
-│       └── cli.py
-│
-├── analytics/
-│   ├── __init__.py
-│   ├── models.py
-│   ├── activity.py
-│   ├── environmental.py
-│   ├── spatial.py
-│   ├── behavior.py
-│   └── service.py
-│
-├── calibration/
-│   ├── __init__.py
-│   ├── tdoa_calibration.py
-│   └── localization_benchmark.py
-│
-├── classification/
-│   ├── __init__.py
-│   ├── base.py
-│   ├── classifier.py
-│   ├── factory.py
-│   ├── heuristic_backend.py
-│   ├── birdnet_backend.py
-│   └── ensemble_backend.py
-│
-├── dashboard/
-│   ├── __init__.py
-│   ├── app.py
-│   ├── data_access.py
-│   ├── plots.py
-│   ├── audio_view.py
-│   ├── live_view.py
-│   └── analysis_view.py
-│
-├── dsp/
-│   ├── __init__.py
-│   ├── preprocessing.py
-│   └── features.py
-│
-├── localization/
-│   ├── __init__.py
-│   ├── filtering.py
-│   ├── gcc_phat.py
-│   ├── tdoa.py
-│   ├── solver.py
-│   └── engine.py
-│
-├── tools/
-│   ├── export_events.py
-│   └── export_research_metrics.py
-│
+├── scripts/
 ├── tests/
-│   └── unit/integration test modules
-│
 ├── data/
-│   ├── database/
-│   ├── events/
-│   ├── recordings/
-│   ├── exports/
-│   └── calibration/
-│
 ├── docs/
-│   ├── README.md
-│   ├── protocol.md
-│   ├── release-notes.md
-│   └── roadmap.md
-├── DEVELOPMENT.md
-├── requirements.txt
-├── README.md
-└── .gitignore
+├── REPORT.md
+├── pyproject.toml
+└── README.md
 ```
 
-The Python application currently retains root-level compatibility modules.
-The planned installable `src/wildlife_soundscape` migration is tracked in
-`docs/roadmap.md` and will be performed separately from functional changes.
+Run the receiver with `python -m wildlife_soundscape` or
+`wildlife-receiver`. The other installed command entry points are
+`wildlife-simulator`, `wildlife-export-events`,
+`wildlife-export-research`, and `wildlife-benchmark-gcc`.
 
 ---
-
 # 45. Software Requirements
 
 Current core Python dependencies include:
@@ -2262,8 +2193,9 @@ Terminal 2:
 wildlife-simulator
 ```
 
-The legacy `python main.py` and `python simulator.py` commands remain supported
-during the package migration.
+Use `python -m wildlife_soundscape` for the receiver and
+`wildlife-simulator` for the simulator. Root-level Python entry files are no
+longer part of the package layout.
 
 Available CLI operations may include:
 
@@ -2380,7 +2312,7 @@ Progressive integration makes faults substantially easier to isolate.
 From the repository root:
 
 ```powershell
-streamlit run dashboard/app.py
+streamlit run src/wildlife_soundscape/dashboard/app.py
 ```
 
 The dashboard should be treated as a local research interface.

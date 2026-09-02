@@ -9,11 +9,11 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from classification.base import ClassificationInput
-from classification.birdnet_backend import (
+from wildlife_soundscape.classification.base import ClassificationInput
+from wildlife_soundscape.classification.birdnet_backend import (
     BirdNETClassifierBackend,
 )
-from classification.birdnet_context import (
+from wildlife_soundscape.classification.birdnet_context import (
     BirdNETGeoContext,
     BirdNETTaxonomy,
     TAXON_GROUP_AMPHIBIA,
@@ -24,7 +24,7 @@ from classification.birdnet_context import (
     TAXON_GROUP_UNKNOWN,
     TAXON_TO_ACOUSTIC_CLASS,
 )
-from classification.classifier import AcousticClass, ClassificationResult
+from wildlife_soundscape.classification.classifier import AcousticClass, ClassificationResult
 
 
 # ======================================================================

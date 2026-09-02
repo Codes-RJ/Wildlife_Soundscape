@@ -58,21 +58,21 @@ import pytest
 # ======================================================================
 
 
-from classification.base import (
+from wildlife_soundscape.classification.base import (
     ClassificationInput,
 )
 
-from classification.classifier import (
+from wildlife_soundscape.classification.classifier import (
     AcousticClass,
     ClassificationResult,
     HeuristicClassifier,
 )
 
-from classification.heuristic_backend import (
+from wildlife_soundscape.classification.heuristic_backend import (
     HeuristicClassifierBackend,
 )
 
-from dsp.features import (
+from wildlife_soundscape.dsp.features import (
     AcousticFeatures,
 )
 

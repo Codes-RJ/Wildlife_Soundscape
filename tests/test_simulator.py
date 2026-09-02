@@ -71,11 +71,11 @@ import pytest
 # ======================================================================
 
 
-from environment import (
+from wildlife_soundscape.core.environment import (
     calculate_speed_of_sound_mps,
 )
 
-from protocol import (
+from wildlife_soundscape.core.protocol import (
     HEADER_SIZE,
     PacketFlags,
     PacketType,
@@ -86,7 +86,7 @@ from protocol import (
     verify_payload_crc,
 )
 
-from simulator import (
+from wildlife_soundscape.runtime.simulator import (
     EVENT_FIRST_SAMPLE,
     FRAMES_PER_BLOCK,
     SAMPLE_RATE,

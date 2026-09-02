@@ -78,7 +78,7 @@ import pytest
 # ======================================================================
 
 
-from localization.gcc_phat import (
+from wildlife_soundscape.localization.gcc_phat import (
     GCCPHATResult,
     gcc_phat,
 )
