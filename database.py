@@ -368,6 +368,37 @@ class EventDatabase:
         )
 
     # ==================================================================
+    # BEST-EFFORT FINITE FLOAT
+    # ==================================================================
+
+    @staticmethod
+    def _finite_float_or_none(
+        value: Any,
+    ) -> float | None:
+        """Return a finite float, or None for an unavailable estimate."""
+
+        try:
+
+            result = float(
+                value
+            )
+
+        except (
+            TypeError,
+            ValueError,
+        ):
+
+            return None
+
+        if not math.isfinite(
+            result
+        ):
+
+            return None
+
+        return result
+
+    # ==================================================================
     # OPTIONAL FINITE NON-NEGATIVE FLOAT
     # ==================================================================
 
@@ -2232,35 +2263,45 @@ class EventDatabase:
                 localization.position
             )
 
-            x_m = (
-                self._finite_float(
-                    position.x,
-                    name=
-                        "localization x_m",
-                )
-            )
-
-            y_m = (
-                self._finite_float(
-                    position.y,
-                    name=
-                        "localization y_m",
-                )
-            )
-
             localization_success = int(
                 bool(
                     position.success
                 )
             )
 
-            localization_residual = (
-                self._finite_float(
+            if localization_success:
+
+                x_m = self._finite_float(
+                    position.x,
+                    name=
+                        "localization x_m",
+                )
+                y_m = self._finite_float(
+                    position.y,
+                    name=
+                        "localization y_m",
+                )
+                localization_residual = self._finite_float(
                     position.residual_rms_meters,
                     name=
                         "localization_residual_m",
                 )
-            )
+
+            else:
+
+                # A failed solver may intentionally expose NaN coordinates
+                # and residuals. Preserve the failed-attempt flag while
+                # storing unavailable numeric estimates as SQL NULL so the
+                # core acoustic event is not lost.
+                x_m = self._finite_float_or_none(
+                    position.x
+                )
+                y_m = self._finite_float_or_none(
+                    position.y
+                )
+                localization_residual = self._finite_float_or_none(
+                    position.residual_rms_meters
+                )
 
         # ==============================================================
         # EVENT DIRECTORY

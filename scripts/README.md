@@ -36,6 +36,8 @@ or press `Ctrl+C` in it to stop that service.
 - `run_simulator.bat` starts only the simulator and forwards additional command
   arguments.
 - `run_dashboard.bat` starts only the Streamlit dashboard.
-- `run_website.bat live` is the underlying live-mode orchestrator.
-- `run_website.bat demo` is the underlying demo-mode orchestrator.
+- `run_website.bat live` is the health-checked live-mode orchestrator.
+- `run_website.bat demo` is the health-checked demo-mode orchestrator.
+- `run_website.ps1` contains the process orchestration and startup health
+  checks used by the two one-click batch files.
 - `validate_windows.bat` runs compilation, Ruff, and the complete test suite.

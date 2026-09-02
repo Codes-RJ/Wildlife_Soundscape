@@ -3,6 +3,7 @@
 for %%I in ("%~dp0..") do set "WILDLIFE_PROJECT_ROOT=%%~fI"
 set "WILDLIFE_VENV=%WILDLIFE_PROJECT_ROOT%\.venv"
 set "WILDLIFE_PYTHON=%WILDLIFE_VENV%\Scripts\python.exe"
+if not defined NUMBA_CACHE_DIR set "NUMBA_CACHE_DIR=%TEMP%\wildlife-soundscape-numba-cache"
 
 if not exist "%WILDLIFE_PYTHON%" (
     echo Missing Python environment: "%WILDLIFE_VENV%"

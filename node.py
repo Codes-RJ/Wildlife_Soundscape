@@ -1543,16 +1543,22 @@ class NodeConnection:
 
         try:
 
-            await self.writer.wait_closed()
+            await asyncio.wait_for(
+                self.writer.wait_closed(),
+                timeout=2.0,
+            )
 
         except asyncio.CancelledError:
 
             raise
 
         except (
+            asyncio.TimeoutError,
             ConnectionError,
             OSError,
         ):
 
-            # The ESP32 may already have reset/closed the TCP socket.
+            # Windows transports and disconnected ESP32 sockets may not
+            # complete wait_closed() promptly. The close request has already
+            # been issued, so shutdown must not block indefinitely here.
             pass

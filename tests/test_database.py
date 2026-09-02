@@ -352,6 +352,41 @@ def make_localization(
     )
 
 
+def test_failed_nonfinite_localization_does_not_discard_event(
+    tmp_path,
+) -> None:
+    database = make_database(
+        tmp_path
+    )
+    database.start_session(
+        SESSION_ID,
+        "failed-localization",
+    )
+
+    event_id = database.add_event(
+        make_event(),
+        environment=None,
+        localization=make_localization(
+            x=float("nan"),
+            y=float("nan"),
+            success=False,
+            residual_m=float("nan"),
+        ),
+        event_directory=None,
+    )
+
+    row = query_one(
+        database,
+        "SELECT * FROM events WHERE id = ?",
+        (event_id,),
+    )
+
+    assert row["localization_success"] == 0
+    assert row["x_m"] is None
+    assert row["y_m"] is None
+    assert row["localization_residual_m"] is None
+
+
 def query_one(
     database: EventDatabase,
     sql: str,

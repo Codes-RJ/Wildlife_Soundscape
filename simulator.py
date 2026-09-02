@@ -1365,9 +1365,20 @@ class FakeNode:
 
         try:
 
-            await asyncio.gather(
-                *tasks
+            done, _pending = await asyncio.wait(
+                tasks,
+                return_when=asyncio.FIRST_COMPLETED,
             )
+
+            for task in done:
+
+                with contextlib.suppress(
+                    asyncio.IncompleteReadError,
+                    ConnectionError,
+                    OSError,
+                ):
+
+                    task.result()
 
         finally:
 
@@ -1389,7 +1400,10 @@ class FakeNode:
                 OSError,
             ):
 
-                await writer.wait_closed()
+                await asyncio.wait_for(
+                    writer.wait_closed(),
+                    timeout=2.0,
+                )
 
             print(
                 (
