@@ -15,9 +15,7 @@ from scipy.signal import (
 # ======================================================================
 
 
-MIN_FILTER_SIGNAL_SAMPLES = (
-    32
-)
+MIN_FILTER_SIGNAL_SAMPLES = 32
 
 
 # ======================================================================
@@ -43,40 +41,16 @@ def _validate_audio(
         dtype=np.float64,
     )
 
-    if (
-        x.ndim
-        != 1
-    ):
-
+    if x.ndim != 1:
         raise ValueError(
-            (
-                "Localization filtering expects "
-                "mono 1-D audio, "
-                f"got shape {x.shape}."
-            )
+            (f"Localization filtering expects mono 1-D audio, got shape {x.shape}.")
         )
 
-    if (
-        x.size
-        == 0
-    ):
+    if x.size == 0:
+        raise ValueError("Localization audio cannot be empty.")
 
-        raise ValueError(
-            "Localization audio cannot be empty."
-        )
-
-    if not np.all(
-        np.isfinite(
-            x
-        )
-    ):
-
-        raise ValueError(
-            (
-                "Localization audio contains "
-                "NaN or infinite samples."
-            )
-        )
+    if not np.all(np.isfinite(x)):
+        raise ValueError(("Localization audio contains NaN or infinite samples."))
 
     return np.ascontiguousarray(
         x,
@@ -137,17 +111,9 @@ def bandpass_filter(
     # AUDIO
     # ==================================================================
 
-    x = (
-        _validate_audio(
-            samples
-        )
-    )
+    x = _validate_audio(samples)
 
-    if (
-        x.size
-        == 0
-    ):
-
+    if x.size == 0:
         return x
 
     # ==================================================================
@@ -155,92 +121,38 @@ def bandpass_filter(
     # ==================================================================
 
     try:
-
-        sample_rate = float(
-            sample_rate
-        )
+        sample_rate = float(sample_rate)
 
     except (
         TypeError,
         ValueError,
     ) as exc:
+        raise TypeError(("sample_rate must be a finite numeric value.")) from exc
 
-        raise TypeError(
-            (
-                "sample_rate must be "
-                "a finite numeric value."
-            )
-        ) from exc
-
-    if (
-        not math.isfinite(
-            sample_rate
-        )
-        or sample_rate
-        <= 0.0
-    ):
-
-        raise ValueError(
-            (
-                "sample_rate must be "
-                "finite and greater than 0."
-            )
-        )
+    if not math.isfinite(sample_rate) or sample_rate <= 0.0:
+        raise ValueError(("sample_rate must be finite and greater than 0."))
 
     # ==================================================================
     # CUTOFF FREQUENCIES
     # ==================================================================
 
     try:
+        low_hz = float(low_hz)
 
-        low_hz = float(
-            low_hz
-        )
-
-        high_hz = float(
-            high_hz
-        )
+        high_hz = float(high_hz)
 
     except (
         TypeError,
         ValueError,
     ) as exc:
+        raise TypeError(("Band-pass cutoff frequencies must be numeric.")) from exc
 
-        raise TypeError(
-            (
-                "Band-pass cutoff frequencies "
-                "must be numeric."
-            )
-        ) from exc
+    if not math.isfinite(low_hz) or not math.isfinite(high_hz):
+        raise ValueError(("Band-pass cutoff frequencies must be finite."))
 
-    if (
-        not math.isfinite(
-            low_hz
-        )
-        or not math.isfinite(
-            high_hz
-        )
-    ):
+    nyquist = sample_rate / 2.0
 
-        raise ValueError(
-            (
-                "Band-pass cutoff frequencies "
-                "must be finite."
-            )
-        )
-
-    nyquist = (
-        sample_rate
-        / 2.0
-    )
-
-    if not (
-        0.0
-        < low_hz
-        < high_hz
-        < nyquist
-    ):
-
+    if not (0.0 < low_hz < high_hz < nyquist):
         raise ValueError(
             (
                 "Band-pass frequencies must satisfy "
@@ -255,35 +167,17 @@ def bandpass_filter(
     # FILTER ORDER
     # ==================================================================
 
-    if (
-        isinstance(
-            order,
-            bool,
-        )
-        or not isinstance(
-            order,
-            int,
-        )
+    if isinstance(
+        order,
+        bool,
+    ) or not isinstance(
+        order,
+        int,
     ):
+        raise TypeError(("order must be an integer."))
 
-        raise TypeError(
-            (
-                "order must be "
-                "an integer."
-            )
-        )
-
-    if (
-        order
-        <= 0
-    ):
-
-        raise ValueError(
-            (
-                "order must be "
-                "greater than 0."
-            )
-        )
+    if order <= 0:
+        raise ValueError(("order must be greater than 0."))
 
     # ==================================================================
     # SHORT WINDOW
@@ -298,40 +192,25 @@ def bandpass_filter(
 
     minimum_samples = max(
         MIN_FILTER_SIGNAL_SAMPLES,
-        order
-        * 12,
+        order * 12,
     )
 
-    if (
-        x.size
-        < minimum_samples
-    ):
-
+    if x.size < minimum_samples:
         return x.copy()
 
     # ==================================================================
     # FILTER DESIGN
     # ==================================================================
 
-    sos = (
-        butter(
-            N=
-                order,
-
-            Wn=[
-                low_hz,
-                high_hz,
-            ],
-
-            btype=
-                "bandpass",
-
-            fs=
-                sample_rate,
-
-            output=
-                "sos",
-        )
+    sos = butter(
+        N=order,
+        Wn=[
+            low_hz,
+            high_hz,
+        ],
+        btype="bandpass",
+        fs=sample_rate,
+        output="sos",
     )
 
     # ==================================================================
@@ -339,21 +218,14 @@ def bandpass_filter(
     # ==================================================================
 
     try:
-
-        filtered = (
-            sosfiltfilt(
-                sos,
-                x,
-            )
+        filtered = sosfiltfilt(
+            sos,
+            x,
         )
 
     except ValueError as exc:
-
         raise ValueError(
-            (
-                "Localization band-pass filtering "
-                "failed for the supplied waveform."
-            )
+            ("Localization band-pass filtering failed for the supplied waveform.")
         ) from exc
 
     # ==================================================================
@@ -365,18 +237,8 @@ def bandpass_filter(
         dtype=np.float64,
     )
 
-    if not np.all(
-        np.isfinite(
-            filtered
-        )
-    ):
-
-        raise ValueError(
-            (
-                "Localization filtering produced "
-                "non-finite samples."
-            )
-        )
+    if not np.all(np.isfinite(filtered)):
+        raise ValueError(("Localization filtering produced non-finite samples."))
 
     return np.ascontiguousarray(
         filtered,

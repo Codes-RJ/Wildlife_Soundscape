@@ -95,7 +95,6 @@ belong in:
 This separation keeps live refresh inexpensive.
 """
 
-
 from __future__ import annotations
 
 
@@ -139,15 +138,17 @@ from wildlife_soundscape.dashboard.plots import (
     build_recent_event_timeline,
 )
 
+from wildlife_soundscape.dashboard.theme import (
+    render_student_explainer,
+)
+
 
 # ======================================================================
 # CONSTANTS
 # ======================================================================
 
 
-UNAVAILABLE_TEXT = (
-    "—"
-)
+UNAVAILABLE_TEXT = "—"
 
 
 LIVE_EVENT_TABLE_COLUMNS = (
@@ -176,41 +177,22 @@ def _finite_float_or_none(
     Convert optional input into a finite float.
     """
 
-    if (
-        value
-        is None
-    ):
-
-        return (
-            None
-        )
+    if value is None:
+        return None
 
     try:
-
-        result = float(
-            value
-        )
+        result = float(value)
 
     except (
         TypeError,
         ValueError,
     ):
+        return None
 
-        return (
-            None
-        )
+    if not math.isfinite(result):
+        return None
 
-    if not math.isfinite(
-        result
-    ):
-
-        return (
-            None
-        )
-
-    return (
-        result
-    )
+    return result
 
 
 # ======================================================================
@@ -225,40 +207,23 @@ def _int_or_none(
     Convert optional value to integer.
     """
 
-    if (
-        value
-        is None
-    ):
-
-        return (
-            None
-        )
+    if value is None:
+        return None
 
     if isinstance(
         value,
         bool,
     ):
-
-        return (
-            int(
-                value
-            )
-        )
+        return int(value)
 
     try:
-
-        return int(
-            value
-        )
+        return int(value)
 
     except (
         TypeError,
         ValueError,
     ):
-
-        return (
-            None
-        )
+        return None
 
 
 # ======================================================================
@@ -275,30 +240,15 @@ def _display_text(
     Convert optional value to concise dashboard text.
     """
 
-    if (
-        value
-        is None
-    ):
+    if value is None:
+        return fallback
 
-        return (
-            fallback
-        )
+    text = str(value).strip()
 
-    text = str(
-        value
-    ).strip()
+    if not (text):
+        return fallback
 
-    if not (
-        text
-    ):
-
-        return (
-            fallback
-        )
-
-    return (
-        text
-    )
+    return text
 
 
 # ======================================================================
@@ -316,25 +266,12 @@ def _display_float(
     Format an optional finite numeric value.
     """
 
-    value = (
-        _finite_float_or_none(
-            value
-        )
-    )
+    value = _finite_float_or_none(value)
 
-    if (
-        value
-        is None
-    ):
+    if value is None:
+        return UNAVAILABLE_TEXT
 
-        return (
-            UNAVAILABLE_TEXT
-        )
-
-    return (
-        f"{value:.{decimals}f}"
-        f"{suffix}"
-    )
+    return f"{value:.{decimals}f}{suffix}"
 
 
 # ======================================================================
@@ -349,24 +286,12 @@ def _display_confidence(
     Format normalized confidence as percentage.
     """
 
-    value = (
-        _finite_float_or_none(
-            value
-        )
-    )
+    value = _finite_float_or_none(value)
 
-    if (
-        value
-        is None
-    ):
+    if value is None:
+        return UNAVAILABLE_TEXT
 
-        return (
-            UNAVAILABLE_TEXT
-        )
-
-    return (
-        f"{value * 100.0:.1f}%"
-    )
+    return f"{value * 100.0:.1f}%"
 
 
 # ======================================================================
@@ -381,34 +306,15 @@ def _display_session_id(
     Format Protocol-v4 session ID as hexadecimal.
     """
 
-    session_id = (
-        _int_or_none(
-            value
-        )
-    )
+    session_id = _int_or_none(value)
 
-    if (
-        session_id
-        is None
-    ):
+    if session_id is None:
+        return UNAVAILABLE_TEXT
 
-        return (
-            UNAVAILABLE_TEXT
-        )
+    if not (0 <= session_id <= 0xFFFFFFFF):
+        return str(session_id)
 
-    if not (
-        0
-        <= session_id
-        <= 0xFFFFFFFF
-    ):
-
-        return str(
-            session_id
-        )
-
-    return (
-        f"0x{session_id:08X}"
-    )
+    return f"0x{session_id:08X}"
 
 
 # ======================================================================
@@ -437,29 +343,13 @@ def _session_state(
     This does not prove that ESP32 nodes are currently connected.
     """
 
-    if (
-        session
-        is None
-    ):
+    if session is None:
+        return "No Session"
 
-        return (
-            "No Session"
-        )
+    if session.get("stopped_at") is None:
+        return "Active"
 
-    if (
-        session.get(
-            "stopped_at"
-        )
-        is None
-    ):
-
-        return (
-            "Active"
-        )
-
-    return (
-        "Stopped"
-    )
+    return "Stopped"
 
 
 # ======================================================================
@@ -486,64 +376,27 @@ def _localization_succeeded(
     solver result may still contain a candidate position.
     """
 
-    success_value = (
-        event.get(
-            "localization_success"
-        )
-    )
+    success_value = event.get("localization_success")
 
     if isinstance(
         success_value,
         bool,
     ):
-
-        success = (
-            success_value
-        )
+        success = success_value
 
     else:
+        success_integer = _int_or_none(success_value)
 
-        success_integer = (
-            _int_or_none(
-                success_value
-            )
-        )
+        success = success_integer == 1
 
-        success = (
-            success_integer
-            == 1
-        )
+    if not (success):
+        return False
 
-    if not (
-        success
-    ):
+    x_m = _finite_float_or_none(event.get("x_m"))
 
-        return (
-            False
-        )
+    y_m = _finite_float_or_none(event.get("y_m"))
 
-    x_m = (
-        _finite_float_or_none(
-            event.get(
-                "x_m"
-            )
-        )
-    )
-
-    y_m = (
-        _finite_float_or_none(
-            event.get(
-                "y_m"
-            )
-        )
-    )
-
-    return (
-        x_m
-        is not None
-        and y_m
-        is not None
-    )
+    return x_m is not None and y_m is not None
 
 
 # ======================================================================
@@ -568,16 +421,7 @@ def _accepted_localization_events(
     Return only events containing accepted localization solutions.
     """
 
-    return [
-        event
-
-        for event
-        in events
-
-        if _localization_succeeded(
-            event
-        )
-    ]
+    return [event for event in events if _localization_succeeded(event)]
 
 
 # ======================================================================
@@ -605,40 +449,18 @@ def _recent_localization_coverage(
     the recent-event list happens to include the entire dataset.
     """
 
-    total = (
-        len(
-            events
-        )
-    )
+    total = len(events)
 
-    if (
-        total
-        == 0
-    ):
-
+    if total == 0:
         return (
             0,
             0,
             0.0,
         )
 
-    localized = (
-        sum(
-            1
+    localized = sum(1 for event in events if _localization_succeeded(event))
 
-            for event
-            in events
-
-            if _localization_succeeded(
-                event
-            )
-        )
-    )
-
-    coverage = (
-        localized
-        / total
-    )
+    coverage = localized / total
 
     return (
         localized,
@@ -676,34 +498,18 @@ def _event_table_rows(
         ]
     ] = []
 
-    for event in (
-        events
-    ):
-
+    for event in events:
         row: dict[
             str,
             Any,
         ] = {}
 
-        for column in (
-            LIVE_EVENT_TABLE_COLUMNS
-        ):
+        for column in LIVE_EVENT_TABLE_COLUMNS:
+            row[column] = event.get(column)
 
-            row[
-                column
-            ] = (
-                event.get(
-                    column
-                )
-            )
+        result.append(row)
 
-        result.append(
-            row
-        )
-
-    return (
-        result
-    )
+    return result
 
 
 # ======================================================================
@@ -721,75 +527,42 @@ def _render_latest_event_metrics(
     Render detailed scalar information for the latest persisted event.
     """
 
-    st.markdown(
-        "#### Latest Event"
-    )
+    st.markdown("#### Latest Event")
 
     # ==================================================================
     # CLASSIFICATION
     # ==================================================================
 
-    classification_columns = (
-        st.columns(
-            4
-        )
-    )
+    classification_columns = st.columns(4)
 
-    with classification_columns[
-        0
-    ]:
-
+    with classification_columns[0]:
         st.metric(
             "Event ID",
-            _display_text(
-                event.get(
-                    "id"
-                )
-            ),
+            _display_text(event.get("id")),
         )
 
-    with classification_columns[
-        1
-    ]:
-
+    with classification_columns[1]:
         st.metric(
             "Class",
             _display_text(
-                event.get(
-                    "classification_label"
-                ),
-                fallback=
-                    "Unclassified",
+                event.get("classification_label"),
+                fallback="Unclassified",
             ),
         )
 
-    with classification_columns[
-        2
-    ]:
-
+    with classification_columns[2]:
         st.metric(
             "Confidence",
-            _display_confidence(
-                event.get(
-                    "classification_confidence"
-                )
-            ),
+            _display_confidence(event.get("classification_confidence")),
         )
 
-    with classification_columns[
-        3
-    ]:
-
+    with classification_columns[3]:
         st.metric(
             "Peak RMS",
             _display_float(
-                event.get(
-                    "peak_rms_dbfs"
-                ),
-                decimals=
-                    1,
-                suffix=
-                    " dBFS",
+                event.get("peak_rms_dbfs"),
+                decimals=1,
+                suffix=" dBFS",
             ),
         )
 
@@ -797,98 +570,54 @@ def _render_latest_event_metrics(
     # LOCALIZATION
     # ==================================================================
 
-    localization_columns = (
-        st.columns(
-            4
-        )
-    )
+    localization_columns = st.columns(4)
 
-    localization_valid = (
-        _localization_succeeded(
-            event
-        )
-    )
+    localization_valid = _localization_succeeded(event)
 
-    with localization_columns[
-        0
-    ]:
-
+    with localization_columns[0]:
         st.metric(
             "Localization",
-            (
-                "Accepted"
-
-                if localization_valid
-
-                else "Unavailable / Rejected"
-            ),
+            ("Accepted" if localization_valid else "Unavailable / Rejected"),
         )
 
-    with localization_columns[
-        1
-    ]:
-
+    with localization_columns[1]:
         st.metric(
             "X Position",
             (
                 _display_float(
-                    event.get(
-                        "x_m"
-                    ),
-                    decimals=
-                        3,
-                    suffix=
-                        " m",
+                    event.get("x_m"),
+                    decimals=3,
+                    suffix=" m",
                 )
-
                 if localization_valid
-
                 else UNAVAILABLE_TEXT
             ),
         )
 
-    with localization_columns[
-        2
-    ]:
-
+    with localization_columns[2]:
         st.metric(
             "Y Position",
             (
                 _display_float(
-                    event.get(
-                        "y_m"
-                    ),
-                    decimals=
-                        3,
-                    suffix=
-                        " m",
+                    event.get("y_m"),
+                    decimals=3,
+                    suffix=" m",
                 )
-
                 if localization_valid
-
                 else UNAVAILABLE_TEXT
             ),
         )
 
-    with localization_columns[
-        3
-    ]:
-
+    with localization_columns[3]:
         st.metric(
             "Residual",
             (
                 _display_float(
-                    event.get(
-                        "localization_residual_m"
-                    ),
-                    decimals=
-                        4,
-                    suffix=
-                        " m",
+                    event.get("localization_residual_m"),
+                    decimals=4,
+                    suffix=" m",
                 )
-
                 if localization_valid
-
                 else UNAVAILABLE_TEXT
             ),
         )
@@ -897,73 +626,41 @@ def _render_latest_event_metrics(
     # SOURCE / ENVIRONMENT
     # ==================================================================
 
-    source_environment_columns = (
-        st.columns(
-            4
-        )
-    )
+    source_environment_columns = st.columns(4)
 
-    with source_environment_columns[
-        0
-    ]:
-
+    with source_environment_columns[0]:
         st.metric(
             "Best Node",
-            _display_text(
-                event.get(
-                    "best_node_id"
-                )
-            ),
+            _display_text(event.get("best_node_id")),
         )
 
-    with source_environment_columns[
-        1
-    ]:
-
+    with source_environment_columns[1]:
         st.metric(
             "Temperature",
             _display_float(
-                event.get(
-                    "temperature_c"
-                ),
-                decimals=
-                    2,
-                suffix=
-                    " °C",
+                event.get("temperature_c"),
+                decimals=2,
+                suffix=" °C",
             ),
         )
 
-    with source_environment_columns[
-        2
-    ]:
-
+    with source_environment_columns[2]:
         st.metric(
             "Humidity",
             _display_float(
-                event.get(
-                    "humidity_percent"
-                ),
-                decimals=
-                    1,
-                suffix=
-                    "%",
+                event.get("humidity_percent"),
+                decimals=1,
+                suffix="%",
             ),
         )
 
-    with source_environment_columns[
-        3
-    ]:
-
+    with source_environment_columns[3]:
         st.metric(
             "Pressure",
             _display_float(
-                event.get(
-                    "pressure_hpa"
-                ),
-                decimals=
-                    1,
-                suffix=
-                    " hPa",
+                event.get("pressure_hpa"),
+                decimals=1,
+                suffix=" hPa",
             ),
         )
 
@@ -995,87 +692,50 @@ def _render_session_overview(
         localized,
         total,
         localization_coverage,
-    ) = (
-        _recent_localization_coverage(
-            events
-        )
-    )
+    ) = _recent_localization_coverage(events)
 
-    state = (
-        _session_state(
-            session
-        )
-    )
+    state = _session_state(session)
 
     # ==================================================================
     # TOP METRICS
     # ==================================================================
 
-    columns = (
-        st.columns(
-            5
-        )
-    )
+    columns = st.columns(5)
 
-    with columns[
-        0
-    ]:
-
+    with columns[0]:
         st.metric(
             "Acquisition",
             state,
         )
 
-    with columns[
-        1
-    ]:
-
+    with columns[1]:
         st.metric(
             "Session",
             (
-                _display_session_id(
-                    session.get(
-                        "session_id"
-                    )
-                )
-
-                if session
-                is not None
-
+                _display_session_id(session.get("session_id"))
+                if session is not None
                 else UNAVAILABLE_TEXT
             ),
         )
 
-    with columns[
-        2
-    ]:
-
+    with columns[2]:
         st.metric(
             "Recent Events",
             total,
         )
 
-    with columns[
-        3
-    ]:
-
+    with columns[3]:
         st.metric(
             "Recently Localized",
             localized,
         )
 
-    with columns[
-        4
-    ]:
-
+    with columns[4]:
         st.metric(
             "Recent Localization",
             (
                 f"{localization_coverage * 100.0:.1f}%"
-
-                if total
-                > 0
-
+                if total > 0
                 else UNAVAILABLE_TEXT
             ),
         )
@@ -1084,43 +744,18 @@ def _render_session_overview(
     # SESSION DETAILS
     # ==================================================================
 
-    if (
-        session
-        is not None
-    ):
-
+    if session is not None:
         with st.expander(
             "Acquisition Session Details",
-            expanded=
-                False,
+            expanded=False,
         ):
-
             st.write(
                 {
-                    "session_id":
-                        _display_session_id(
-                            session.get(
-                                "session_id"
-                            )
-                        ),
-
-                    "label":
-                        session.get(
-                            "label"
-                        ),
-
-                    "started_at":
-                        session.get(
-                            "started_at"
-                        ),
-
-                    "stopped_at":
-                        session.get(
-                            "stopped_at"
-                        ),
-
-                    "state":
-                        state,
+                    "session_id": _display_session_id(session.get("session_id")),
+                    "label": session.get("label"),
+                    "started_at": session.get("started_at"),
+                    "stopped_at": session.get("stopped_at"),
+                    "state": state,
                 }
             )
 
@@ -1144,9 +779,7 @@ def _render_recent_event_visualizations(
     Render recent persistence timeline and accepted localization scatter.
     """
 
-    st.markdown(
-        "### Recent Acoustic Activity"
-    )
+    st.markdown("### Recent Acoustic Activity")
 
     st.caption(
         (
@@ -1156,67 +789,41 @@ def _render_recent_event_visualizations(
         )
     )
 
-    left_column, right_column = (
-        st.columns(
-            2
-        )
-    )
+    left_column, right_column = st.columns(2)
 
     # ==================================================================
     # TIMELINE
     # ==================================================================
 
     with left_column:
-
-        timeline = (
-            build_recent_event_timeline(
-                events,
-
-                max_points=
-                    config
-                    .dashboard
-                    .max_plot_points,
-            )
+        timeline = build_recent_event_timeline(
+            events,
+            max_points=config.dashboard.max_plot_points,
         )
 
         st.plotly_chart(
             timeline,
-            use_container_width=
-                True,
+            theme=None,
+            use_container_width=True,
         )
 
     # ==================================================================
     # ACCEPTED LOCALIZATIONS ONLY
     # ==================================================================
 
-    accepted_localizations = (
-        _accepted_localization_events(
-            events
-        )
-    )
+    accepted_localizations = _accepted_localization_events(events)
 
     with right_column:
-
-        scatter = (
-            build_localization_scatter(
-                accepted_localizations,
-
-                node_positions=
-                    config
-                    .localization
-                    .node_positions,
-
-                max_points=
-                    config
-                    .dashboard
-                    .max_plot_points,
-            )
+        scatter = build_localization_scatter(
+            accepted_localizations,
+            node_positions=config.localization.node_positions,
+            max_points=config.dashboard.max_plot_points,
         )
 
         st.plotly_chart(
             scatter,
-            use_container_width=
-                True,
+            theme=None,
+            use_container_width=True,
         )
 
 
@@ -1237,32 +844,19 @@ def _render_recent_event_table(
     Render compact recent-event records.
     """
 
-    st.markdown(
-        "### Recent Event Records"
-    )
+    st.markdown("### Recent Event Records")
 
-    if not (
-        events
-    ):
-
-        st.info(
-            "No persisted acoustic events are available yet."
-        )
+    if not (events):
+        st.info("No persisted acoustic events are available yet.")
 
         return
 
-    rows = (
-        _event_table_rows(
-            events
-        )
-    )
+    rows = _event_table_rows(events)
 
     st.dataframe(
         rows,
-        use_container_width=
-            True,
-        hide_index=
-            True,
+        use_container_width=True,
+        hide_index=True,
     )
 
 
@@ -1280,51 +874,27 @@ def _render_database_status(
 
     with st.expander(
         "Persistence Status",
-        expanded=
-            False,
+        expanded=False,
     ):
+        database_path = data_access.database_path
 
-        database_path = (
-            data_access.database_path
-        )
-
-        exists = (
-            database_path.exists()
-        )
+        exists = database_path.exists()
 
         try:
-
             file_size = (
                 database_path.stat().st_size
-
-                if (
-                    exists
-                    and database_path.is_file()
-                )
-
+                if (exists and database_path.is_file())
                 else 0
             )
 
         except OSError:
-
-            file_size = (
-                0
-            )
+            file_size = 0
 
         st.write(
             {
-                "database_path":
-                    str(
-                        database_path
-                    ),
-
-                "database_exists":
-                    exists,
-
-                "database_size_bytes":
-                    int(
-                        file_size
-                    ),
+                "database_path": str(database_path),
+                "database_exists": exists,
+                "database_size_bytes": int(file_size),
             }
         )
 
@@ -1348,24 +918,12 @@ def _render_live_content(
     # ==================================================================
 
     try:
-
-        snapshot = (
-            data_access.snapshot(
-                recent_limit=
-                    config
-                    .dashboard
-                    .recent_events_limit,
-            )
+        snapshot = data_access.snapshot(
+            recent_limit=config.dashboard.recent_events_limit,
         )
 
     except Exception as exc:
-
-        st.error(
-            (
-                "Unable to read dashboard snapshot "
-                f"from the event database: {exc}"
-            )
-        )
+        st.error((f"Unable to read dashboard snapshot from the event database: {exc}"))
 
         return
 
@@ -1373,69 +931,39 @@ def _render_live_content(
         snapshot,
         dict,
     ):
-
-        st.error(
-            (
-                "Dashboard snapshot returned an "
-                "unexpected data type."
-            )
-        )
+        st.error(("Dashboard snapshot returned an unexpected data type."))
 
         return
 
-    session = (
-        snapshot.get(
-            "latest_session"
-        )
-    )
+    session = snapshot.get("latest_session")
 
-    if (
-        session
-        is not None
-        and not isinstance(
-            session,
-            dict,
-        )
+    if session is not None and not isinstance(
+        session,
+        dict,
     ):
-
         try:
-
-            session = dict(
-                session
-            )
+            session = dict(session)
 
         except (
             TypeError,
             ValueError,
         ):
+            session = None
 
-            session = (
-                None
-            )
-
-    events = (
-        snapshot.get(
-            "recent_events",
-            [],
-        )
+    events = snapshot.get(
+        "recent_events",
+        [],
     )
 
     if not isinstance(
         events,
         list,
     ):
-
         try:
-
-            events = list(
-                events
-            )
+            events = list(events)
 
         except TypeError:
-
-            events = (
-                []
-            )
+            events = []
 
     normalized_events: list[
         dict[
@@ -1444,80 +972,57 @@ def _render_live_content(
         ]
     ] = []
 
-    for event in (
-        events
-    ):
-
+    for event in events:
         if isinstance(
             event,
             dict,
         ):
-
-            normalized_events.append(
-                event
-            )
+            normalized_events.append(event)
 
             continue
 
         try:
-
-            normalized_events.append(
-                dict(
-                    event
-                )
-            )
+            normalized_events.append(dict(event))
 
         except (
             TypeError,
             ValueError,
         ):
-
             continue
 
-    events = (
-        normalized_events
-    )
+    events = normalized_events
 
-    latest_event = (
-        snapshot.get(
-            "latest_event"
-        )
-    )
+    latest_event = snapshot.get("latest_event")
 
-    if (
-        latest_event
-        is not None
-        and not isinstance(
-            latest_event,
-            dict,
-        )
+    if latest_event is not None and not isinstance(
+        latest_event,
+        dict,
     ):
-
         try:
-
-            latest_event = dict(
-                latest_event
-            )
+            latest_event = dict(latest_event)
 
         except (
             TypeError,
             ValueError,
         ):
-
-            latest_event = (
-                None
-            )
+            latest_event = None
 
     # ==================================================================
     # OVERVIEW
     # ==================================================================
 
-    _render_session_overview(
-        session=
-            session,
+    if st.session_state.get("student_mode_active", True):
+        render_student_explainer(
+            topic_title="Live Bioacoustic Monitoring",
+            what_is_it="This screen shows sound events streamed live from your 3 synchronized ESP32 microphone nodes.",
+            why_it_matters="Allows real-time detection of animal calls and instant poaching or disturbance alerts.",
+            how_to_read="Check the Node status cards, the red dot on the 2D map for recent sound locations, and the real-time event feed.",
+            real_world_example="In Corbett National Park, acoustic sensors alert guards within seconds if a gunshot or chainsaw sound occurs.",
+        )
 
-        events=
-            events,
+    _render_session_overview(
+        session=session,
+        events=events,
     )
 
     st.divider()
@@ -1526,39 +1031,18 @@ def _render_live_content(
     # NO SESSION
     # ==================================================================
 
-    if (
-        session
-        is None
-    ):
-
-        st.info(
-            (
-                "No acquisition session has been "
-                "persisted yet."
-            )
-        )
+    if session is None:
+        st.info(("No acquisition session has been persisted yet."))
 
     # ==================================================================
     # LATEST EVENT
     # ==================================================================
 
-    if (
-        latest_event
-        is not None
-    ):
-
-        _render_latest_event_metrics(
-            latest_event
-        )
+    if latest_event is not None:
+        _render_latest_event_metrics(latest_event)
 
     else:
-
-        st.info(
-            (
-                "No acoustic events have been "
-                "persisted yet."
-            )
-        )
+        st.info(("No acoustic events have been persisted yet."))
 
     st.divider()
 
@@ -1567,11 +1051,8 @@ def _render_live_content(
     # ==================================================================
 
     _render_recent_event_visualizations(
-        events=
-            events,
-
-        config=
-            config,
+        events=events,
+        config=config,
     )
 
     st.divider()
@@ -1580,17 +1061,13 @@ def _render_live_content(
     # TABLE
     # ==================================================================
 
-    _render_recent_event_table(
-        events
-    )
+    _render_recent_event_table(events)
 
     # ==================================================================
     # DATABASE INFORMATION
     # ==================================================================
 
-    _render_database_status(
-        data_access
-    )
+    _render_database_status(data_access)
 
 
 # ======================================================================
@@ -1606,46 +1083,26 @@ def _render_manual_refresh_control(
     Render fallback/manual dashboard refresh control.
     """
 
-    control_columns = (
-        st.columns(
-            [
-                1,
-                4,
-            ]
-        )
+    control_columns = st.columns(
+        [
+            1,
+            4,
+        ]
     )
 
-    with control_columns[
-        0
-    ]:
-
+    with control_columns[0]:
         if st.button(
             "Refresh",
-            key=
-                "live_view_manual_refresh",
-            use_container_width=
-                True,
+            key="live_view_manual_refresh",
+            use_container_width=True,
         ):
-
             st.rerun()
 
-    with control_columns[
-        1
-    ]:
-
-        if (
-            auto_refresh_active
-        ):
-
-            st.caption(
-                (
-                    "Automatic database refresh "
-                    "is enabled."
-                )
-            )
+    with control_columns[1]:
+        if auto_refresh_active:
+            st.caption(("Automatic database refresh is enabled."))
 
         else:
-
             st.caption(
                 (
                     "Automatic refresh is unavailable "
@@ -1698,39 +1155,22 @@ def render_live_view(
         data_access,
         DashboardDataAccess,
     ):
+        raise TypeError(("data_access must be a DashboardDataAccess instance."))
 
-        raise TypeError(
-            (
-                "data_access must be a "
-                "DashboardDataAccess instance."
-            )
-        )
-
-    if (
-        config
-        is None
-    ):
-
-        config = (
-            data_access.config
-        )
+    if config is None:
+        config = data_access.config
 
     if not isinstance(
         config,
         AppConfig,
     ):
-
-        raise TypeError(
-            "config must be an AppConfig."
-        )
+        raise TypeError("config must be an AppConfig.")
 
     # ==================================================================
     # PAGE HEADER
     # ==================================================================
 
-    st.title(
-        "Live Wildlife Soundscape Monitor"
-    )
+    st.title("Live Wildlife Soundscape Monitor")
 
     st.caption(
         (
@@ -1765,18 +1205,10 @@ def render_live_view(
     )
 
     auto_refresh_active = bool(
-        config
-        .dashboard
-        .auto_refresh
-        and callable(
-            fragment_factory
-        )
+        config.dashboard.auto_refresh and callable(fragment_factory)
     )
 
-    _render_manual_refresh_control(
-        auto_refresh_active=
-            auto_refresh_active
-    )
+    _render_manual_refresh_control(auto_refresh_active=auto_refresh_active)
 
     st.divider()
 
@@ -1784,28 +1216,15 @@ def render_live_view(
     # FRAGMENT AUTO-REFRESH
     # ==================================================================
 
-    if (
-        auto_refresh_active
-    ):
+    if auto_refresh_active:
+        assert callable(fragment_factory)
 
-        assert callable(
-            fragment_factory
-        )
-
-        @fragment_factory(
-            run_every=
-                config
-                .dashboard
-                .refresh_interval_s
-        )
+        @fragment_factory(run_every=config.dashboard.refresh_interval_s)
         def live_fragment() -> None:
 
             _render_live_content(
-                data_access=
-                    data_access,
-
-                config=
-                    config,
+                data_access=data_access,
+                config=config,
             )
 
         live_fragment()
@@ -1817,9 +1236,6 @@ def render_live_view(
     # ==================================================================
 
     _render_live_content(
-        data_access=
-            data_access,
-
-        config=
-            config,
+        data_access=data_access,
+        config=config,
     )

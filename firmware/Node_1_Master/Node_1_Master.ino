@@ -1620,8 +1620,7 @@ bool audioSensorBeginMaster() {
           SAMPLE_RATE,
           I2S_DATA_BIT_WIDTH_32BIT,
           I2S_SLOT_MODE_STEREO,
-          -1,
-          I2S_ROLE_MASTER
+          -1
       );
 
   if (

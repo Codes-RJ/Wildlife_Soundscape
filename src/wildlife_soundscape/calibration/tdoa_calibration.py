@@ -110,7 +110,6 @@ It should NOT be used to hide:
 Those problems should be corrected independently.
 """
 
-
 from __future__ import annotations
 
 
@@ -179,39 +178,25 @@ Position = tuple[
 # ======================================================================
 
 
-DEFAULT_SAMPLE_RATE = (
-    48_000
-)
+DEFAULT_SAMPLE_RATE = 48_000
 
 
-DEFAULT_SPEED_OF_SOUND_MPS = (
-    343.0
-)
+DEFAULT_SPEED_OF_SOUND_MPS = 343.0
 
 
-DEFAULT_REFERENCE_NODE = (
-    1
-)
+DEFAULT_REFERENCE_NODE = 1
 
 
-DEFAULT_MIN_OBSERVATIONS_PER_PAIR = (
-    3
-)
+DEFAULT_MIN_OBSERVATIONS_PER_PAIR = 3
 
 
-DEFAULT_MODIFIED_Z_THRESHOLD = (
-    3.5
-)
+DEFAULT_MODIFIED_Z_THRESHOLD = 3.5
 
 
-MAD_SCALE_FACTOR = (
-    0.6744897501960817
-)
+MAD_SCALE_FACTOR = 0.6744897501960817
 
 
-FLOAT_EPSILON = (
-    1e-15
-)
+FLOAT_EPSILON = 1e-15
 
 
 # ======================================================================
@@ -228,28 +213,19 @@ def _positive_int(
     Validate a strictly positive integer.
     """
 
-    if (
-        isinstance(
-            value,
-            bool,
-        )
-        or not isinstance(
-            value,
-            Integral,
-        )
+    if isinstance(
+        value,
+        bool,
+    ) or not isinstance(
+        value,
+        Integral,
     ):
-        raise TypeError(
-            f"{name} must be an integer."
-        )
+        raise TypeError(f"{name} must be an integer.")
 
-    result = int(
-        value
-    )
+    result = int(value)
 
     if result <= 0:
-        raise ValueError(
-            f"{name} must be > 0."
-        )
+        raise ValueError(f"{name} must be > 0.")
 
     return result
 
@@ -278,30 +254,19 @@ def _finite_float(
     Validate and normalize a finite real number.
     """
 
-    if (
-        isinstance(
-            value,
-            bool,
-        )
-        or not isinstance(
-            value,
-            Real,
-        )
+    if isinstance(
+        value,
+        bool,
+    ) or not isinstance(
+        value,
+        Real,
     ):
-        raise TypeError(
-            f"{name} must be a real number."
-        )
+        raise TypeError(f"{name} must be a real number.")
 
-    result = float(
-        value
-    )
+    result = float(value)
 
-    if not isfinite(
-        result
-    ):
-        raise ValueError(
-            f"{name} must be finite."
-        )
+    if not isfinite(result):
+        raise ValueError(f"{name} must be finite.")
 
     return result
 
@@ -321,9 +286,7 @@ def _positive_float(
     )
 
     if result <= 0.0:
-        raise ValueError(
-            f"{name} must be > 0."
-        )
+        raise ValueError(f"{name} must be > 0.")
 
     return result
 
@@ -338,34 +301,23 @@ def _normalize_position(
     """
 
     try:
-        raw_values = tuple(
-            value
-        )
+        raw_values = tuple(value)
 
     except TypeError as exc:
-        raise TypeError(
-            f"{name} must be an iterable numeric position."
-        ) from exc
+        raise TypeError(f"{name} must be an iterable numeric position.") from exc
 
-    if len(
-        raw_values
-    ) not in (
+    if len(raw_values) not in (
         2,
         3,
     ):
-        raise ValueError(
-            f"{name} must contain 2 or 3 coordinates."
-        )
+        raise ValueError(f"{name} must contain 2 or 3 coordinates.")
 
     normalized = tuple(
         _finite_float(
             coordinate,
             name=f"{name}[{index}]",
         )
-        for index, coordinate
-        in enumerate(
-            raw_values
-        )
+        for index, coordinate in enumerate(raw_values)
     )
 
     return normalized
@@ -399,9 +351,7 @@ def canonical_pair(
     )
 
     if a == b:
-        raise ValueError(
-            "A TDOA pair must contain two different nodes."
-        )
+        raise ValueError("A TDOA pair must contain two different nodes.")
 
     if a < b:
         return (
@@ -495,24 +445,13 @@ def euclidean_distance_m(
         name="second",
     )
 
-    if len(
-        a
-    ) != len(
-        b
-    ):
-        raise ValueError(
-            "Position dimensions must match."
-        )
+    if len(a) != len(b):
+        raise ValueError("Position dimensions must match.")
 
     return sqrt(
         sum(
-            (
-                coordinate_a
-                - coordinate_b
-            )
-            ** 2
-            for coordinate_a, coordinate_b
-            in zip(
+            (coordinate_a - coordinate_b) ** 2
+            for coordinate_a, coordinate_b in zip(
                 a,
                 b,
                 strict=False,
@@ -567,20 +506,8 @@ def expected_tdoa_seconds(
         name="node_b_position_m",
     )
 
-    if not (
-        len(
-            source
-        )
-        == len(
-            node_a
-        )
-        == len(
-            node_b
-        )
-    ):
-        raise ValueError(
-            "Source and node positions must have matching dimensions."
-        )
+    if not (len(source) == len(node_a) == len(node_b)):
+        raise ValueError("Source and node positions must have matching dimensions.")
 
     distance_a = euclidean_distance_m(
         source,
@@ -592,10 +519,7 @@ def expected_tdoa_seconds(
         node_b,
     )
 
-    return (
-        distance_b
-        - distance_a
-    ) / speed
+    return (distance_b - distance_a) / speed
 
 
 # ======================================================================
@@ -628,13 +552,9 @@ class KnownSourceMeasurement:
 
     measured_tdoa_s: float
 
-    speed_of_sound_mps: float = (
-        DEFAULT_SPEED_OF_SOUND_MPS
-    )
+    speed_of_sound_mps: float = DEFAULT_SPEED_OF_SOUND_MPS
 
-    quality_weight: float = (
-        1.0
-    )
+    quality_weight: float = 1.0
 
     def __post_init__(
         self,
@@ -664,9 +584,7 @@ class KnownSourceMeasurement:
             original_a,
             original_b,
         ) != pair:
-            measured = (
-                -measured
-            )
+            measured = -measured
 
         source = _normalize_position(
             self.source_position_m,
@@ -844,31 +762,14 @@ class TDOACalibrationObservation:
         """
 
         return {
-            "node_a":
-                self.node_a,
-
-            "node_b":
-                self.node_b,
-
-            "source_position_m":
-                list(
-                    self.source_position_m
-                ),
-
-            "measured_tdoa_s":
-                self.measured_tdoa_s,
-
-            "expected_tdoa_s":
-                self.expected_tdoa_s,
-
-            "residual_s":
-                self.residual_s,
-
-            "speed_of_sound_mps":
-                self.speed_of_sound_mps,
-
-            "quality_weight":
-                self.quality_weight,
+            "node_a": self.node_a,
+            "node_b": self.node_b,
+            "source_position_m": list(self.source_position_m),
+            "measured_tdoa_s": self.measured_tdoa_s,
+            "expected_tdoa_s": self.expected_tdoa_s,
+            "residual_s": self.residual_s,
+            "speed_of_sound_mps": self.speed_of_sound_mps,
+            "quality_weight": self.quality_weight,
         }
 
 
@@ -930,9 +831,7 @@ class PairTimingCalibration:
             self.node_a,
             self.node_b,
         ):
-            raise ValueError(
-                "PairTimingCalibration must use canonical pair order."
-            )
+            raise ValueError("PairTimingCalibration must use canonical pair order.")
 
         observation_count = _positive_int(
             self.observation_count,
@@ -948,22 +847,14 @@ class PairTimingCalibration:
             self.rejected_count,
             bool,
         ):
-            raise TypeError(
-                "rejected_count must be an integer."
-            )
+            raise TypeError("rejected_count must be an integer.")
 
         rejected_count = self.rejected_count
 
         if rejected_count < 0:
-            raise ValueError(
-                "rejected_count must be >= 0."
-            )
+            raise ValueError("rejected_count must be >= 0.")
 
-        if (
-            inlier_count
-            + rejected_count
-            != observation_count
-        ):
+        if inlier_count + rejected_count != observation_count:
             raise ValueError(
                 "inlier_count + rejected_count must equal observation_count."
             )
@@ -994,7 +885,6 @@ class PairTimingCalibration:
             "residual_mad_s",
             "median_absolute_residual_s",
         ):
-
             value = _finite_float(
                 getattr(
                     self,
@@ -1012,9 +902,7 @@ class PairTimingCalibration:
                 )
                 and value < 0.0
             ):
-                raise ValueError(
-                    f"{field_name} must be >= 0."
-                )
+                raise ValueError(f"{field_name} must be >= 0.")
 
             object.__setattr__(
                 self,
@@ -1048,10 +936,7 @@ class PairTimingCalibration:
             name="sample_rate",
         )
 
-        return (
-            self.observed_offset_s
-            * rate
-        )
+        return self.observed_offset_s * rate
 
     def modeled_offset_samples(
         self,
@@ -1066,10 +951,7 @@ class PairTimingCalibration:
             name="sample_rate",
         )
 
-        return (
-            self.modeled_offset_s
-            * rate
-        )
+        return self.modeled_offset_s * rate
 
     def to_dict(
         self,
@@ -1087,57 +969,23 @@ class PairTimingCalibration:
             str,
             object,
         ] = {
-            "node_a":
-                self.node_a,
-
-            "node_b":
-                self.node_b,
-
-            "observation_count":
-                self.observation_count,
-
-            "inlier_count":
-                self.inlier_count,
-
-            "rejected_count":
-                self.rejected_count,
-
-            "observed_offset_s":
-                self.observed_offset_s,
-
-            "modeled_offset_s":
-                self.modeled_offset_s,
-
-            "consistency_error_s":
-                self.consistency_error_s,
-
-            "residual_std_s":
-                self.residual_std_s,
-
-            "residual_mad_s":
-                self.residual_mad_s,
-
-            "median_absolute_residual_s":
-                self.median_absolute_residual_s,
+            "node_a": self.node_a,
+            "node_b": self.node_b,
+            "observation_count": self.observation_count,
+            "inlier_count": self.inlier_count,
+            "rejected_count": self.rejected_count,
+            "observed_offset_s": self.observed_offset_s,
+            "modeled_offset_s": self.modeled_offset_s,
+            "consistency_error_s": self.consistency_error_s,
+            "residual_std_s": self.residual_std_s,
+            "residual_mad_s": self.residual_mad_s,
+            "median_absolute_residual_s": self.median_absolute_residual_s,
         }
 
         if sample_rate is not None:
+            data["observed_offset_samples"] = self.observed_offset_samples(sample_rate)
 
-            data[
-                "observed_offset_samples"
-            ] = (
-                self.observed_offset_samples(
-                    sample_rate
-                )
-            )
-
-            data[
-                "modeled_offset_samples"
-            ] = (
-                self.modeled_offset_samples(
-                    sample_rate
-                )
-            )
+            data["modeled_offset_samples"] = self.modeled_offset_samples(sample_rate)
 
         return data
 
@@ -1160,9 +1008,7 @@ class NodeTimingBias:
 
     bias_s: float
 
-    is_reference: bool = (
-        False
-    )
+    is_reference: bool = False
 
     def __post_init__(
         self,
@@ -1182,9 +1028,7 @@ class NodeTimingBias:
             self.is_reference,
             bool,
         ):
-            raise TypeError(
-                "is_reference must be a bool."
-            )
+            raise TypeError("is_reference must be a bool.")
 
         object.__setattr__(
             self,
@@ -1211,10 +1055,7 @@ class NodeTimingBias:
             name="sample_rate",
         )
 
-        return (
-            self.bias_s
-            * rate
-        )
+        return self.bias_s * rate
 
     def to_dict(
         self,
@@ -1232,25 +1073,13 @@ class NodeTimingBias:
             str,
             object,
         ] = {
-            "node_id":
-                self.node_id,
-
-            "bias_s":
-                self.bias_s,
-
-            "is_reference":
-                self.is_reference,
+            "node_id": self.node_id,
+            "bias_s": self.bias_s,
+            "is_reference": self.is_reference,
         }
 
         if sample_rate is not None:
-
-            data[
-                "bias_samples"
-            ] = (
-                self.bias_samples(
-                    sample_rate
-                )
-            )
+            data["bias_samples"] = self.bias_samples(sample_rate)
 
         return data
 
@@ -1316,52 +1145,30 @@ class TDOACalibrationResult:
             self.observation_count,
             bool,
         ):
-            raise TypeError(
-                "observation_count must be an integer."
-            )
+            raise TypeError("observation_count must be an integer.")
 
         if isinstance(
             self.accepted_observation_count,
             bool,
         ):
-            raise TypeError(
-                "accepted_observation_count must be an integer."
-            )
+            raise TypeError("accepted_observation_count must be an integer.")
 
         if isinstance(
             self.rejected_observation_count,
             bool,
         ):
-            raise TypeError(
-                "rejected_observation_count must be an integer."
-            )
+            raise TypeError("rejected_observation_count must be an integer.")
 
-        total = int(
-            self.observation_count
-        )
+        total = int(self.observation_count)
 
-        accepted = int(
-            self.accepted_observation_count
-        )
+        accepted = int(self.accepted_observation_count)
 
-        rejected = int(
-            self.rejected_observation_count
-        )
+        rejected = int(self.rejected_observation_count)
 
-        if (
-            total < 0
-            or accepted < 0
-            or rejected < 0
-        ):
-            raise ValueError(
-                "Observation counts must be >= 0."
-            )
+        if total < 0 or accepted < 0 or rejected < 0:
+            raise ValueError("Observation counts must be >= 0.")
 
-        if (
-            accepted
-            + rejected
-            > total
-        ):
+        if accepted + rejected > total:
             raise ValueError(
                 "Accepted and rejected observations exceed total observations."
             )
@@ -1372,38 +1179,22 @@ class TDOACalibrationResult:
         )
 
         if consistency < 0.0:
-            raise ValueError(
-                "rms_pair_consistency_error_s must be >= 0."
-            )
+            raise ValueError("rms_pair_consistency_error_s must be >= 0.")
 
         if not isinstance(
             self.generated_at,
             str,
         ):
-            raise TypeError(
-                "generated_at must be a string."
-            )
+            raise TypeError("generated_at must be a string.")
 
         if not self.generated_at.strip():
-            raise ValueError(
-                "generated_at must not be empty."
-            )
+            raise ValueError("generated_at must not be empty.")
 
-        pair_calibrations = tuple(
-            self.pair_calibrations
-        )
+        pair_calibrations = tuple(self.pair_calibrations)
 
-        node_biases = tuple(
-            self.node_biases
-        )
+        node_biases = tuple(self.node_biases)
 
-        warnings = tuple(
-            str(
-                warning
-            )
-            for warning
-            in self.warnings
-        )
+        warnings = tuple(str(warning) for warning in self.warnings)
 
         object.__setattr__(
             self,
@@ -1478,9 +1269,7 @@ class TDOACalibrationResult:
         )
 
         for calibration in self.pair_calibrations:
-
             if calibration.pair == pair:
-
                 return calibration
 
         return None
@@ -1518,32 +1307,23 @@ class TDOACalibrationResult:
             original_b,
         )
 
-        calibration = (
-            self.calibration_for_pair(
-                pair[0],
-                pair[1],
-            )
+        calibration = self.calibration_for_pair(
+            pair[0],
+            pair[1],
         )
 
         if calibration is None:
-            raise KeyError(
-                f"No TDOA calibration exists for pair {pair}."
-            )
+            raise KeyError(f"No TDOA calibration exists for pair {pair}.")
 
-        offset = (
-            calibration.modeled_offset_s
-        )
+        offset = calibration.modeled_offset_s
 
         if (
             original_a,
             original_b,
         ) == pair:
-
             return offset
 
-        return (
-            -offset
-        )
+        return -offset
 
     # ==================================================================
     # OFFSET IN SAMPLES
@@ -1589,17 +1369,12 @@ class TDOACalibrationResult:
             name="measured_tdoa_s",
         )
 
-        offset = (
-            self.pair_offset_seconds(
-                node_a,
-                node_b,
-            )
+        offset = self.pair_offset_seconds(
+            node_a,
+            node_b,
         )
 
-        return (
-            measured
-            - offset
-        )
+        return measured - offset
 
     # ==================================================================
     # SERIALIZATION
@@ -1616,53 +1391,24 @@ class TDOACalibrationResult:
         """
 
         return {
-            "generated_at":
-                self.generated_at,
-
-            "sample_rate":
-                self.sample_rate,
-
-            "reference_node":
-                self.reference_node,
-
-            "observation_count":
-                self.observation_count,
-
-            "accepted_observation_count":
-                self.accepted_observation_count,
-
-            "rejected_observation_count":
-                self.rejected_observation_count,
-
-            "rms_pair_consistency_error_s":
-                self.rms_pair_consistency_error_s,
-
-            "rms_pair_consistency_error_samples":
-                (
-                    self.rms_pair_consistency_error_s
-                    * self.sample_rate
-                ),
-
+            "generated_at": self.generated_at,
+            "sample_rate": self.sample_rate,
+            "reference_node": self.reference_node,
+            "observation_count": self.observation_count,
+            "accepted_observation_count": self.accepted_observation_count,
+            "rejected_observation_count": self.rejected_observation_count,
+            "rms_pair_consistency_error_s": self.rms_pair_consistency_error_s,
+            "rms_pair_consistency_error_samples": (
+                self.rms_pair_consistency_error_s * self.sample_rate
+            ),
             "node_biases": [
-                bias.to_dict(
-                    sample_rate=self.sample_rate
-                )
-                for bias
-                in self.node_biases
+                bias.to_dict(sample_rate=self.sample_rate) for bias in self.node_biases
             ],
-
             "pair_calibrations": [
-                calibration.to_dict(
-                    sample_rate=self.sample_rate
-                )
-                for calibration
-                in self.pair_calibrations
+                calibration.to_dict(sample_rate=self.sample_rate)
+                for calibration in self.pair_calibrations
             ],
-
-            "warnings":
-                list(
-                    self.warnings
-                ),
+            "warnings": list(self.warnings),
         }
 
 
@@ -1686,31 +1432,21 @@ def build_calibration_observation(
         measurement,
         KnownSourceMeasurement,
     ):
-        raise TypeError(
-            "measurement must be a KnownSourceMeasurement."
-        )
+        raise TypeError("measurement must be a KnownSourceMeasurement.")
 
     if measurement.node_a not in node_positions_m:
-        raise KeyError(
-            f"Missing position for Node {measurement.node_a}."
-        )
+        raise KeyError(f"Missing position for Node {measurement.node_a}.")
 
     if measurement.node_b not in node_positions_m:
-        raise KeyError(
-            f"Missing position for Node {measurement.node_b}."
-        )
+        raise KeyError(f"Missing position for Node {measurement.node_b}.")
 
     node_a_position = _normalize_position(
-        node_positions_m[
-            measurement.node_a
-        ],
+        node_positions_m[measurement.node_a],
         name=f"node_positions_m[{measurement.node_a}]",
     )
 
     node_b_position = _normalize_position(
-        node_positions_m[
-            measurement.node_b
-        ],
+        node_positions_m[measurement.node_b],
         name=f"node_positions_m[{measurement.node_b}]",
     )
 
@@ -1718,39 +1454,20 @@ def build_calibration_observation(
         measurement.source_position_m,
         node_a_position,
         node_b_position,
-        speed_of_sound_mps=
-            measurement.speed_of_sound_mps,
+        speed_of_sound_mps=measurement.speed_of_sound_mps,
     )
 
-    residual = (
-        measurement.measured_tdoa_s
-        - expected
-    )
+    residual = measurement.measured_tdoa_s - expected
 
     return TDOACalibrationObservation(
-        node_a=
-            measurement.node_a,
-
-        node_b=
-            measurement.node_b,
-
-        source_position_m=
-            measurement.source_position_m,
-
-        measured_tdoa_s=
-            measurement.measured_tdoa_s,
-
-        expected_tdoa_s=
-            expected,
-
-        residual_s=
-            residual,
-
-        speed_of_sound_mps=
-            measurement.speed_of_sound_mps,
-
-        quality_weight=
-            measurement.quality_weight,
+        node_a=measurement.node_a,
+        node_b=measurement.node_b,
+        source_position_m=measurement.source_position_m,
+        measured_tdoa_s=measurement.measured_tdoa_s,
+        expected_tdoa_s=expected,
+        residual_s=residual,
+        speed_of_sound_mps=measurement.speed_of_sound_mps,
+        quality_weight=measurement.quality_weight,
     )
 
 
@@ -1760,9 +1477,7 @@ def build_calibration_observation(
 
 
 def build_calibration_observations(
-    measurements: Iterable[
-        KnownSourceMeasurement
-    ],
+    measurements: Iterable[KnownSourceMeasurement],
     node_positions_m: Mapping[
         int,
         Sequence[float],
@@ -1775,12 +1490,9 @@ def build_calibration_observations(
     Normalize a collection of controlled measurements.
     """
 
-    observations: list[
-        TDOACalibrationObservation
-    ] = []
+    observations: list[TDOACalibrationObservation] = []
 
     for measurement in measurements:
-
         observations.append(
             build_calibration_observation(
                 measurement,
@@ -1788,9 +1500,7 @@ def build_calibration_observations(
             )
         )
 
-    return tuple(
-        observations
-    )
+    return tuple(observations)
 
 
 # ======================================================================
@@ -1808,20 +1518,9 @@ def _median_absolute_deviation(
     if values.size == 0:
         return 0.0
 
-    center = float(
-        np.median(
-            values
-        )
-    )
+    center = float(np.median(values))
 
-    return float(
-        np.median(
-            np.abs(
-                values
-                - center
-            )
-        )
-    )
+    return float(np.median(np.abs(values - center)))
 
 
 # ======================================================================
@@ -1841,49 +1540,27 @@ def _robust_inlier_mask(
     """
 
     if values.ndim != 1:
-        raise ValueError(
-            "values must be one-dimensional."
-        )
+        raise ValueError("values must be one-dimensional.")
 
     if values.size < 3:
-
         return np.ones(
             values.shape,
             dtype=bool,
         )
 
-    median_value = float(
-        np.median(
-            values
-        )
-    )
+    median_value = float(np.median(values))
 
-    mad = _median_absolute_deviation(
-        values
-    )
+    mad = _median_absolute_deviation(values)
 
     if mad <= FLOAT_EPSILON:
-
         return np.ones(
             values.shape,
             dtype=bool,
         )
 
-    modified_z = (
-        MAD_SCALE_FACTOR
-        * (
-            values
-            - median_value
-        )
-        / mad
-    )
+    modified_z = MAD_SCALE_FACTOR * (values - median_value) / mad
 
-    return (
-        np.abs(
-            modified_z
-        )
-        <= modified_z_threshold
-    )
+    return np.abs(modified_z) <= modified_z_threshold
 
 
 # ======================================================================
@@ -1899,36 +1576,15 @@ def _weighted_mean(
     Calculate positive-weight weighted mean.
     """
 
-    weight_sum = float(
-        np.sum(
-            weights
-        )
-    )
+    weight_sum = float(np.sum(weights))
 
-    if (
-        not isfinite(
-            weight_sum
-        )
-        or weight_sum <= 0.0
-    ):
-        raise ValueError(
-            "Calibration weights must have a positive finite sum."
-        )
+    if not isfinite(weight_sum) or weight_sum <= 0.0:
+        raise ValueError("Calibration weights must have a positive finite sum.")
 
-    result = float(
-        np.sum(
-            values
-            * weights
-        )
-        / weight_sum
-    )
+    result = float(np.sum(values * weights) / weight_sum)
 
-    if not isfinite(
-        result
-    ):
-        raise ValueError(
-            "Weighted calibration mean is not finite."
-        )
+    if not isfinite(result):
+        raise ValueError("Weighted calibration mean is not finite.")
 
     return result
 
@@ -1951,26 +1607,12 @@ def _weighted_std(
     if values.size == 0:
         return 0.0
 
-    weight_sum = float(
-        np.sum(
-            weights
-        )
-    )
+    weight_sum = float(np.sum(weights))
 
     if weight_sum <= 0.0:
         return 0.0
 
-    variance = float(
-        np.sum(
-            weights
-            * (
-                values
-                - center
-            )
-            ** 2
-        )
-        / weight_sum
-    )
+    variance = float(np.sum(weights * (values - center) ** 2) / weight_sum)
 
     return sqrt(
         max(
@@ -1986,9 +1628,7 @@ def _weighted_std(
 
 
 def _estimate_pair_calibrations(
-    observations: Sequence[
-        TDOACalibrationObservation
-    ],
+    observations: Sequence[TDOACalibrationObservation],
     *,
     min_observations_per_pair: int,
     modified_z_threshold: float,
@@ -2008,51 +1648,27 @@ def _estimate_pair_calibrations(
 
     grouped: dict[
         NodePair,
-        list[
-            TDOACalibrationObservation
-        ],
-    ] = defaultdict(
-        list
-    )
+        list[TDOACalibrationObservation],
+    ] = defaultdict(list)
 
     for observation in observations:
-
         grouped[
             (
                 observation.node_a,
                 observation.node_b,
             )
-        ].append(
-            observation
-        )
+        ].append(observation)
 
-    calibrations: list[
-        PairTimingCalibration
-    ] = []
+    calibrations: list[PairTimingCalibration] = []
 
-    warnings: list[
-        str
-    ] = []
+    warnings: list[str] = []
 
-    for pair in sorted(
-        grouped
-    ):
+    for pair in sorted(grouped):
+        pair_observations = grouped[pair]
 
-        pair_observations = (
-            grouped[
-                pair
-            ]
-        )
+        count = len(pair_observations)
 
-        count = len(
-            pair_observations
-        )
-
-        if (
-            count
-            < min_observations_per_pair
-        ):
-
+        if count < min_observations_per_pair:
             warnings.append(
                 (
                     f"Pair {pair} has only {count} calibration "
@@ -2064,139 +1680,70 @@ def _estimate_pair_calibrations(
             continue
 
         residuals = np.asarray(
-            [
-                observation.residual_s
-                for observation
-                in pair_observations
-            ],
+            [observation.residual_s for observation in pair_observations],
             dtype=np.float64,
         )
 
         weights = np.asarray(
-            [
-                observation.quality_weight
-                for observation
-                in pair_observations
-            ],
+            [observation.quality_weight for observation in pair_observations],
             dtype=np.float64,
         )
 
-        inlier_mask = (
-            _robust_inlier_mask(
-                residuals,
-                modified_z_threshold=
-                    modified_z_threshold,
-            )
+        inlier_mask = _robust_inlier_mask(
+            residuals,
+            modified_z_threshold=modified_z_threshold,
         )
 
-        inlier_residuals = (
-            residuals[
-                inlier_mask
-            ]
-        )
+        inlier_residuals = residuals[inlier_mask]
 
-        inlier_weights = (
-            weights[
-                inlier_mask
-            ]
-        )
+        inlier_weights = weights[inlier_mask]
 
-        if (
-            inlier_residuals.size == 0
-        ):
-
-            warnings.append(
-                f"Pair {pair} had no valid calibration inliers."
-            )
+        if inlier_residuals.size == 0:
+            warnings.append(f"Pair {pair} had no valid calibration inliers.")
 
             continue
 
-        observed_offset = (
-            _weighted_mean(
-                inlier_residuals,
-                inlier_weights,
-            )
+        observed_offset = _weighted_mean(
+            inlier_residuals,
+            inlier_weights,
         )
 
-        residual_std = (
-            _weighted_std(
-                inlier_residuals,
-                inlier_weights,
-                center=observed_offset,
-            )
+        residual_std = _weighted_std(
+            inlier_residuals,
+            inlier_weights,
+            center=observed_offset,
         )
 
-        residual_mad = (
-            _median_absolute_deviation(
-                inlier_residuals
-            )
-        )
+        residual_mad = _median_absolute_deviation(inlier_residuals)
 
         median_absolute_residual = float(
-            np.median(
-                np.abs(
-                    inlier_residuals
-                    - observed_offset
-                )
-            )
+            np.median(np.abs(inlier_residuals - observed_offset))
         )
 
-        inlier_count = int(
-            np.count_nonzero(
-                inlier_mask
-            )
-        )
+        inlier_count = int(np.count_nonzero(inlier_mask))
 
-        rejected_count = (
-            count
-            - inlier_count
-        )
+        rejected_count = count - inlier_count
 
         calibrations.append(
             PairTimingCalibration(
-                node_a=
-                    pair[0],
-
-                node_b=
-                    pair[1],
-
-                observation_count=
-                    count,
-
-                inlier_count=
-                    inlier_count,
-
-                rejected_count=
-                    rejected_count,
-
-                observed_offset_s=
-                    observed_offset,
-
+                node_a=pair[0],
+                node_b=pair[1],
+                observation_count=count,
+                inlier_count=inlier_count,
+                rejected_count=rejected_count,
+                observed_offset_s=observed_offset,
                 # Replaced later by coherent node-bias model.
-                modeled_offset_s=
-                    observed_offset,
-
-                consistency_error_s=
-                    0.0,
-
-                residual_std_s=
-                    residual_std,
-
-                residual_mad_s=
-                    residual_mad,
-
-                median_absolute_residual_s=
-                    median_absolute_residual,
+                modeled_offset_s=observed_offset,
+                consistency_error_s=0.0,
+                residual_std_s=residual_std,
+                residual_mad_s=residual_mad,
+                median_absolute_residual_s=median_absolute_residual,
             )
         )
 
     return (
-        tuple(
-            calibrations
-        ),
-        tuple(
-            warnings
-        ),
+        tuple(calibrations),
+        tuple(warnings),
     )
 
 
@@ -2206,70 +1753,41 @@ def _estimate_pair_calibrations(
 
 
 def _connected_nodes(
-    pairs: Sequence[
-        PairTimingCalibration
-    ],
+    pairs: Sequence[PairTimingCalibration],
     *,
     reference_node: int,
-) -> set[
-    int
-]:
+) -> set[int]:
     """
     Find nodes connected to the calibration reference node.
     """
 
     adjacency: dict[
         int,
-        set[
-            int
-        ],
-    ] = defaultdict(
-        set
-    )
+        set[int],
+    ] = defaultdict(set)
 
     for calibration in pairs:
+        adjacency[calibration.node_a].add(calibration.node_b)
 
-        adjacency[
-            calibration.node_a
-        ].add(
-            calibration.node_b
-        )
+        adjacency[calibration.node_b].add(calibration.node_a)
 
-        adjacency[
-            calibration.node_b
-        ].add(
-            calibration.node_a
-        )
+    connected: set[int] = {reference_node}
 
-    connected: set[
-        int
-    ] = {
-        reference_node
-    }
-
-    stack = [
-        reference_node
-    ]
+    stack = [reference_node]
 
     while stack:
-
         node = stack.pop()
 
         for neighbour in adjacency.get(
             node,
             (),
         ):
-
             if neighbour in connected:
                 continue
 
-            connected.add(
-                neighbour
-            )
+            connected.add(neighbour)
 
-            stack.append(
-                neighbour
-            )
+            stack.append(neighbour)
 
     return connected
 
@@ -2292,23 +1810,14 @@ def _pair_fit_weight(
     a numerically dominant calibration pair.
     """
 
-    sample_period_s = (
-        1.0
-        / sample_rate
-    )
+    sample_period_s = 1.0 / sample_rate
 
     uncertainty = max(
         calibration.residual_std_s,
         sample_period_s,
     )
 
-    return (
-        calibration.inlier_count
-        / (
-            uncertainty
-            ** 2
-        )
-    )
+    return calibration.inlier_count / (uncertainty**2)
 
 
 # ======================================================================
@@ -2317,9 +1826,7 @@ def _pair_fit_weight(
 
 
 def _fit_node_biases(
-    pair_calibrations: Sequence[
-        PairTimingCalibration
-    ],
+    pair_calibrations: Sequence[PairTimingCalibration],
     *,
     reference_node: int,
     sample_rate: int,
@@ -2328,9 +1835,7 @@ def _fit_node_biases(
         int,
         float,
     ],
-    set[
-        int
-    ],
+    set[int],
     tuple[
         str,
         ...,
@@ -2346,54 +1851,30 @@ def _fit_node_biases(
     Reference node bias is fixed at zero.
     """
 
-    warnings: list[
-        str
-    ] = []
+    warnings: list[str] = []
 
     if not pair_calibrations:
-
         return (
-            {
-                reference_node:
-                    0.0
-            },
-            {
-                reference_node
-            },
-            (
-                "No pair calibrations were available for node-bias fitting.",
-            ),
+            {reference_node: 0.0},
+            {reference_node},
+            ("No pair calibrations were available for node-bias fitting.",),
         )
 
-    all_nodes: set[
-        int
-    ] = {
-        reference_node
-    }
+    all_nodes: set[int] = {reference_node}
 
     for calibration in pair_calibrations:
+        all_nodes.add(calibration.node_a)
 
-        all_nodes.add(
-            calibration.node_a
-        )
-
-        all_nodes.add(
-            calibration.node_b
-        )
+        all_nodes.add(calibration.node_b)
 
     connected = _connected_nodes(
         pair_calibrations,
-        reference_node=
-            reference_node,
+        reference_node=reference_node,
     )
 
-    disconnected = (
-        all_nodes
-        - connected
-    )
+    disconnected = all_nodes - connected
 
     if disconnected:
-
         warnings.append(
             (
                 "Calibration graph contains nodes not connected to "
@@ -2402,123 +1883,53 @@ def _fit_node_biases(
             )
         )
 
-    fitted_nodes = sorted(
-        node
-        for node
-        in connected
-        if node
-        != reference_node
-    )
+    fitted_nodes = sorted(node for node in connected if node != reference_node)
 
     if not fitted_nodes:
-
         return (
-            {
-                reference_node:
-                    0.0
-            },
+            {reference_node: 0.0},
             connected,
-            tuple(
-                warnings
-            ),
+            tuple(warnings),
         )
 
-    column_index = {
-        node_id:
-            index
-        for index, node_id
-        in enumerate(
-            fitted_nodes
-        )
-    }
+    column_index = {node_id: index for index, node_id in enumerate(fitted_nodes)}
 
-    design_rows: list[
-        list[
-            float
-        ]
-    ] = []
+    design_rows: list[list[float]] = []
 
-    targets: list[
-        float
-    ] = []
+    targets: list[float] = []
 
-    row_weights: list[
-        float
-    ] = []
+    row_weights: list[float] = []
 
     for calibration in pair_calibrations:
-
-        if (
-            calibration.node_a
-            not in connected
-            or calibration.node_b
-            not in connected
-        ):
+        if calibration.node_a not in connected or calibration.node_b not in connected:
             continue
 
-        row = [
-            0.0
-        ] * len(
-            fitted_nodes
-        )
+        row = [0.0] * len(fitted_nodes)
 
-        if (
-            calibration.node_a
-            != reference_node
-        ):
+        if calibration.node_a != reference_node:
+            row[column_index[calibration.node_a]] -= 1.0
 
-            row[
-                column_index[
-                    calibration.node_a
-                ]
-            ] -= (
-                1.0
-            )
+        if calibration.node_b != reference_node:
+            row[column_index[calibration.node_b]] += 1.0
 
-        if (
-            calibration.node_b
-            != reference_node
-        ):
+        design_rows.append(row)
 
-            row[
-                column_index[
-                    calibration.node_b
-                ]
-            ] += (
-                1.0
-            )
-
-        design_rows.append(
-            row
-        )
-
-        targets.append(
-            calibration.observed_offset_s
-        )
+        targets.append(calibration.observed_offset_s)
 
         row_weights.append(
             _pair_fit_weight(
                 calibration,
-                sample_rate=
-                    sample_rate,
+                sample_rate=sample_rate,
             )
         )
 
     if not design_rows:
-
-        warnings.append(
-            "No connected calibration equations were available."
-        )
+        warnings.append("No connected calibration equations were available.")
 
         return (
-            {
-                reference_node:
-                    0.0
-            },
+            {reference_node: 0.0},
             connected,
-            tuple(
-                warnings
-            ),
+            tuple(warnings),
         )
 
     design = np.asarray(
@@ -2536,9 +1947,7 @@ def _fit_node_biases(
         dtype=np.float64,
     )
 
-    sqrt_weights = np.sqrt(
-        weights
-    )
+    sqrt_weights = np.sqrt(weights)
 
     weighted_design = (
         design
@@ -2548,23 +1957,15 @@ def _fit_node_biases(
         ]
     )
 
-    weighted_target = (
-        target
-        * sqrt_weights
+    weighted_target = target * sqrt_weights
+
+    solution, _, rank, _ = np.linalg.lstsq(
+        weighted_design,
+        weighted_target,
+        rcond=None,
     )
 
-    solution, _, rank, _ = (
-        np.linalg.lstsq(
-            weighted_design,
-            weighted_target,
-            rcond=None,
-        )
-    )
-
-    if rank < len(
-        fitted_nodes
-    ):
-
+    if rank < len(fitted_nodes):
         warnings.append(
             (
                 "Node timing-bias system is rank deficient; "
@@ -2575,27 +1976,15 @@ def _fit_node_biases(
     node_biases: dict[
         int,
         float,
-    ] = {
-        reference_node:
-            0.0
-    }
+    ] = {reference_node: 0.0}
 
     for node_id, index in column_index.items():
-
-        node_biases[
-            node_id
-        ] = float(
-            solution[
-                index
-            ]
-        )
+        node_biases[node_id] = float(solution[index])
 
     return (
         node_biases,
         connected,
-        tuple(
-            warnings
-        ),
+        tuple(warnings),
     )
 
 
@@ -2605,17 +1994,13 @@ def _fit_node_biases(
 
 
 def _apply_node_bias_model(
-    pair_calibrations: Sequence[
-        PairTimingCalibration
-    ],
+    pair_calibrations: Sequence[PairTimingCalibration],
     *,
     node_biases: Mapping[
         int,
         float,
     ],
-    connected_nodes: set[
-        int
-    ],
+    connected_nodes: set[int],
 ) -> tuple[
     PairTimingCalibration,
     ...,
@@ -2625,62 +2010,37 @@ def _apply_node_bias_model(
     reference-connected node biases are available.
     """
 
-    updated: list[
-        PairTimingCalibration
-    ] = []
+    updated: list[PairTimingCalibration] = []
 
     for calibration in pair_calibrations:
-
         if (
-            calibration.node_a
-            in connected_nodes
-            and calibration.node_b
-            in connected_nodes
-            and calibration.node_a
-            in node_biases
-            and calibration.node_b
-            in node_biases
+            calibration.node_a in connected_nodes
+            and calibration.node_b in connected_nodes
+            and calibration.node_a in node_biases
+            and calibration.node_b in node_biases
         ):
-
             modeled_offset = (
-                node_biases[
-                    calibration.node_b
-                ]
-                - node_biases[
-                    calibration.node_a
-                ]
+                node_biases[calibration.node_b] - node_biases[calibration.node_a]
             )
 
         else:
-
             # Disconnected pair:
             #
             # retain direct robust estimate rather than inventing
             # a reference-relative node delay.
-            modeled_offset = (
-                calibration.observed_offset_s
-            )
+            modeled_offset = calibration.observed_offset_s
 
-        consistency_error = (
-            calibration.observed_offset_s
-            - modeled_offset
-        )
+        consistency_error = calibration.observed_offset_s - modeled_offset
 
         updated.append(
             replace(
                 calibration,
-
-                modeled_offset_s=
-                    modeled_offset,
-
-                consistency_error_s=
-                    consistency_error,
+                modeled_offset_s=modeled_offset,
+                consistency_error_s=consistency_error,
             )
         )
 
-    return tuple(
-        updated
-    )
+    return tuple(updated)
 
 
 # ======================================================================
@@ -2689,9 +2049,7 @@ def _apply_node_bias_model(
 
 
 def _rms_pair_consistency_error(
-    calibrations: Sequence[
-        PairTimingCalibration
-    ],
+    calibrations: Sequence[PairTimingCalibration],
 ) -> float:
     """
     Quantify disagreement between independently measured pair offsets
@@ -2702,22 +2060,11 @@ def _rms_pair_consistency_error(
         return 0.0
 
     errors = np.asarray(
-        [
-            calibration.consistency_error_s
-            for calibration
-            in calibrations
-        ],
+        [calibration.consistency_error_s for calibration in calibrations],
         dtype=np.float64,
     )
 
-    return float(
-        np.sqrt(
-            np.mean(
-                errors
-                ** 2
-            )
-        )
-    )
+    return float(np.sqrt(np.mean(errors**2)))
 
 
 # ======================================================================
@@ -2726,9 +2073,7 @@ def _rms_pair_consistency_error(
 
 
 def calibrate_tdoa(
-    measurements: Iterable[
-        KnownSourceMeasurement
-    ],
+    measurements: Iterable[KnownSourceMeasurement],
     node_positions_m: Mapping[
         int,
         Sequence[float],
@@ -2793,11 +2138,9 @@ def calibrate_tdoa(
         name="reference_node",
     )
 
-    minimum_pair_observations = (
-        _positive_int(
-            min_observations_per_pair,
-            name="min_observations_per_pair",
-        )
+    minimum_pair_observations = _positive_int(
+        min_observations_per_pair,
+        name="min_observations_per_pair",
     )
 
     z_threshold = _positive_float(
@@ -2811,53 +2154,35 @@ def calibrate_tdoa(
     ] = {}
 
     for raw_node_id, raw_position in node_positions_m.items():
-
         node_id = _node_id(
             raw_node_id,
             name="node_positions_m node id",
         )
 
-        normalized_positions[
-            node_id
-        ] = (
-            _normalize_position(
-                raw_position,
-                name=f"node_positions_m[{node_id}]",
-            )
+        normalized_positions[node_id] = _normalize_position(
+            raw_position,
+            name=f"node_positions_m[{node_id}]",
         )
 
     if reference not in normalized_positions:
         raise ValueError(
-            (
-                f"reference_node {reference} does not have "
-                "a configured position."
-            )
+            (f"reference_node {reference} does not have a configured position.")
         )
 
-    measurement_tuple = tuple(
-        measurements
-    )
+    measurement_tuple = tuple(measurements)
 
-    observations = (
-        build_calibration_observations(
-            measurement_tuple,
-            normalized_positions,
-        )
+    observations = build_calibration_observations(
+        measurement_tuple,
+        normalized_positions,
     )
 
     if not observations:
-        raise ValueError(
-            "At least one calibration measurement is required."
-        )
+        raise ValueError("At least one calibration measurement is required.")
 
-    direct_pairs, pair_warnings = (
-        _estimate_pair_calibrations(
-            observations,
-            min_observations_per_pair=
-                minimum_pair_observations,
-            modified_z_threshold=
-                z_threshold,
-        )
+    direct_pairs, pair_warnings = _estimate_pair_calibrations(
+        observations,
+        min_observations_per_pair=minimum_pair_observations,
+        modified_z_threshold=z_threshold,
     )
 
     if not direct_pairs:
@@ -2868,87 +2193,46 @@ def calibrate_tdoa(
             )
         )
 
-    node_bias_map, connected_nodes, fit_warnings = (
-        _fit_node_biases(
-            direct_pairs,
-            reference_node=
-                reference,
-            sample_rate=
-                rate,
-        )
+    node_bias_map, connected_nodes, fit_warnings = _fit_node_biases(
+        direct_pairs,
+        reference_node=reference,
+        sample_rate=rate,
     )
 
-    pair_calibrations = (
-        _apply_node_bias_model(
-            direct_pairs,
-            node_biases=
-                node_bias_map,
-            connected_nodes=
-                connected_nodes,
-        )
+    pair_calibrations = _apply_node_bias_model(
+        direct_pairs,
+        node_biases=node_bias_map,
+        connected_nodes=connected_nodes,
     )
 
     node_biases = tuple(
         NodeTimingBias(
-            node_id=
-                node_id,
-
-            bias_s=
-                bias,
-
-            is_reference=
-                (
-                    node_id
-                    == reference
-                ),
+            node_id=node_id,
+            bias_s=bias,
+            is_reference=(node_id == reference),
         )
-        for node_id, bias
-        in sorted(
-            node_bias_map.items()
-        )
+        for node_id, bias in sorted(node_bias_map.items())
     )
 
-    accepted_count = sum(
-        calibration.inlier_count
-        for calibration
-        in pair_calibrations
-    )
+    accepted_count = sum(calibration.inlier_count for calibration in pair_calibrations)
 
     rejected_count = sum(
-        calibration.rejected_count
-        for calibration
-        in pair_calibrations
+        calibration.rejected_count for calibration in pair_calibrations
     )
 
-    warnings: list[
-        str
-    ] = []
+    warnings: list[str] = []
 
-    warnings.extend(
-        pair_warnings
-    )
+    warnings.extend(pair_warnings)
 
-    warnings.extend(
-        fit_warnings
-    )
+    warnings.extend(fit_warnings)
 
-    expected_nodes = set(
-        normalized_positions
-    )
+    expected_nodes = set(normalized_positions)
 
-    calibrated_nodes = {
-        bias.node_id
-        for bias
-        in node_biases
-    }
+    calibrated_nodes = {bias.node_id for bias in node_biases}
 
-    missing_nodes = (
-        expected_nodes
-        - calibrated_nodes
-    )
+    missing_nodes = expected_nodes - calibrated_nodes
 
     if missing_nodes:
-
         warnings.append(
             (
                 "No reference-connected timing bias could be estimated "
@@ -2956,22 +2240,11 @@ def calibrate_tdoa(
             )
         )
 
-    consistency_error = (
-        _rms_pair_consistency_error(
-            pair_calibrations
-        )
-    )
+    consistency_error = _rms_pair_consistency_error(pair_calibrations)
 
-    sample_period_s = (
-        1.0
-        / rate
-    )
+    sample_period_s = 1.0 / rate
 
-    if (
-        consistency_error
-        > sample_period_s
-    ):
-
+    if consistency_error > sample_period_s:
         warnings.append(
             (
                 "Pair calibration disagreement exceeds one sample. "
@@ -2981,71 +2254,34 @@ def calibrate_tdoa(
         )
 
     if generated_at is None:
-
-        timestamp = (
-            datetime.now(
-                timezone.utc
-            )
-        )
+        timestamp = datetime.now(timezone.utc)
 
     else:
-
         if not isinstance(
             generated_at,
             datetime,
         ):
-            raise TypeError(
-                "generated_at must be a datetime or None."
-            )
+            raise TypeError("generated_at must be a datetime or None.")
 
         timestamp = generated_at
 
         if timestamp.tzinfo is None:
-
-            timestamp = timestamp.replace(
-                tzinfo=timezone.utc
-            )
+            timestamp = timestamp.replace(tzinfo=timezone.utc)
 
         else:
-
-            timestamp = timestamp.astimezone(
-                timezone.utc
-            )
+            timestamp = timestamp.astimezone(timezone.utc)
 
     return TDOACalibrationResult(
-        generated_at=
-            timestamp.isoformat(),
-
-        sample_rate=
-            rate,
-
-        reference_node=
-            reference,
-
-        pair_calibrations=
-            pair_calibrations,
-
-        node_biases=
-            node_biases,
-
-        observation_count=
-            len(
-                observations
-            ),
-
-        accepted_observation_count=
-            accepted_count,
-
-        rejected_observation_count=
-            rejected_count,
-
-        rms_pair_consistency_error_s=
-            consistency_error,
-
-        warnings=
-            tuple(
-                warnings
-            ),
+        generated_at=timestamp.isoformat(),
+        sample_rate=rate,
+        reference_node=reference,
+        pair_calibrations=pair_calibrations,
+        node_biases=node_biases,
+        observation_count=len(observations),
+        accepted_observation_count=accepted_count,
+        rejected_observation_count=rejected_count,
+        rms_pair_consistency_error_s=consistency_error,
+        warnings=tuple(warnings),
     )
 
 
@@ -3076,15 +2312,11 @@ def calibration_offsets_by_pair(
         calibration,
         TDOACalibrationResult,
     ):
-        raise TypeError(
-            "calibration must be a TDOACalibrationResult."
-        )
+        raise TypeError("calibration must be a TDOACalibrationResult.")
 
     return {
-        pair_calibration.pair:
-            pair_calibration.modeled_offset_s
-        for pair_calibration
-        in calibration.pair_calibrations
+        pair_calibration.pair: pair_calibration.modeled_offset_s
+        for pair_calibration in calibration.pair_calibrations
     }
 
 
@@ -3107,13 +2339,8 @@ def calibration_node_biases(
         calibration,
         TDOACalibrationResult,
     ):
-        raise TypeError(
-            "calibration must be a TDOACalibrationResult."
-        )
+        raise TypeError("calibration must be a TDOACalibrationResult.")
 
     return {
-        node_bias.node_id:
-            node_bias.bias_s
-        for node_bias
-        in calibration.node_biases
+        node_bias.node_id: node_bias.bias_s for node_bias in calibration.node_biases
     }

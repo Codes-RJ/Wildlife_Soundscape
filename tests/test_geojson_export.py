@@ -128,7 +128,9 @@ def test_geojson_export_options_validation(tmp_path: Path) -> None:
     out_file = tmp_path / "events.geojson"
 
     # Missing origin coordinates
-    with pytest.raises(ValueError, match="origin_latitude and origin_longitude are required"):
+    with pytest.raises(
+        ValueError, match="origin_latitude and origin_longitude are required"
+    ):
         EventExportOptions(
             database_path=db_path,
             output_path=out_file,
@@ -164,6 +166,7 @@ def test_full_export_events_geojson(tmp_path: Path) -> None:
         speed_of_sound_mps = 343.0
 
     from wildlife_soundscape.pipeline.event_detector import AcousticEvent
+
     event = AcousticEvent(
         event_id=1,
         session_id=session_id,

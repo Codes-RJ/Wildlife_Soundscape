@@ -16,9 +16,7 @@ from .classifier import (
 # ======================================================================
 
 
-class HeuristicClassifierBackend(
-    ClassifierBackend
-):
+class HeuristicClassifierBackend(ClassifierBackend):
     """
     Adapter exposing HeuristicClassifier through the common
     ClassifierBackend interface.
@@ -69,9 +67,7 @@ class HeuristicClassifierBackend(
         """
 
         self._classifier = (
-            classifier
-            if classifier is not None
-            else HeuristicClassifier()
+            classifier if classifier is not None else HeuristicClassifier()
         )
 
     # ==================================================================
@@ -86,9 +82,7 @@ class HeuristicClassifierBackend(
         Stable backend identifier.
         """
 
-        return (
-            "heuristic_backend"
-        )
+        return "heuristic_backend"
 
     @property
     def version(
@@ -101,9 +95,7 @@ class HeuristicClassifierBackend(
         identity/version inside ClassificationResult.
         """
 
-        return (
-            "1.0"
-        )
+        return "1.0"
 
     # ==================================================================
     # CAPABILITIES
@@ -151,9 +143,7 @@ class HeuristicClassifierBackend(
         # BACKEND REQUIREMENT VALIDATION
         # --------------------------------------------------------------
 
-        self.validate_input(
-            classification_input
-        )
+        self.validate_input(classification_input)
 
         # --------------------------------------------------------------
         # TYPE NARROWING / DEFENSIVE CHECK
@@ -166,31 +156,18 @@ class HeuristicClassifierBackend(
         # Optional field is now non-None.
         # --------------------------------------------------------------
 
-        features = (
-            classification_input.features
-        )
+        features = classification_input.features
 
-        if (
-            features
-            is None
-        ):
-
+        if features is None:
             raise ValueError(
-                (
-                    "heuristic classifier backend "
-                    "requires acoustic features"
-                )
+                ("heuristic classifier backend requires acoustic features")
             )
 
         # --------------------------------------------------------------
         # CLASSIFICATION
         # --------------------------------------------------------------
 
-        return (
-            self._classifier.classify(
-                features
-            )
-        )
+        return self._classifier.classify(features)
 
     # ==================================================================
     # UNDERLYING CLASSIFIER ACCESS
@@ -208,6 +185,4 @@ class HeuristicClassifierBackend(
         the underlying classifier.
         """
 
-        return (
-            self._classifier
-        )
+        return self._classifier

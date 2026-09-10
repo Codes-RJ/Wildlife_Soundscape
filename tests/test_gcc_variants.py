@@ -92,7 +92,9 @@ def test_gcc_phat_frequency_band_validation() -> None:
     with pytest.raises(ValueError):
         gcc_phat(sig, sig, sample_rate=48000, frequency_band_hz=(5000.0, 1000.0))
     with pytest.raises(ValueError):
-        gcc_phat(sig, sig, sample_rate=48000, frequency_band_hz=(1000.0, 30000.0))  # exceeds 24k Nyquist
+        gcc_phat(
+            sig, sig, sample_rate=48000, frequency_band_hz=(1000.0, 30000.0)
+        )  # exceeds 24k Nyquist
     with pytest.raises(TypeError):
         gcc_phat(sig, sig, sample_rate=48000, frequency_band_hz="1000-5000")
 
@@ -100,7 +102,9 @@ def test_gcc_phat_frequency_band_validation() -> None:
 def test_gcc_phat_band_limiting_selectivity() -> None:
     sr = 48000
     duration_s = 0.1
-    t = np.linspace(0, duration_s, int(sr * duration_s), endpoint=False, dtype=np.float64)
+    t = np.linspace(
+        0, duration_s, int(sr * duration_s), endpoint=False, dtype=np.float64
+    )
 
     # 4-6 kHz in-band chirp delayed by 10 samples (positive delay: signal arrives later)
     delay_samples = 10

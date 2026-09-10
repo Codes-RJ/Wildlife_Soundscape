@@ -56,7 +56,6 @@ event detection and database behavior are tested independently in their
 own unit-test modules.
 """
 
-
 from __future__ import annotations
 
 
@@ -137,14 +136,10 @@ from wildlife_soundscape.acquisition.stream_manager import (
 # ======================================================================
 
 
-SESSION_ID = (
-    0x12345678
-)
+SESSION_ID = 0x12345678
 
 
-SECOND_SESSION_ID = (
-    0x87654321
-)
+SECOND_SESSION_ID = 0x87654321
 
 
 # ======================================================================
@@ -165,23 +160,14 @@ def make_test_config(
 
     persistence = replace(
         CONFIG.persistence,
-
-        database_path=
-            tmp_path
-            / "events.db",
-
-        events_dir=
-            tmp_path
-            / "events",
-
-        save_event_wav=
-            False,
+        database_path=tmp_path / "events.db",
+        events_dir=tmp_path / "events",
+        save_event_wav=False,
     )
 
     return replace(
         CONFIG,
-        persistence=
-            persistence,
+        persistence=persistence,
     )
 
 
@@ -226,57 +212,20 @@ def make_features() -> AcousticFeatures:
     """
 
     return AcousticFeatures(
-        duration_s=
-            1.0,
-
-        rms=
-            0.10,
-
-        peak_amplitude=
-            0.25,
-
-        crest_factor=
-            2.5,
-
-        zero_crossing_rate=
-            0.08,
-
-        dominant_frequency_hz=
-            2500.0,
-
-        spectral_centroid_hz=
-            3200.0,
-
-        spectral_bandwidth_hz=
-            1500.0,
-
-        spectral_rolloff_hz=
-            5200.0,
-
-        spectral_flatness=
-            0.12,
-
-        spectral_flux=
-            0.03,
-
-        snr_db=
-            15.0,
-
-        mfcc_mean=
-            tuple(
-                0.0
-                for _ in range(
-                    13
-                )
-            ),
-
-        mfcc_std=
-            tuple(
-                0.5
-                for _ in range(
-                    13
-                )
-            ),
+        duration_s=1.0,
+        rms=0.10,
+        peak_amplitude=0.25,
+        crest_factor=2.5,
+        zero_crossing_rate=0.08,
+        dominant_frequency_hz=2500.0,
+        spectral_centroid_hz=3200.0,
+        spectral_bandwidth_hz=1500.0,
+        spectral_rolloff_hz=5200.0,
+        spectral_flatness=0.12,
+        spectral_flux=0.03,
+        snr_db=15.0,
+        mfcc_mean=tuple(0.0 for _ in range(13)),
+        mfcc_std=tuple(0.5 for _ in range(13)),
     )
 
 
@@ -285,54 +234,22 @@ def make_classification() -> ClassificationResult:
     Valid broad acoustic classification.
     """
 
-    scores = {
-        acoustic_class.value:
-            0.0
+    scores = {acoustic_class.value: 0.0 for acoustic_class in AcousticClass}
 
-        for acoustic_class
-        in AcousticClass
-    }
+    scores[AcousticClass.BIRD.value] = 0.82
 
-    scores[
-        AcousticClass.BIRD.value
-    ] = (
-        0.82
-    )
-
-    scores[
-        AcousticClass.INSECT.value
-    ] = (
-        0.25
-    )
+    scores[AcousticClass.INSECT.value] = 0.25
 
     return ClassificationResult(
-        label=
-            AcousticClass.BIRD,
-
-        confidence=
-            0.82,
-
-        second_label=
-            AcousticClass.INSECT,
-
-        second_confidence=
-            0.25,
-
-        margin=
-            0.57,
-
-        scores=
-            scores,
-
-        reasons=(
-            "synthetic event-pipeline test",
-        ),
-
-        classifier_name=
-            "test_classifier",
-
-        classifier_version=
-            "1.0",
+        label=AcousticClass.BIRD,
+        confidence=0.82,
+        second_label=AcousticClass.INSECT,
+        second_confidence=0.25,
+        margin=0.57,
+        scores=scores,
+        reasons=("synthetic event-pipeline test",),
+        classifier_name="test_classifier",
+        classifier_version="1.0",
     )
 
 
@@ -350,48 +267,31 @@ class FakeDetector:
         self,
     ) -> None:
 
-        self.reset_count = (
-            0
-        )
+        self.reset_count = 0
 
         self.process_calls: list[object] = []
 
-        self.events_to_return: list[
-            AcousticEvent
-        ] = []
+        self.events_to_return: list[AcousticEvent] = []
 
-        self.process_error: (
-            Exception
-            | None
-        ) = None
+        self.process_error: Exception | None = None
 
     def reset(
         self,
     ) -> None:
 
-        self.reset_count += (
-            1
-        )
+        self.reset_count += 1
 
     def process(
         self,
         block,
     ):
 
-        self.process_calls.append(
-            block
-        )
+        self.process_calls.append(block)
 
-        if (
-            self.process_error
-            is not None
-        ):
-
+        if self.process_error is not None:
             raise self.process_error
 
-        return list(
-            self.events_to_return
-        )
+        return list(self.events_to_return)
 
 
 # ======================================================================
@@ -410,14 +310,9 @@ class FakeLocalizer:
 
         self.calls: list[tuple[int, int]] = []
 
-        self.result = (
-            None
-        )
+        self.result = None
 
-        self.error: (
-            Exception
-            | None
-        ) = None
+        self.error: Exception | None = None
 
     def locate_window(
         self,
@@ -433,16 +328,10 @@ class FakeLocalizer:
             )
         )
 
-        if (
-            self.error
-            is not None
-        ):
-
+        if self.error is not None:
             raise self.error
 
-        return (
-            self.result
-        )
+        return self.result
 
 
 # ======================================================================
@@ -473,39 +362,24 @@ class FakeDatabase:
 
         self.classification_calls: list[object] = []
 
-        self.start_error: (
-            Exception
-            | None
-        ) = None
+        self.start_error: Exception | None = None
 
-        self.stop_error: (
-            Exception
-            | None
-        ) = None
+        self.stop_error: Exception | None = None
 
-        self.event_error: (
-            Exception
-            | None
-        ) = None
+        self.event_error: Exception | None = None
 
-        self.feature_error: (
-            Exception
-            | None
-        ) = None
+        self.feature_error: Exception | None = None
 
-        self.classification_error: (
-            Exception
-            | None
-        ) = None
+        self.classification_error: Exception | None = None
 
-        self.next_event_id = (
-            101
-        )
+        self.next_event_id = 101
 
     def start_session(
         self,
         session_id: int,
         label: str,
+        *,
+        manifest=None,
     ) -> None:
 
         self.start_calls.append(
@@ -515,11 +389,7 @@ class FakeDatabase:
             )
         )
 
-        if (
-            self.start_error
-            is not None
-        ):
-
+        if self.start_error is not None:
             raise self.start_error
 
     def stop_session(
@@ -527,15 +397,9 @@ class FakeDatabase:
         session_id,
     ) -> None:
 
-        self.stop_calls.append(
-            session_id
-        )
+        self.stop_calls.append(session_id)
 
-        if (
-            self.stop_error
-            is not None
-        ):
-
+        if self.stop_error is not None:
             raise self.stop_error
 
     def add_environment(
@@ -543,9 +407,7 @@ class FakeDatabase:
         **kwargs,
     ) -> None:
 
-        self.environment_calls.append(
-            kwargs
-        )
+        self.environment_calls.append(kwargs)
 
     def add_event(
         self,
@@ -560,47 +422,37 @@ class FakeDatabase:
             )
         )
 
-        if (
-            self.event_error
-            is not None
-        ):
-
+        if self.event_error is not None:
             raise self.event_error
 
-        return (
-            self.next_event_id
-        )
+        return self.next_event_id
 
     def add_event_features(
         self,
         **kwargs,
     ) -> None:
 
-        self.feature_calls.append(
-            kwargs
-        )
+        self.feature_calls.append(kwargs)
 
-        if (
-            self.feature_error
-            is not None
-        ):
-
+        if self.feature_error is not None:
             raise self.feature_error
+
+    def update_event_analysis(self, event_id, **kwargs):
+        stored = self.event_calls[-1]
+        assert isinstance(stored, tuple)
+        stored[1].update(kwargs)
+
+    def set_event_processing_status(self, event_id, stage, status, detail=None):
+        pass
 
     def add_classification(
         self,
         **kwargs,
     ) -> None:
 
-        self.classification_calls.append(
-            kwargs
-        )
+        self.classification_calls.append(kwargs)
 
-        if (
-            self.classification_error
-            is not None
-        ):
-
+        if self.classification_error is not None:
             raise self.classification_error
 
 
@@ -609,9 +461,7 @@ class FakeDatabase:
 # ======================================================================
 
 
-class AudioOnlyBackend(
-    ClassifierBackend
-):
+class AudioOnlyBackend(ClassifierBackend):
     """
     Waveform-only backend used to prove EventPipeline is not coupled to
     handcrafted acoustic features.
@@ -621,66 +471,49 @@ class AudioOnlyBackend(
         self,
     ) -> None:
 
-        self.received: (
-            ClassificationInput
-            | None
-        ) = None
+        self.received: ClassificationInput | None = None
 
     @property
     def name(
         self,
     ) -> str:
 
-        return (
-            "audio_only_test_backend"
-        )
+        return "audio_only_test_backend"
 
     @property
     def version(
         self,
     ) -> str:
 
-        return (
-            "1.0"
-        )
+        return "1.0"
 
     @property
     def requires_audio(
         self,
     ) -> bool:
 
-        return (
-            True
-        )
+        return True
 
     @property
     def requires_features(
         self,
     ) -> bool:
 
-        return (
-            False
-        )
+        return False
 
     def classify(
         self,
         classification_input: ClassificationInput,
     ) -> ClassificationResult:
 
-        self.validate_input(
-            classification_input
-        )
+        self.validate_input(classification_input)
 
-        self.received = (
-            classification_input
-        )
+        self.received = classification_input
 
         return make_classification()
 
 
-class FeatureOnlyBackend(
-    ClassifierBackend
-):
+class FeatureOnlyBackend(ClassifierBackend):
     """
     Feature-only backend used for generic pipeline tests.
     """
@@ -689,66 +522,49 @@ class FeatureOnlyBackend(
         self,
     ) -> None:
 
-        self.received: (
-            ClassificationInput
-            | None
-        ) = None
+        self.received: ClassificationInput | None = None
 
     @property
     def name(
         self,
     ) -> str:
 
-        return (
-            "feature_only_test_backend"
-        )
+        return "feature_only_test_backend"
 
     @property
     def version(
         self,
     ) -> str:
 
-        return (
-            "1.0"
-        )
+        return "1.0"
 
     @property
     def requires_features(
         self,
     ) -> bool:
 
-        return (
-            True
-        )
+        return True
 
     @property
     def requires_audio(
         self,
     ) -> bool:
 
-        return (
-            False
-        )
+        return False
 
     def classify(
         self,
         classification_input: ClassificationInput,
     ) -> ClassificationResult:
 
-        self.validate_input(
-            classification_input
-        )
+        self.validate_input(classification_input)
 
-        self.received = (
-            classification_input
-        )
+        self.received = classification_input
 
         return make_classification()
 
 
-class InvalidResultBackend(
-    ClassifierBackend
-):
+class InvalidResultBackend(ClassifierBackend):
     """
     Deliberately violates the backend return contract.
     """
@@ -758,35 +574,27 @@ class InvalidResultBackend(
         self,
     ) -> str:
 
-        return (
-            "invalid_result_backend"
-        )
+        return "invalid_result_backend"
 
     @property
     def version(
         self,
     ) -> str:
 
-        return (
-            "1.0"
-        )
+        return "1.0"
 
     @property
     def requires_features(
         self,
     ) -> bool:
 
-        return (
-            True
-        )
+        return True
 
     def classify(
         self,
         classification_input: ClassificationInput,
     ):
-        self.validate_input(
-            classification_input
-        )
+        self.validate_input(classification_input)
 
         return object()
 
@@ -811,52 +619,38 @@ def make_pipeline(
     EventPipeline constructor.
     """
 
-    detector = (
-        FakeDetector()
-    )
+    detector = FakeDetector()
 
-    localizer = (
-        FakeLocalizer()
-    )
+    localizer = FakeLocalizer()
 
-    database = (
-        FakeDatabase()
-    )
+    database = FakeDatabase()
 
     monkeypatch.setattr(
         event_pipeline_module,
         "MultiNodeEventDetector",
-        lambda *args, **kwargs:
-            detector,
+        lambda *args, **kwargs: detector,
     )
 
     monkeypatch.setattr(
         event_pipeline_module,
         "LocalizationEngine",
-        lambda *args, **kwargs:
-            localizer,
+        lambda *args, **kwargs: localizer,
     )
 
     monkeypatch.setattr(
         event_pipeline_module,
         "EventDatabase",
-        lambda *args, **kwargs:
-            database,
+        lambda *args, **kwargs: database,
     )
 
-    config = make_test_config(
-        tmp_path
-    )
+    config = make_test_config(tmp_path)
 
-    streams = StreamManager(
-        config.audio
-    )
+    streams = StreamManager(config.audio)
 
     pipeline = EventPipeline(
         streams,
         config,
-        classifier_backend=
-            classifier_backend,
+        classifier_backend=classifier_backend,
     )
 
     return (
@@ -887,35 +681,17 @@ def test_pipeline_constructs_expected_subsystems(
         tmp_path,
     )
 
-    assert (
-        pipeline.detector
-        is detector
-    )
+    assert pipeline.detector is detector
 
-    assert (
-        pipeline.localizer
-        is localizer
-    )
+    assert pipeline.localizer is localizer
 
-    assert (
-        pipeline.database
-        is database
-    )
+    assert pipeline.database is database
 
-    assert (
-        pipeline.active_session_id
-        is None
-    )
+    assert pipeline.active_session_id is None
 
-    assert (
-        pipeline.active_session_label
-        is None
-    )
+    assert pipeline.active_session_label is None
 
-    assert (
-        pipeline.completed_events
-        == 0
-    )
+    assert pipeline.completed_events == 0
 
 
 def test_pipeline_uses_injected_classifier_backend(
@@ -923,9 +699,7 @@ def test_pipeline_uses_injected_classifier_backend(
     tmp_path: Path,
 ) -> None:
 
-    backend = (
-        FeatureOnlyBackend()
-    )
+    backend = FeatureOnlyBackend()
 
     (
         pipeline,
@@ -935,14 +709,10 @@ def test_pipeline_uses_injected_classifier_backend(
     ) = make_pipeline(
         monkeypatch,
         tmp_path,
-        classifier_backend=
-            backend,
+        classifier_backend=backend,
     )
 
-    assert (
-        pipeline.classifier_backend
-        is backend
-    )
+    assert pipeline.classifier_backend is backend
 
 
 # ======================================================================
@@ -965,80 +735,43 @@ def test_start_session_sets_runtime_state(
         tmp_path,
     )
 
-    pipeline.completed_events = (
-        9
-    )
+    pipeline.completed_events = 9
 
-    pipeline.last_event_db_id = (
-        88
-    )
+    pipeline.last_event_db_id = 88
 
-    pipeline.last_best_node_id = (
-        3
-    )
+    pipeline.last_best_node_id = 3
 
-    pipeline.last_features = (
-        make_features()
-    )
+    pipeline.last_features = make_features()
 
-    pipeline.last_classification = (
-        make_classification()
-    )
+    pipeline.last_classification = make_classification()
 
     pipeline.start_session(
         SESSION_ID,
         "test_session",
     )
 
-    assert (
-        pipeline.active_session_id
-        == SESSION_ID
-    )
+    assert pipeline.active_session_id == SESSION_ID
 
-    assert (
-        pipeline.active_session_label
-        == "test_session"
-    )
+    assert pipeline.active_session_label == "test_session"
 
-    assert (
-        pipeline.completed_events
-        == 0
-    )
+    assert pipeline.completed_events == 0
 
-    assert (
-        pipeline.last_event_db_id
-        is None
-    )
+    assert pipeline.last_event_db_id is None
 
-    assert (
-        pipeline.last_best_node_id
-        is None
-    )
+    assert pipeline.last_best_node_id is None
 
-    assert (
-        pipeline.last_features
-        is None
-    )
+    assert pipeline.last_features is None
 
-    assert (
-        pipeline.last_classification
-        is None
-    )
+    assert pipeline.last_classification is None
 
-    assert (
-        database.start_calls
-        == [
-            (
-                SESSION_ID,
-                "test_session",
-            )
-        ]
-    )
+    assert database.start_calls == [
+        (
+            SESSION_ID,
+            "test_session",
+        )
+    ]
 
-    assert (
-        detector.reset_count
-        == 1
-    )
+    assert detector.reset_count == 1
 
 
 @pytest.mark.parametrize(
@@ -1064,24 +797,15 @@ def test_start_session_rejects_invalid_session_id(
         tmp_path,
     )
 
-    with pytest.raises(
-        ValueError
-    ):
-
+    with pytest.raises(ValueError):
         pipeline.start_session(
             session_id,
             "test",
         )
 
-    assert (
-        pipeline.active_session_id
-        is None
-    )
+    assert pipeline.active_session_id is None
 
-    assert (
-        database.start_calls
-        == []
-    )
+    assert database.start_calls == []
 
 
 def test_start_session_rejects_blank_label(
@@ -1099,24 +823,15 @@ def test_start_session_rejects_blank_label(
         tmp_path,
     )
 
-    with pytest.raises(
-        ValueError
-    ):
-
+    with pytest.raises(ValueError):
         pipeline.start_session(
             SESSION_ID,
             "   ",
         )
 
-    assert (
-        pipeline.active_session_id
-        is None
-    )
+    assert pipeline.active_session_id is None
 
-    assert (
-        database.start_calls
-        == []
-    )
+    assert database.start_calls == []
 
 
 def test_start_session_rejects_second_active_session(
@@ -1139,26 +854,15 @@ def test_start_session_rejects_second_active_session(
         "first",
     )
 
-    with pytest.raises(
-        RuntimeError
-    ):
-
+    with pytest.raises(RuntimeError):
         pipeline.start_session(
             SECOND_SESSION_ID,
             "second",
         )
 
-    assert (
-        pipeline.active_session_id
-        == SESSION_ID
-    )
+    assert pipeline.active_session_id == SESSION_ID
 
-    assert (
-        len(
-            database.start_calls
-        )
-        == 1
-    )
+    assert len(database.start_calls) == 1
 
 
 def test_database_failure_during_start_does_not_activate_session(
@@ -1182,28 +886,17 @@ def test_database_failure_during_start_does_not_activate_session(
         tmp_path,
     )
 
-    database.start_error = RuntimeError(
-        "synthetic database failure"
-    )
+    database.start_error = RuntimeError("synthetic database failure")
 
-    with pytest.raises(
-        RuntimeError
-    ):
-
+    with pytest.raises(RuntimeError):
         pipeline.start_session(
             SESSION_ID,
             "test",
         )
 
-    assert (
-        pipeline.active_session_id
-        is None
-    )
+    assert pipeline.active_session_id is None
 
-    assert (
-        pipeline.active_session_label
-        is None
-    )
+    assert pipeline.active_session_label is None
 
 
 # ======================================================================
@@ -1231,34 +924,17 @@ def test_stop_session_clears_runtime_state(
         "test",
     )
 
-    reset_before_stop = (
-        detector.reset_count
-    )
+    reset_before_stop = detector.reset_count
 
     pipeline.stop_session()
 
-    assert (
-        database.stop_calls
-        == [
-            SESSION_ID
-        ]
-    )
+    assert database.stop_calls == [SESSION_ID]
 
-    assert (
-        pipeline.active_session_id
-        is None
-    )
+    assert pipeline.active_session_id is None
 
-    assert (
-        pipeline.active_session_label
-        is None
-    )
+    assert pipeline.active_session_label is None
 
-    assert (
-        detector.reset_count
-        == reset_before_stop
-        + 1
-    )
+    assert detector.reset_count == reset_before_stop + 1
 
 
 def test_stop_session_clears_state_even_if_database_stop_fails(
@@ -1284,35 +960,18 @@ def test_stop_session_clears_state_even_if_database_stop_fails(
         "test",
     )
 
-    reset_before_stop = (
-        detector.reset_count
-    )
+    reset_before_stop = detector.reset_count
 
-    database.stop_error = RuntimeError(
-        "synthetic stop failure"
-    )
+    database.stop_error = RuntimeError("synthetic stop failure")
 
-    with pytest.raises(
-        RuntimeError
-    ):
-
+    with pytest.raises(RuntimeError):
         pipeline.stop_session()
 
-    assert (
-        pipeline.active_session_id
-        is None
-    )
+    assert pipeline.active_session_id is None
 
-    assert (
-        pipeline.active_session_label
-        is None
-    )
+    assert pipeline.active_session_label is None
 
-    assert (
-        detector.reset_count
-        == reset_before_stop
-        + 1
-    )
+    assert detector.reset_count == reset_before_stop + 1
 
 
 # ======================================================================
@@ -1336,24 +995,13 @@ def test_on_audio_ignores_audio_without_active_session(
         tmp_path,
     )
 
-    block = make_audio_block(
-        session_id=
-            SESSION_ID
-    )
+    block = make_audio_block(session_id=SESSION_ID)
 
-    result = pipeline.on_audio(
-        block
-    )
+    result = pipeline.on_audio(block)
 
-    assert (
-        result
-        == []
-    )
+    assert result == []
 
-    assert (
-        detector.process_calls
-        == []
-    )
+    assert detector.process_calls == []
 
 
 def test_on_audio_ignores_stale_session_block(
@@ -1377,24 +1025,13 @@ def test_on_audio_ignores_stale_session_block(
         "test",
     )
 
-    stale = make_audio_block(
-        session_id=
-            SECOND_SESSION_ID
-    )
+    stale = make_audio_block(session_id=SECOND_SESSION_ID)
 
-    result = pipeline.on_audio(
-        stale
-    )
+    result = pipeline.on_audio(stale)
 
-    assert (
-        result
-        == []
-    )
+    assert result == []
 
-    assert (
-        detector.process_calls
-        == []
-    )
+    assert detector.process_calls == []
 
 
 def test_on_audio_forwards_matching_session_to_detector(
@@ -1418,26 +1055,13 @@ def test_on_audio_forwards_matching_session_to_detector(
         "test",
     )
 
-    block = make_audio_block(
-        session_id=
-            SESSION_ID
-    )
+    block = make_audio_block(session_id=SESSION_ID)
 
-    result = pipeline.on_audio(
-        block
-    )
+    result = pipeline.on_audio(block)
 
-    assert (
-        result
-        == []
-    )
+    assert result == []
 
-    assert (
-        detector.process_calls
-        == [
-            block
-        ]
-    )
+    assert detector.process_calls == [block]
 
 
 # ======================================================================
@@ -1468,43 +1092,23 @@ def test_on_audio_persists_completed_detector_events(
 
     event = make_event()
 
-    detector.events_to_return = [
-        event
-    ]
+    detector.events_to_return = [event]
 
     persisted = []
 
     monkeypatch.setattr(
         pipeline,
         "_persist_event",
-        lambda received_event:
-            persisted.append(
-                received_event
-            ),
+        lambda received_event: persisted.append(received_event),
     )
 
-    block = make_audio_block(
-        session_id=
-            SESSION_ID
-    )
+    block = make_audio_block(session_id=SESSION_ID)
 
-    result = pipeline.on_audio(
-        block
-    )
+    result = pipeline.on_audio(block)
 
-    assert (
-        result
-        == [
-            event
-        ]
-    )
+    assert result == [event]
 
-    assert (
-        persisted
-        == [
-            event
-        ]
-    )
+    assert persisted == [event]
 
 
 def test_event_processing_failure_does_not_destroy_detector_result(
@@ -1534,17 +1138,13 @@ def test_event_processing_failure_does_not_destroy_detector_result(
 
     event = make_event()
 
-    detector.events_to_return = [
-        event
-    ]
+    detector.events_to_return = [event]
 
     def fail_persistence(
         _event,
     ) -> None:
 
-        raise RuntimeError(
-            "synthetic processing failure"
-        )
+        raise RuntimeError("synthetic processing failure")
 
     monkeypatch.setattr(
         pipeline,
@@ -1552,19 +1152,9 @@ def test_event_processing_failure_does_not_destroy_detector_result(
         fail_persistence,
     )
 
-    result = pipeline.on_audio(
-        make_audio_block(
-            session_id=
-                SESSION_ID
-        )
-    )
+    result = pipeline.on_audio(make_audio_block(session_id=SESSION_ID))
 
-    assert (
-        result
-        == [
-            event
-        ]
-    )
+    assert result == [event]
 
 
 # ======================================================================
@@ -1582,9 +1172,7 @@ class WindowStream:
         samples_by_node,
     ) -> None:
 
-        self.samples_by_node = (
-            samples_by_node
-        )
+        self.samples_by_node = samples_by_node
 
         self.window_calls: list[object] = []
 
@@ -1605,69 +1193,47 @@ class WindowStream:
             )
         )
 
-        samples = self.samples_by_node[
-            node_id
-        ]
+        samples = self.samples_by_node[node_id]
 
         return np.asarray(
-            samples[
-                :length
-            ],
+            samples[:length],
             dtype=np.int16,
         )
 
 
 def test_localization_start_returns_whole_short_event() -> None:
 
-    pipeline = object.__new__(
-        EventPipeline
-    )
+    pipeline = object.__new__(EventPipeline)
 
     pipeline.config = SimpleNamespace(
-        localization=
-            SimpleNamespace(
-                window_samples=
-                    128,
-
-                reference_node=
-                    1,
-            )
+        localization=SimpleNamespace(
+            window_samples=128,
+            reference_node=1,
+        )
     )
 
     pipeline.streams = WindowStream(
         {
-            1:
-                np.zeros(
-                    100,
-                    dtype=np.int16,
-                )
+            1: np.zeros(
+                100,
+                dtype=np.int16,
+            )
         }
     )
 
     event = make_event(
-        start_sample=
-            500,
-
-        end_sample=
-            600,
+        start_sample=500,
+        end_sample=600,
     )
 
     (
         start,
         length,
-    ) = pipeline._localization_start(
-        event
-    )
+    ) = pipeline._localization_start(event)
 
-    assert (
-        start
-        == 500
-    )
+    assert start == 500
 
-    assert (
-        length
-        == 100
-    )
+    assert length == 100
 
 
 def test_localization_start_selects_highest_energy_region() -> None:
@@ -1680,19 +1246,13 @@ def test_localization_start_selects_highest_energy_region() -> None:
         event.start_sample + 120
     """
 
-    pipeline = object.__new__(
-        EventPipeline
-    )
+    pipeline = object.__new__(EventPipeline)
 
     pipeline.config = SimpleNamespace(
-        localization=
-            SimpleNamespace(
-                window_samples=
-                    64,
-
-                reference_node=
-                    1,
-            )
+        localization=SimpleNamespace(
+            window_samples=64,
+            reference_node=1,
+        )
     )
 
     samples = np.zeros(
@@ -1700,43 +1260,23 @@ def test_localization_start_selects_highest_energy_region() -> None:
         dtype=np.int16,
     )
 
-    samples[
-        120:184
-    ] = (
-        4000
-    )
+    samples[120:184] = 4000
 
-    pipeline.streams = WindowStream(
-        {
-            1:
-                samples
-        }
-    )
+    pipeline.streams = WindowStream({1: samples})
 
     event = make_event(
-        start_sample=
-            1000,
-
-        end_sample=
-            1256,
+        start_sample=1000,
+        end_sample=1256,
     )
 
     (
         start,
         length,
-    ) = pipeline._localization_start(
-        event
-    )
+    ) = pipeline._localization_start(event)
 
-    assert (
-        start
-        == 1120
-    )
+    assert start == 1120
 
-    assert (
-        length
-        == 64
-    )
+    assert length == 64
 
 
 # ======================================================================
@@ -1759,9 +1299,7 @@ def test_frame_rms_values(
         tmp_path,
     )
 
-    frame_length = int(
-        pipeline.config.dsp.snr_frame_length
-    )
+    frame_length = int(pipeline.config.dsp.snr_frame_length)
 
     signal = np.concatenate(
         (
@@ -1770,7 +1308,6 @@ def test_frame_rms_values(
                 3.0,
                 dtype=np.float32,
             ),
-
             np.full(
                 frame_length,
                 4.0,
@@ -1779,9 +1316,7 @@ def test_frame_rms_values(
         )
     )
 
-    result = pipeline._frame_rms_values(
-        signal
-    )
+    result = pipeline._frame_rms_values(signal)
 
     np.testing.assert_allclose(
         result,
@@ -1792,8 +1327,7 @@ def test_frame_rms_values(
             ],
             dtype=np.float64,
         ),
-        atol=
-            1e-12,
+        atol=1e-12,
     )
 
 
@@ -1819,10 +1353,7 @@ def test_frame_rms_empty_signal_returns_empty_array(
         )
     )
 
-    assert (
-        result.size
-        == 0
-    )
+    assert result.size == 0
 
 
 # ======================================================================
@@ -1845,27 +1376,21 @@ def test_channel_quality_score_prefers_stronger_signal_at_same_noise(
         tmp_path,
     )
 
-    frame_length = int(
-        pipeline.config.dsp.snr_frame_length
-    )
+    frame_length = int(pipeline.config.dsp.snr_frame_length)
 
     quiet = np.full(
-        frame_length
-        * 2,
+        frame_length * 2,
         100.0,
         dtype=np.float32,
     )
 
     strong = np.full(
-        frame_length
-        * 2,
+        frame_length * 2,
         1000.0,
         dtype=np.float32,
     )
 
-    noise_rms = (
-        10.0
-    )
+    noise_rms = 10.0
 
     quiet_score = pipeline._channel_quality_score(
         quiet,
@@ -1877,10 +1402,7 @@ def test_channel_quality_score_prefers_stronger_signal_at_same_noise(
         noise_rms,
     )
 
-    assert (
-        strong_score
-        > quiet_score
-    )
+    assert strong_score > quiet_score
 
 
 def test_channel_quality_zero_signal_is_negative_infinity(
@@ -1908,12 +1430,7 @@ def test_channel_quality_zero_signal_is_negative_infinity(
         10.0,
     )
 
-    assert (
-        result
-        == float(
-            "-inf"
-        )
-    )
+    assert result == float("-inf")
 
 
 # ======================================================================
@@ -1946,37 +1463,28 @@ def test_feature_failure_preserves_selected_model_audio(
 
     event_length = max(
         4096,
-        int(
-            pipeline.config.dsp.minimum_event_samples
-        ),
+        int(pipeline.config.dsp.minimum_event_samples),
     )
 
     node_signals = {
-        1:
-            np.full(
-                event_length,
-                100,
-                dtype=np.int16,
-            ),
-
-        2:
-            np.full(
-                event_length,
-                1000,
-                dtype=np.int16,
-            ),
-
-        3:
-            np.full(
-                event_length,
-                500,
-                dtype=np.int16,
-            ),
+        1: np.full(
+            event_length,
+            100,
+            dtype=np.int16,
+        ),
+        2: np.full(
+            event_length,
+            1000,
+            dtype=np.int16,
+        ),
+        3: np.full(
+            event_length,
+            500,
+            dtype=np.int16,
+        ),
     }
 
-    pipeline.streams = WindowStream(
-        node_signals
-    )
+    pipeline.streams = WindowStream(node_signals)
 
     # --------------------------------------------------------------
     # CONTROL NOISE FLOOR SO SIGNAL MAGNITUDE DETERMINES QUALITY.
@@ -1985,8 +1493,7 @@ def test_feature_failure_preserves_selected_model_audio(
     monkeypatch.setattr(
         pipeline,
         "_estimate_noise_rms",
-        lambda _signal:
-            10.0,
+        lambda _signal: 10.0,
     )
 
     # --------------------------------------------------------------
@@ -2003,39 +1510,20 @@ def test_feature_failure_preserves_selected_model_audio(
             dtype=np.float32,
         )
 
-        peak = float(
-            np.max(
-                np.abs(
-                    amplitude
-                )
-            )
-        )
+        peak = float(np.max(np.abs(amplitude)))
 
-        if (
-            peak
-            > 0.0
-        ):
-
-            model = (
-                amplitude
-                / peak
-            ).astype(
-                np.float32
-            )
+        if peak > 0.0:
+            model = (amplitude / peak).astype(np.float32)
 
         else:
-
             model = np.zeros_like(
                 amplitude,
                 dtype=np.float32,
             )
 
         return SimpleNamespace(
-            amplitude_signal=
-                amplitude,
-
-            model_signal=
-                model,
+            amplitude_signal=amplitude,
+            model_signal=model,
         )
 
     monkeypatch.setattr(
@@ -2053,9 +1541,7 @@ def test_feature_failure_preserves_selected_model_audio(
         **kwargs,
     ):
 
-        raise RuntimeError(
-            "synthetic feature extraction failure"
-        )
+        raise RuntimeError("synthetic feature extraction failure")
 
     monkeypatch.setattr(
         event_pipeline_module,
@@ -2064,55 +1550,31 @@ def test_feature_failure_preserves_selected_model_audio(
     )
 
     event = make_event(
-        start_sample=
-            0,
-
-        end_sample=
-            event_length,
+        start_sample=0,
+        end_sample=event_length,
     )
 
     (
         best_node,
         features,
         model_audio,
-    ) = pipeline._extract_best_channel_data(
-        event
-    )
+    ) = pipeline._extract_best_channel_data(event)
 
-    assert (
-        best_node
-        == 2
-    )
+    assert best_node == 2
 
-    assert (
-        features
-        is None
-    )
+    assert features is None
 
     # --------------------------------------------------------------
     # MODEL AUDIO MUST SURVIVE FEATURE FAILURE.
     # --------------------------------------------------------------
 
-    assert (
-        model_audio
-        is not None
-    )
+    assert model_audio is not None
 
-    assert (
-        model_audio.ndim
-        == 1
-    )
+    assert model_audio.ndim == 1
 
-    assert (
-        model_audio.dtype
-        == np.float32
-    )
+    assert model_audio.dtype == np.float32
 
-    assert np.all(
-        np.isfinite(
-            model_audio
-        )
-    )
+    assert np.all(np.isfinite(model_audio))
 
 
 # ======================================================================
@@ -2125,9 +1587,7 @@ def test_classify_event_with_feature_backend(
     tmp_path: Path,
 ) -> None:
 
-    backend = (
-        FeatureOnlyBackend()
-    )
+    backend = FeatureOnlyBackend()
 
     (
         pipeline,
@@ -2137,59 +1597,31 @@ def test_classify_event_with_feature_backend(
     ) = make_pipeline(
         monkeypatch,
         tmp_path,
-        classifier_backend=
-            backend,
+        classifier_backend=backend,
     )
 
     event = make_event()
 
-    features = (
-        make_features()
-    )
+    features = make_features()
 
     result = pipeline._classify_event(
-        event=
-            event,
-
-        best_node_id=
-            2,
-
-        features=
-            features,
-
-        model_audio=
-            None,
+        event=event,
+        best_node_id=2,
+        features=features,
+        model_audio=None,
     )
 
-    assert (
-        result
-        == make_classification()
-    )
+    assert result == make_classification()
 
-    assert (
-        backend.received
-        is not None
-    )
+    assert backend.received is not None
 
-    assert (
-        backend.received.features
-        is features
-    )
+    assert backend.received.features is features
 
-    assert (
-        backend.received.source_node_id
-        == 2
-    )
+    assert backend.received.source_node_id == 2
 
-    assert (
-        backend.received.detector_event_id
-        == event.event_id
-    )
+    assert backend.received.detector_event_id == event.event_id
 
-    assert (
-        backend.received.session_id
-        == SESSION_ID
-    )
+    assert backend.received.session_id == SESSION_ID
 
 
 # ======================================================================
@@ -2211,9 +1643,7 @@ def test_classify_event_supports_waveform_only_backend_without_features(
         requires_audio = True
     """
 
-    backend = (
-        AudioOnlyBackend()
-    )
+    backend = AudioOnlyBackend()
 
     (
         pipeline,
@@ -2223,8 +1653,7 @@ def test_classify_event_supports_waveform_only_backend_without_features(
     ) = make_pipeline(
         monkeypatch,
         tmp_path,
-        classifier_backend=
-            backend,
+        classifier_backend=backend,
     )
 
     waveform = np.linspace(
@@ -2235,17 +1664,10 @@ def test_classify_event_supports_waveform_only_backend_without_features(
     )
 
     result = pipeline._classify_event(
-        event=
-            make_event(),
-
-        best_node_id=
-            1,
-
-        features=
-            None,
-
-        model_audio=
-            waveform,
+        event=make_event(),
+        best_node_id=1,
+        features=None,
+        model_audio=waveform,
     )
 
     assert isinstance(
@@ -2253,20 +1675,11 @@ def test_classify_event_supports_waveform_only_backend_without_features(
         ClassificationResult,
     )
 
-    assert (
-        backend.received
-        is not None
-    )
+    assert backend.received is not None
 
-    assert (
-        backend.received.features
-        is None
-    )
+    assert backend.received.features is None
 
-    assert (
-        backend.received.model_audio
-        is waveform
-    )
+    assert backend.received.model_audio is waveform
 
 
 def test_audio_backend_returns_none_when_required_audio_missing(
@@ -2274,9 +1687,7 @@ def test_audio_backend_returns_none_when_required_audio_missing(
     tmp_path: Path,
 ) -> None:
 
-    backend = (
-        AudioOnlyBackend()
-    )
+    backend = AudioOnlyBackend()
 
     (
         pipeline,
@@ -2286,28 +1697,17 @@ def test_audio_backend_returns_none_when_required_audio_missing(
     ) = make_pipeline(
         monkeypatch,
         tmp_path,
-        classifier_backend=
-            backend,
+        classifier_backend=backend,
     )
 
     result = pipeline._classify_event(
-        event=
-            make_event(),
-
-        best_node_id=
-            1,
-
-        features=
-            None,
-
-        model_audio=
-            None,
+        event=make_event(),
+        best_node_id=1,
+        features=None,
+        model_audio=None,
     )
 
-    assert (
-        result
-        is None
-    )
+    assert result is None
 
 
 # ======================================================================
@@ -2326,9 +1726,7 @@ def test_classify_event_rejects_non_classification_result(
     database/dashboard code.
     """
 
-    backend = (
-        InvalidResultBackend()
-    )
+    backend = InvalidResultBackend()
 
     (
         pipeline,
@@ -2338,28 +1736,17 @@ def test_classify_event_rejects_non_classification_result(
     ) = make_pipeline(
         monkeypatch,
         tmp_path,
-        classifier_backend=
-            backend,
+        classifier_backend=backend,
     )
 
     result = pipeline._classify_event(
-        event=
-            make_event(),
-
-        best_node_id=
-            1,
-
-        features=
-            make_features(),
-
-        model_audio=
-            None,
+        event=make_event(),
+        best_node_id=1,
+        features=make_features(),
+        model_audio=None,
     )
 
-    assert (
-        result
-        is None
-    )
+    assert result is None
 
 
 # ======================================================================
@@ -2377,9 +1764,7 @@ class EnvironmentStream:
         environment,
     ) -> None:
 
-        self.environment = (
-            environment
-        )
+        self.environment = environment
 
         self.environment_queries: list[int] = []
 
@@ -2388,13 +1773,9 @@ class EnvironmentStream:
         sample_index: int,
     ):
 
-        self.environment_queries.append(
-            sample_index
-        )
+        self.environment_queries.append(sample_index)
 
-        return (
-            self.environment
-        )
+        return self.environment
 
 
 def test_persist_event_orchestrates_all_outputs(
@@ -2410,8 +1791,7 @@ def test_persist_event_orchestrates_all_outputs(
     ) = make_pipeline(
         monkeypatch,
         tmp_path,
-        classifier_backend=
-            FeatureOnlyBackend(),
+        classifier_backend=FeatureOnlyBackend(),
     )
 
     pipeline.start_session(
@@ -2425,41 +1805,23 @@ def test_persist_event_orchestrates_all_outputs(
         1008.0,
     )
 
-    pipeline.streams = EnvironmentStream(
-        environment
-    )
+    pipeline.streams = EnvironmentStream(environment)
 
     localization = SimpleNamespace(
-        position=
-            SimpleNamespace(
-                x=
-                    0.45,
-
-                y=
-                    0.35,
-
-                success=
-                    True,
-
-                residual_rms_meters=
-                    0.02,
-            ),
-
-        speed_of_sound_mps=
-            344.0,
+        position=SimpleNamespace(
+            x=0.45,
+            y=0.35,
+            success=True,
+            residual_rms_meters=0.02,
+        ),
+        speed_of_sound_mps=344.0,
     )
 
-    localizer.result = (
-        localization
-    )
+    localizer.result = localization
 
-    features = (
-        make_features()
-    )
+    features = make_features()
 
-    classification = (
-        make_classification()
-    )
+    classification = make_classification()
 
     model_audio = np.zeros(
         4096,
@@ -2469,224 +1831,106 @@ def test_persist_event_orchestrates_all_outputs(
     monkeypatch.setattr(
         pipeline,
         "_localization_start",
-        lambda _event:
-            (
-                1200,
-                max(
-                    int(
-                        pipeline.config.dsp.minimum_event_samples
-                    ),
-                    128,
-                ),
+        lambda _event: (
+            1200,
+            max(
+                int(pipeline.config.dsp.minimum_event_samples),
+                128,
             ),
+        ),
     )
 
     monkeypatch.setattr(
         pipeline,
         "_extract_best_channel_data",
-        lambda _event:
-            (
-                2,
-                features,
-                model_audio,
-            ),
+        lambda _event: (
+            2,
+            features,
+            model_audio,
+        ),
     )
 
     monkeypatch.setattr(
         pipeline,
         "_classify_event",
-        lambda **kwargs:
-            classification,
+        lambda **kwargs: classification,
     )
 
     event = make_event(
-        event_id=
-            7,
-
-        start_sample=
-            1000,
-
-        end_sample=
-            5000,
+        event_id=7,
+        start_sample=1000,
+        end_sample=5000,
     )
 
-    pipeline._persist_event(
-        event
-    )
+    pipeline._persist_event(event)
 
     # ==============================================================
     # ENVIRONMENT MIDPOINT
     # ==============================================================
 
-    expected_midpoint = (
-        event.start_sample
-        + event.end_sample
-    ) // 2
+    expected_midpoint = (event.start_sample + event.end_sample) // 2
 
-    assert (
-        pipeline.streams.environment_queries
-        == [
-            expected_midpoint
-        ]
-    )
+    assert pipeline.streams.environment_queries == [expected_midpoint]
 
     # ==============================================================
     # LOCALIZATION
     # ==============================================================
 
-    assert (
-        len(
-            localizer.calls
-        )
-        == 1
-    )
+    assert len(localizer.calls) == 1
 
     # ==============================================================
     # CORE EVENT
     # ==============================================================
 
-    assert (
-        len(
-            database.event_calls
-        )
-        == 1
-    )
+    assert len(database.event_calls) == 1
 
-    stored_event = (
-        database.event_calls[
-            0
-        ][
-            0
-        ]
-    )
+    stored_event = database.event_calls[0][0]
 
-    stored_kwargs = (
-        database.event_calls[
-            0
-        ][
-            1
-        ]
-    )
+    stored_kwargs = database.event_calls[0][1]
 
-    assert (
-        stored_event
-        is event
-    )
+    assert stored_event is event
 
-    assert (
-        stored_kwargs[
-            "environment"
-        ]
-        == environment
-    )
+    assert stored_kwargs["environment"] == environment
 
-    assert (
-        stored_kwargs[
-            "localization"
-        ]
-        is localization
-    )
+    assert stored_kwargs["localization"] is localization
 
-    assert (
-        stored_kwargs[
-            "best_node_id"
-        ]
-        == 2
-    )
+    assert stored_kwargs["best_node_id"] == 2
 
-    assert (
-        stored_kwargs[
-            "event_directory"
-        ]
-        is None
-    )
+    assert stored_kwargs["event_directory"] is None
 
     # ==============================================================
     # FEATURES
     # ==============================================================
 
-    assert (
-        len(
-            database.feature_calls
-        )
-        == 1
-    )
+    assert len(database.feature_calls) == 1
 
-    assert (
-        database.feature_calls[
-            0
-        ][
-            "event_id"
-        ]
-        == database.next_event_id
-    )
+    assert database.feature_calls[0]["event_id"] == database.next_event_id
 
-    assert (
-        database.feature_calls[
-            0
-        ][
-            "source_node_id"
-        ]
-        == 2
-    )
+    assert database.feature_calls[0]["source_node_id"] == 2
 
-    assert (
-        database.feature_calls[
-            0
-        ][
-            "features"
-        ]
-        is features
-    )
+    assert database.feature_calls[0]["features"] is features
 
     # ==============================================================
     # CLASSIFICATION
     # ==============================================================
 
-    assert (
-        len(
-            database.classification_calls
-        )
-        == 1
-    )
+    assert len(database.classification_calls) == 1
 
-    assert (
-        database.classification_calls[
-            0
-        ][
-            "result"
-        ]
-        is classification
-    )
+    assert database.classification_calls[0]["result"] is classification
 
     # ==============================================================
     # RUNTIME STATUS
     # ==============================================================
 
-    assert (
-        pipeline.completed_events
-        == 1
-    )
+    assert pipeline.completed_events == 1
 
-    assert (
-        pipeline.last_event_db_id
-        == database.next_event_id
-    )
+    assert pipeline.last_event_db_id == database.next_event_id
 
-    assert (
-        pipeline.last_best_node_id
-        == 2
-    )
+    assert pipeline.last_best_node_id == 2
 
-    assert (
-        pipeline.last_features
-        is features
-    )
+    assert pipeline.last_features is features
 
-    assert (
-        pipeline.last_classification
-        is classification
-    )
+    assert pipeline.last_classification is classification
 
 
 # ======================================================================
@@ -2714,24 +1958,13 @@ def test_persist_event_ignores_stale_session_event(
         "test",
     )
 
-    stale_event = make_event(
-        session_id=
-            SECOND_SESSION_ID
-    )
+    stale_event = make_event(session_id=SECOND_SESSION_ID)
 
-    pipeline._persist_event(
-        stale_event
-    )
+    pipeline._persist_event(stale_event)
 
-    assert (
-        database.event_calls
-        == []
-    )
+    assert database.event_calls == []
 
-    assert (
-        pipeline.completed_events
-        == 0
-    )
+    assert pipeline.completed_events == 0
 
 
 # ======================================================================
@@ -2752,8 +1985,7 @@ def test_feature_persistence_failure_does_not_lose_core_event(
     ) = make_pipeline(
         monkeypatch,
         tmp_path,
-        classifier_backend=
-            FeatureOnlyBackend(),
+        classifier_backend=FeatureOnlyBackend(),
     )
 
     pipeline.start_session(
@@ -2761,81 +1993,53 @@ def test_feature_persistence_failure_does_not_lose_core_event(
         "test",
     )
 
-    pipeline.streams = EnvironmentStream(
-        None
-    )
+    pipeline.streams = EnvironmentStream(None)
 
-    localizer.result = (
-        None
-    )
+    localizer.result = None
 
-    features = (
-        make_features()
-    )
+    features = make_features()
 
-    classification = (
-        make_classification()
-    )
+    classification = make_classification()
 
     monkeypatch.setattr(
         pipeline,
         "_localization_start",
-        lambda _event:
-            (
-                0,
-                0,
-            ),
+        lambda _event: (
+            0,
+            0,
+        ),
     )
 
     monkeypatch.setattr(
         pipeline,
         "_extract_best_channel_data",
-        lambda _event:
-            (
-                1,
-                features,
-                np.zeros(
-                    1024,
-                    dtype=np.float32,
-                ),
+        lambda _event: (
+            1,
+            features,
+            np.zeros(
+                1024,
+                dtype=np.float32,
             ),
+        ),
     )
 
     monkeypatch.setattr(
         pipeline,
         "_classify_event",
-        lambda **kwargs:
-            classification,
+        lambda **kwargs: classification,
     )
 
-    database.feature_error = RuntimeError(
-        "synthetic feature DB failure"
-    )
+    database.feature_error = RuntimeError("synthetic feature DB failure")
 
-    pipeline._persist_event(
-        make_event()
-    )
+    pipeline._persist_event(make_event())
 
     # Core event survives.
-    assert (
-        len(
-            database.event_calls
-        )
-        == 1
-    )
+    assert len(database.event_calls) == 1
 
     # Classification should still be attempted.
-    assert (
-        len(
-            database.classification_calls
-        )
-        == 1
-    )
+    assert len(database.classification_calls) == 1
 
-    assert (
-        pipeline.completed_events
-        == 1
-    )
+    assert pipeline.completed_events == 1
 
 
 def test_classification_persistence_failure_does_not_lose_core_event(
@@ -2851,8 +2055,7 @@ def test_classification_persistence_failure_does_not_lose_core_event(
     ) = make_pipeline(
         monkeypatch,
         tmp_path,
-        classifier_backend=
-            FeatureOnlyBackend(),
+        classifier_backend=FeatureOnlyBackend(),
     )
 
     pipeline.start_session(
@@ -2860,76 +2063,48 @@ def test_classification_persistence_failure_does_not_lose_core_event(
         "test",
     )
 
-    pipeline.streams = EnvironmentStream(
-        None
-    )
+    pipeline.streams = EnvironmentStream(None)
 
-    localizer.result = (
-        None
-    )
+    localizer.result = None
 
-    features = (
-        make_features()
-    )
+    features = make_features()
 
-    classification = (
-        make_classification()
-    )
+    classification = make_classification()
 
     monkeypatch.setattr(
         pipeline,
         "_localization_start",
-        lambda _event:
-            (
-                0,
-                0,
-            ),
+        lambda _event: (
+            0,
+            0,
+        ),
     )
 
     monkeypatch.setattr(
         pipeline,
         "_extract_best_channel_data",
-        lambda _event:
-            (
-                1,
-                features,
-                None,
-            ),
+        lambda _event: (
+            1,
+            features,
+            None,
+        ),
     )
 
     monkeypatch.setattr(
         pipeline,
         "_classify_event",
-        lambda **kwargs:
-            classification,
+        lambda **kwargs: classification,
     )
 
-    database.classification_error = RuntimeError(
-        "synthetic classification DB failure"
-    )
+    database.classification_error = RuntimeError("synthetic classification DB failure")
 
-    pipeline._persist_event(
-        make_event()
-    )
+    pipeline._persist_event(make_event())
 
-    assert (
-        len(
-            database.event_calls
-        )
-        == 1
-    )
+    assert len(database.event_calls) == 1
 
-    assert (
-        len(
-            database.feature_calls
-        )
-        == 1
-    )
+    assert len(database.feature_calls) == 1
 
-    assert (
-        pipeline.completed_events
-        == 1
-    )
+    assert pipeline.completed_events == 1
 
 
 # ======================================================================
@@ -2959,37 +2134,20 @@ def test_add_environment_delegates_to_database(
     )
 
     pipeline.add_environment(
-        node_id=
-            1,
-
-        session_id=
-            SESSION_ID,
-
-        sample_index=
-            48_000,
-
-        environment=
-            environment,
+        node_id=1,
+        session_id=SESSION_ID,
+        sample_index=48_000,
+        environment=environment,
     )
 
-    assert (
-        database.environment_calls
-        == [
-            {
-                "session_id":
-                    SESSION_ID,
-
-                "node_id":
-                    1,
-
-                "sample_index":
-                    48_000,
-
-                "environment":
-                    environment,
-            }
-        ]
-    )
+    assert database.environment_calls == [
+        {
+            "session_id": SESSION_ID,
+            "node_id": 1,
+            "sample_index": 48_000,
+            "environment": environment,
+        }
+    ]
 
 
 # ======================================================================
@@ -3012,10 +2170,7 @@ def test_write_wav_creates_valid_pcm16_file(
         tmp_path,
     )
 
-    path = (
-        tmp_path
-        / "event.wav"
-    )
+    path = tmp_path / "event.wav"
 
     samples = np.array(
         [
@@ -3033,40 +2188,21 @@ def test_write_wav_creates_valid_pcm16_file(
         samples,
     )
 
-    assert (
-        path.exists()
-    )
+    assert path.exists()
 
     with wave.open(
-        str(
-            path
-        ),
+        str(path),
         "rb",
     ) as wav:
+        assert wav.getnchannels() == pipeline.config.audio.channels
 
-        assert (
-            wav.getnchannels()
-            == pipeline.config.audio.channels
-        )
+        assert wav.getsampwidth() == pipeline.config.audio.sample_width_bytes
 
-        assert (
-            wav.getsampwidth()
-            == pipeline.config.audio.sample_width_bytes
-        )
+        assert wav.getframerate() == pipeline.config.audio.sample_rate
 
-        assert (
-            wav.getframerate()
-            == pipeline.config.audio.sample_rate
-        )
+        assert wav.getnframes() == samples.size
 
-        assert (
-            wav.getnframes()
-            == samples.size
-        )
-
-        raw = wav.readframes(
-            wav.getnframes()
-        )
+        raw = wav.readframes(wav.getnframes())
 
     recovered = np.frombuffer(
         raw,

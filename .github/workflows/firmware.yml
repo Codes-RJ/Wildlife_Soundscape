@@ -1,0 +1,25 @@
+name: Firmware compile
+on:
+  push:
+  pull_request:
+jobs:
+  compile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      matrix:
+        sketch: [Node_1_Master, Node_2_Slave, Node_3_Slave]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: arduino/setup-arduino-cli@v2
+        with:
+          version: 1.3.1
+      - name: Install pinned core and libraries
+        env:
+          ARDUINO_NETWORK_CONNECTION_TIMEOUT: 1200s
+        run: |
+          arduino-cli core update-index --additional-urls https://espressif.github.io/arduino-esp32/package_esp32_index.json
+          arduino-cli core install esp32:esp32@3.3.0 --additional-urls https://espressif.github.io/arduino-esp32/package_esp32_index.json
+          arduino-cli lib install --no-deps "Adafruit BME280 Library@2.3.0" "Adafruit Unified Sensor@1.1.15" "Adafruit BusIO@1.17.2"
+      - name: Compile
+        run: arduino-cli compile --fqbn esp32:esp32:esp32 --warnings all firmware/${{ matrix.sketch }}

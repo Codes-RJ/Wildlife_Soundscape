@@ -38,7 +38,6 @@ Fine acoustic arrival-time differences remain in the PCM waveform for
 later GCC-PHAT/TDOA localization.
 """
 
-
 from __future__ import annotations
 
 
@@ -76,24 +75,16 @@ from wildlife_soundscape.core.models import (
 # ======================================================================
 
 
-SAMPLE_RATE = (
-    48_000
-)
+SAMPLE_RATE = 48_000
 
 
-FRAMES_PER_BLOCK = (
-    256
-)
+FRAMES_PER_BLOCK = 256
 
 
-SESSION_ID = (
-    7
-)
+SESSION_ID = 7
 
 
-SECOND_SESSION_ID = (
-    8
-)
+SECOND_SESSION_ID = 8
 
 
 NODE_IDS = (
@@ -117,17 +108,10 @@ def make_audio_config(
     """
 
     return AudioConfig(
-        sample_rate=
-            SAMPLE_RATE,
-
-        frames_per_block=
-            FRAMES_PER_BLOCK,
-
-        buffer_seconds=
-            5,
-
-        sync_tolerance_samples=
-            sync_tolerance_samples,
+        sample_rate=SAMPLE_RATE,
+        frames_per_block=FRAMES_PER_BLOCK,
+        buffer_seconds=5,
+        sync_tolerance_samples=sync_tolerance_samples,
     )
 
 
@@ -150,50 +134,21 @@ def make_detection_config(
     """
 
     return EventDetectionConfig(
-        enabled=
-            enabled,
-
-        noise_history_blocks=
-            8,
-
-        noise_quantile=
-            0.30,
-
-        initial_noise_dbfs=
-            -52.0,
-
-        trigger_margin_db=
-            6.0,
-
-        release_margin_db=
-            3.0,
-
-        min_spectral_flux=
-            0.0,
-
-        strong_energy_margin_db=
-            10.0,
-
-        attack_blocks=
-            attack_blocks,
-
-        release_blocks=
-            release_blocks,
-
-        min_nodes=
-            min_nodes,
-
-        min_event_ms=
-            min_event_ms,
-
-        max_event_s=
-            12.0,
-
-        pre_pad_s=
-            pre_pad_s,
-
-        post_pad_s=
-            post_pad_s,
+        enabled=enabled,
+        noise_history_blocks=8,
+        noise_quantile=0.30,
+        initial_noise_dbfs=-52.0,
+        trigger_margin_db=6.0,
+        release_margin_db=3.0,
+        min_spectral_flux=0.0,
+        strong_energy_margin_db=10.0,
+        attack_blocks=attack_blocks,
+        release_blocks=release_blocks,
+        min_nodes=min_nodes,
+        min_event_ms=min_event_ms,
+        max_event_s=12.0,
+        pre_pad_s=pre_pad_s,
+        post_pad_s=post_pad_s,
     )
 
 
@@ -212,32 +167,16 @@ def make_detector(
     Build the standard three-node detector.
     """
 
-    audio = make_audio_config(
-        sync_tolerance_samples=
-            sync_tolerance_samples
-    )
+    audio = make_audio_config(sync_tolerance_samples=sync_tolerance_samples)
 
     detection = make_detection_config(
-        enabled=
-            enabled,
-
-        attack_blocks=
-            attack_blocks,
-
-        release_blocks=
-            release_blocks,
-
-        min_nodes=
-            min_nodes,
-
-        min_event_ms=
-            min_event_ms,
-
-        pre_pad_s=
-            pre_pad_s,
-
-        post_pad_s=
-            post_pad_s,
+        enabled=enabled,
+        attack_blocks=attack_blocks,
+        release_blocks=release_blocks,
+        min_nodes=min_nodes,
+        min_event_ms=min_event_ms,
+        pre_pad_s=pre_pad_s,
+        post_pad_s=post_pad_s,
     )
 
     return MultiNodeEventDetector(
@@ -266,54 +205,24 @@ def make_block(
         )
     )
 
-    if (
-        pcm.ndim
-        != 1
-    ):
+    if pcm.ndim != 1:
+        raise ValueError("test block samples must be 1-D")
 
-        raise ValueError(
-            "test block samples must be 1-D"
-        )
-
-    if (
-        sequence
-        is None
-    ):
-
-        sequence = (
-            sample_index
-            // max(
-                1,
-                pcm.size,
-            )
+    if sequence is None:
+        sequence = sample_index // max(
+            1,
+            pcm.size,
         )
 
     return AudioBlock(
-        node_id=
-            node_id,
-
-        sequence=
-            int(
-                sequence
-            ),
-
-        session_id=
-            session_id,
-
-        sample_index=
-            sample_index,
-
-        local_micros=
-            0,
-
-        i2s_error_count=
-            0,
-
-        flags=
-            0,
-
-        samples=
-            pcm,
+        node_id=node_id,
+        sequence=int(sequence),
+        session_id=session_id,
+        sample_index=sample_index,
+        local_micros=0,
+        i2s_error_count=0,
+        flags=0,
+        samples=pcm,
     )
 
 
@@ -335,9 +244,7 @@ def quiet_block(
             values,
             -32768.0,
             32767.0,
-        ).astype(
-            np.int16
-        )
+        ).astype(np.int16)
     )
 
 
@@ -359,9 +266,7 @@ def strong_block(
             values,
             -32768.0,
             32767.0,
-        ).astype(
-            np.int16
-        )
+        ).astype(np.int16)
     )
 
 
@@ -376,11 +281,10 @@ def feed_group(
     offsets: dict[
         int,
         int,
-    ] | None = None,
+    ]
+    | None = None,
     session_id: int = SESSION_ID,
-) -> list[
-    AcousticEvent
-]:
+) -> list[AcousticEvent]:
     """
     Feed one logical three-node block group.
 
@@ -388,37 +292,19 @@ def feed_group(
     exercising the detector's sync-tolerance grouping.
     """
 
-    if (
-        offsets
-        is None
-    ):
+    if offsets is None:
+        offsets = {node_id: 0 for node_id in NODE_IDS}
 
-        offsets = {
-            node_id:
-                0
-            for node_id
-            in NODE_IDS
-        }
-
-    completed: list[
-        AcousticEvent
-    ] = []
+    completed: list[AcousticEvent] = []
 
     for node_id in NODE_IDS:
-
         completed.extend(
             detector.process(
                 make_block(
                     node_id,
-                    base_index
-                    + offsets[
-                        node_id
-                    ],
-                    samples_by_node[
-                        node_id
-                    ],
-                    session_id=
-                        session_id,
+                    base_index + offsets[node_id],
+                    samples_by_node[node_id],
+                    session_id=session_id,
                 )
             )
         )
@@ -435,7 +321,8 @@ def feed_background(
     offsets: dict[
         int,
         int,
-    ] | None = None,
+    ]
+    | None = None,
     session_id: int = SESSION_ID,
 ) -> int:
     """
@@ -444,47 +331,24 @@ def feed_background(
     Returns the next base sampleIndex.
     """
 
-    base_index = (
-        start_index
-    )
+    base_index = start_index
 
-    for _ in range(
-        groups
-    ):
-
-        samples = {
-            node_id:
-                quiet_block(
-                    rng
-                )
-            for node_id
-            in NODE_IDS
-        }
+    for _ in range(groups):
+        samples = {node_id: quiet_block(rng) for node_id in NODE_IDS}
 
         result = feed_group(
             detector,
-            base_index=
-                base_index,
-            samples_by_node=
-                samples,
-            offsets=
-                offsets,
-            session_id=
-                session_id,
+            base_index=base_index,
+            samples_by_node=samples,
+            offsets=offsets,
+            session_id=session_id,
         )
 
-        assert (
-            result
-            == []
-        )
+        assert result == []
 
-        base_index += (
-            FRAMES_PER_BLOCK
-        )
+        base_index += FRAMES_PER_BLOCK
 
-    return (
-        base_index
-    )
+    return base_index
 
 
 def release_event(
@@ -496,56 +360,35 @@ def release_event(
     offsets: dict[
         int,
         int,
-    ] | None = None,
+    ]
+    | None = None,
     session_id: int = SESSION_ID,
 ) -> tuple[
     int,
-    list[
-        AcousticEvent
-    ],
+    list[AcousticEvent],
 ]:
     """
     Feed enough quiet groups to release and post-pad an active event.
     """
 
-    base_index = (
-        start_index
-    )
+    base_index = start_index
 
-    completed: list[
-        AcousticEvent
-    ] = []
+    completed: list[AcousticEvent] = []
 
-    for _ in range(
-        groups
-    ):
-
-        samples = {
-            node_id:
-                quiet_block(
-                    rng
-                )
-            for node_id
-            in NODE_IDS
-        }
+    for _ in range(groups):
+        samples = {node_id: quiet_block(rng) for node_id in NODE_IDS}
 
         completed.extend(
             feed_group(
                 detector,
-                base_index=
-                    base_index,
-                samples_by_node=
-                    samples,
-                offsets=
-                    offsets,
-                session_id=
-                    session_id,
+                base_index=base_index,
+                samples_by_node=samples,
+                offsets=offsets,
+                session_id=session_id,
             )
         )
 
-        base_index += (
-            FRAMES_PER_BLOCK
-        )
+        base_index += FRAMES_PER_BLOCK
 
     return (
         base_index,
@@ -560,14 +403,9 @@ def release_event(
 
 def test_multinode_event_detects_strong_burst() -> None:
 
-    detector = make_detector(
-        min_nodes=
-            2
-    )
+    detector = make_detector(min_nodes=2)
 
-    rng = np.random.default_rng(
-        1
-    )
+    rng = np.random.default_rng(1)
 
     index = feed_background(
         detector,
@@ -578,37 +416,24 @@ def test_multinode_event_detects_strong_burst() -> None:
     # STRONG EVENT ACROSS ALL THREE NODES
     # ==============================================================
 
-    event_signal = strong_block(
-        rng
-    )
+    event_signal = strong_block(rng)
 
     completed = feed_group(
         detector,
-        base_index=
-            index,
+        base_index=index,
         samples_by_node={
-            1:
-                event_signal,
-            2:
-                event_signal.copy(),
-            3:
-                event_signal.copy(),
+            1: event_signal,
+            2: event_signal.copy(),
+            3: event_signal.copy(),
         },
     )
 
     # Event should have started but not yet completed.
-    assert (
-        completed
-        == []
-    )
+    assert completed == []
 
-    event_index = (
-        index
-    )
+    event_index = index
 
-    index += (
-        FRAMES_PER_BLOCK
-    )
+    index += FRAMES_PER_BLOCK
 
     # ==============================================================
     # RELEASE + POST-PAD
@@ -620,58 +445,28 @@ def test_multinode_event_detects_strong_burst() -> None:
     ) = release_event(
         detector,
         rng,
-        start_index=
-            index,
+        start_index=index,
     )
 
-    assert (
-        len(
-            completed
-        )
-        == 1
+    assert len(completed) == 1
+
+    event = completed[0]
+
+    assert event.trigger_nodes == (
+        1,
+        2,
+        3,
     )
 
-    event = (
-        completed[
-            0
-        ]
-    )
+    assert event.session_id == SESSION_ID
 
-    assert (
-        event.trigger_nodes
-        == (
-            1,
-            2,
-            3,
-        )
-    )
+    assert event.start_sample <= event_index
 
-    assert (
-        event.session_id
-        == SESSION_ID
-    )
+    assert event.end_sample > event.start_sample
 
-    assert (
-        event.start_sample
-        <= event_index
-    )
+    assert event.sample_count == (event.end_sample - event.start_sample)
 
-    assert (
-        event.end_sample
-        > event.start_sample
-    )
-
-    assert (
-        event.sample_count
-        == (
-            event.end_sample
-            - event.start_sample
-        )
-    )
-
-    assert np.isfinite(
-        event.peak_rms_dbfs
-    )
+    assert np.isfinite(event.peak_rms_dbfs)
 
 
 # ======================================================================
@@ -681,51 +476,31 @@ def test_multinode_event_detects_strong_burst() -> None:
 
 def test_two_of_three_nodes_can_trigger_when_min_nodes_is_two() -> None:
 
-    detector = make_detector(
-        min_nodes=
-            2
-    )
+    detector = make_detector(min_nodes=2)
 
-    rng = np.random.default_rng(
-        2
-    )
+    rng = np.random.default_rng(2)
 
     index = feed_background(
         detector,
         rng,
     )
 
-    strong = strong_block(
-        rng
-    )
+    strong = strong_block(rng)
 
     completed = feed_group(
         detector,
-        base_index=
-            index,
+        base_index=index,
         samples_by_node={
-            1:
-                strong,
-
-            2:
-                strong.copy(),
-
+            1: strong,
+            2: strong.copy(),
             # Third microphone observes only background.
-            3:
-                quiet_block(
-                    rng
-                ),
+            3: quiet_block(rng),
         },
     )
 
-    assert (
-        completed
-        == []
-    )
+    assert completed == []
 
-    index += (
-        FRAMES_PER_BLOCK
-    )
+    index += FRAMES_PER_BLOCK
 
     (
         _,
@@ -733,81 +508,46 @@ def test_two_of_three_nodes_can_trigger_when_min_nodes_is_two() -> None:
     ) = release_event(
         detector,
         rng,
-        start_index=
-            index,
+        start_index=index,
     )
 
-    assert (
-        len(
-            completed
-        )
-        == 1
-    )
+    assert len(completed) == 1
 
-    assert (
-        completed[
-            0
-        ].trigger_nodes
-        == (
-            1,
-            2,
-        )
+    assert completed[0].trigger_nodes == (
+        1,
+        2,
     )
 
 
 def test_single_node_activity_does_not_trigger_two_node_detector() -> None:
 
-    detector = make_detector(
-        min_nodes=
-            2
-    )
+    detector = make_detector(min_nodes=2)
 
-    rng = np.random.default_rng(
-        3
-    )
+    rng = np.random.default_rng(3)
 
     index = feed_background(
         detector,
         rng,
     )
 
-    completed: list[
-        AcousticEvent
-    ] = []
+    completed: list[AcousticEvent] = []
 
     # Several strong blocks on Node 1 alone should still fail the
     # multi-node agreement requirement.
-    for _ in range(
-        3
-    ):
-
+    for _ in range(3):
         completed.extend(
             feed_group(
                 detector,
-                base_index=
-                    index,
+                base_index=index,
                 samples_by_node={
-                    1:
-                        strong_block(
-                            rng
-                        ),
-
-                    2:
-                        quiet_block(
-                            rng
-                        ),
-
-                    3:
-                        quiet_block(
-                            rng
-                        ),
+                    1: strong_block(rng),
+                    2: quiet_block(rng),
+                    3: quiet_block(rng),
                 },
             )
         )
 
-        index += (
-            FRAMES_PER_BLOCK
-        )
+        index += FRAMES_PER_BLOCK
 
     (
         _,
@@ -815,61 +555,38 @@ def test_single_node_activity_does_not_trigger_two_node_detector() -> None:
     ) = release_event(
         detector,
         rng,
-        start_index=
-            index,
+        start_index=index,
     )
 
-    completed.extend(
-        released
-    )
+    completed.extend(released)
 
-    assert (
-        completed
-        == []
-    )
+    assert completed == []
 
 
 def test_three_node_requirement_rejects_two_node_burst() -> None:
 
-    detector = make_detector(
-        min_nodes=
-            3
-    )
+    detector = make_detector(min_nodes=3)
 
-    rng = np.random.default_rng(
-        4
-    )
+    rng = np.random.default_rng(4)
 
     index = feed_background(
         detector,
         rng,
     )
 
-    strong = strong_block(
-        rng
-    )
+    strong = strong_block(rng)
 
     completed = feed_group(
         detector,
-        base_index=
-            index,
+        base_index=index,
         samples_by_node={
-            1:
-                strong,
-
-            2:
-                strong.copy(),
-
-            3:
-                quiet_block(
-                    rng
-                ),
+            1: strong,
+            2: strong.copy(),
+            3: quiet_block(rng),
         },
     )
 
-    index += (
-        FRAMES_PER_BLOCK
-    )
+    index += FRAMES_PER_BLOCK
 
     (
         _,
@@ -877,18 +594,12 @@ def test_three_node_requirement_rejects_two_node_burst() -> None:
     ) = release_event(
         detector,
         rng,
-        start_index=
-            index,
+        start_index=index,
     )
 
-    completed.extend(
-        released
-    )
+    completed.extend(released)
 
-    assert (
-        completed
-        == []
-    )
+    assert completed == []
 
 
 # ======================================================================
@@ -913,25 +624,16 @@ def test_multinode_blocks_within_sync_tolerance_form_one_event() -> None:
     """
 
     detector = make_detector(
-        sync_tolerance_samples=
-            10,
-        min_nodes=
-            2,
+        sync_tolerance_samples=10,
+        min_nodes=2,
     )
 
-    rng = np.random.default_rng(
-        5
-    )
+    rng = np.random.default_rng(5)
 
     offsets = {
-        1:
-            0,
-
-        2:
-            3,
-
-        3:
-            -2,
+        1: 0,
+        2: 3,
+        3: -2,
     }
 
     # Start sufficiently above zero so the negative Node-3 offset remains
@@ -939,42 +641,26 @@ def test_multinode_blocks_within_sync_tolerance_form_one_event() -> None:
     index = feed_background(
         detector,
         rng,
-        start_index=
-            10_000,
-        offsets=
-            offsets,
+        start_index=10_000,
+        offsets=offsets,
     )
 
-    strong = strong_block(
-        rng
-    )
+    strong = strong_block(rng)
 
     completed = feed_group(
         detector,
-        base_index=
-            index,
-        offsets=
-            offsets,
+        base_index=index,
+        offsets=offsets,
         samples_by_node={
-            1:
-                strong,
-
-            2:
-                strong.copy(),
-
-            3:
-                strong.copy(),
+            1: strong,
+            2: strong.copy(),
+            3: strong.copy(),
         },
     )
 
-    assert (
-        completed
-        == []
-    )
+    assert completed == []
 
-    index += (
-        FRAMES_PER_BLOCK
-    )
+    index += FRAMES_PER_BLOCK
 
     (
         _,
@@ -982,28 +668,16 @@ def test_multinode_blocks_within_sync_tolerance_form_one_event() -> None:
     ) = release_event(
         detector,
         rng,
-        start_index=
-            index,
-        offsets=
-            offsets,
+        start_index=index,
+        offsets=offsets,
     )
 
-    assert (
-        len(
-            completed
-        )
-        == 1
-    )
+    assert len(completed) == 1
 
-    assert (
-        completed[
-            0
-        ].trigger_nodes
-        == (
-            1,
-            2,
-            3,
-        )
+    assert completed[0].trigger_nodes == (
+        1,
+        2,
+        3,
     )
 
 
@@ -1014,61 +688,39 @@ def test_blocks_outside_sync_tolerance_do_not_form_one_group() -> None:
     """
 
     detector = make_detector(
-        sync_tolerance_samples=
-            10,
-        min_nodes=
-            3,
+        sync_tolerance_samples=10,
+        min_nodes=3,
     )
 
-    rng = np.random.default_rng(
-        6
-    )
+    rng = np.random.default_rng(6)
 
     offsets = {
-        1:
-            0,
-
-        2:
-            11,
-
-        3:
-            0,
+        1: 0,
+        2: 11,
+        3: 0,
     }
 
     index = feed_background(
         detector,
         rng,
-        start_index=
-            10_000,
-        offsets=
-            offsets,
+        start_index=10_000,
+        offsets=offsets,
     )
 
-    strong = strong_block(
-        rng
-    )
+    strong = strong_block(rng)
 
     completed = feed_group(
         detector,
-        base_index=
-            index,
-        offsets=
-            offsets,
+        base_index=index,
+        offsets=offsets,
         samples_by_node={
-            1:
-                strong,
-
-            2:
-                strong.copy(),
-
-            3:
-                strong.copy(),
+            1: strong,
+            2: strong.copy(),
+            3: strong.copy(),
         },
     )
 
-    index += (
-        FRAMES_PER_BLOCK
-    )
+    index += FRAMES_PER_BLOCK
 
     (
         _,
@@ -1076,20 +728,13 @@ def test_blocks_outside_sync_tolerance_do_not_form_one_group() -> None:
     ) = release_event(
         detector,
         rng,
-        start_index=
-            index,
-        offsets=
-            offsets,
+        start_index=index,
+        offsets=offsets,
     )
 
-    completed.extend(
-        released
-    )
+    completed.extend(released)
 
-    assert (
-        completed
-        == []
-    )
+    assert completed == []
 
 
 # ======================================================================
@@ -1106,19 +751,12 @@ def test_attack_requires_requested_number_of_active_blocks() -> None:
     """
 
     detector = make_detector(
-        attack_blocks=
-            2,
-
-        release_blocks=
-            1,
-
-        min_nodes=
-            2,
+        attack_blocks=2,
+        release_blocks=1,
+        min_nodes=2,
     )
 
-    rng = np.random.default_rng(
-        7
-    )
+    rng = np.random.default_rng(7)
 
     index = feed_background(
         detector,
@@ -1129,95 +767,57 @@ def test_attack_requires_requested_number_of_active_blocks() -> None:
     # ONE ISOLATED STRONG GROUP
     # ==============================================================
 
-    strong = strong_block(
-        rng
-    )
+    strong = strong_block(rng)
 
     completed = feed_group(
         detector,
-        base_index=
-            index,
+        base_index=index,
         samples_by_node={
-            1:
-                strong,
-            2:
-                strong.copy(),
-            3:
-                strong.copy(),
+            1: strong,
+            2: strong.copy(),
+            3: strong.copy(),
         },
     )
 
-    assert (
-        completed
-        == []
-    )
+    assert completed == []
 
-    index += (
-        FRAMES_PER_BLOCK
-    )
+    index += FRAMES_PER_BLOCK
 
     # Break the attack sequence.
     completed.extend(
         feed_group(
             detector,
-            base_index=
-                index,
-            samples_by_node={
-                node_id:
-                    quiet_block(
-                        rng
-                    )
-                for node_id
-                in NODE_IDS
-            },
+            base_index=index,
+            samples_by_node={node_id: quiet_block(rng) for node_id in NODE_IDS},
         )
     )
 
-    assert (
-        completed
-        == []
-    )
+    assert completed == []
 
-    index += (
-        FRAMES_PER_BLOCK
-    )
+    index += FRAMES_PER_BLOCK
 
     # ==============================================================
     # TWO CONSECUTIVE STRONG GROUPS
     # ==============================================================
 
-    for _ in range(
-        2
-    ):
-
-        strong = strong_block(
-            rng
-        )
+    for _ in range(2):
+        strong = strong_block(rng)
 
         completed.extend(
             feed_group(
                 detector,
-                base_index=
-                    index,
+                base_index=index,
                 samples_by_node={
-                    1:
-                        strong,
-                    2:
-                        strong.copy(),
-                    3:
-                        strong.copy(),
+                    1: strong,
+                    2: strong.copy(),
+                    3: strong.copy(),
                 },
             )
         )
 
-        index += (
-            FRAMES_PER_BLOCK
-        )
+        index += FRAMES_PER_BLOCK
 
-    assert (
-        completed
-        == []
-    )
+    assert completed == []
 
     (
         _,
@@ -1225,20 +825,12 @@ def test_attack_requires_requested_number_of_active_blocks() -> None:
     ) = release_event(
         detector,
         rng,
-        start_index=
-            index,
+        start_index=index,
     )
 
-    completed.extend(
-        released
-    )
+    completed.extend(released)
 
-    assert (
-        len(
-            completed
-        )
-        == 1
-    )
+    assert len(completed) == 1
 
 
 # ======================================================================
@@ -1249,99 +841,56 @@ def test_attack_requires_requested_number_of_active_blocks() -> None:
 def test_release_requires_configured_number_of_quiet_blocks() -> None:
 
     detector = make_detector(
-        attack_blocks=
-            1,
-
-        release_blocks=
-            2,
-
-        min_nodes=
-            2,
-
+        attack_blocks=1,
+        release_blocks=2,
+        min_nodes=2,
         # Remove post-padding from this state-machine-focused test.
-        post_pad_s=
-            0.0,
+        post_pad_s=0.0,
     )
 
-    rng = np.random.default_rng(
-        8
-    )
+    rng = np.random.default_rng(8)
 
     index = feed_background(
         detector,
         rng,
     )
 
-    strong = strong_block(
-        rng
-    )
+    strong = strong_block(rng)
 
     assert (
         feed_group(
             detector,
-            base_index=
-                index,
+            base_index=index,
             samples_by_node={
-                1:
-                    strong,
-                2:
-                    strong.copy(),
-                3:
-                    strong.copy(),
+                1: strong,
+                2: strong.copy(),
+                3: strong.copy(),
             },
         )
         == []
     )
 
-    index += (
-        FRAMES_PER_BLOCK
-    )
+    index += FRAMES_PER_BLOCK
 
     # First quiet group: event must remain open.
     first_quiet = feed_group(
         detector,
-        base_index=
-            index,
-        samples_by_node={
-            node_id:
-                quiet_block(
-                    rng
-                )
-            for node_id
-            in NODE_IDS
-        },
+        base_index=index,
+        samples_by_node={node_id: quiet_block(rng) for node_id in NODE_IDS},
     )
 
-    assert (
-        first_quiet
-        == []
-    )
+    assert first_quiet == []
 
-    index += (
-        FRAMES_PER_BLOCK
-    )
+    index += FRAMES_PER_BLOCK
 
     # Second quiet group satisfies release_blocks=2.
     second_quiet = feed_group(
         detector,
-        base_index=
-            index,
-        samples_by_node={
-            node_id:
-                quiet_block(
-                    rng
-                )
-            for node_id
-            in NODE_IDS
-        },
+        base_index=index,
+        samples_by_node={node_id: quiet_block(rng) for node_id in NODE_IDS},
     )
 
-    assert (
-        len(
-            second_quiet
-        )
-        == 1
-    )
+    assert len(second_quiet) == 1
 
 
 # ======================================================================
@@ -1357,42 +906,29 @@ def test_session_change_discards_incomplete_previous_event() -> None:
     sampleIndex values restart from zero on each START.
     """
 
-    detector = make_detector(
-        min_nodes=
-            2
-    )
+    detector = make_detector(min_nodes=2)
 
-    rng = np.random.default_rng(
-        9
-    )
+    rng = np.random.default_rng(9)
 
     index = feed_background(
         detector,
         rng,
-        session_id=
-            SESSION_ID,
+        session_id=SESSION_ID,
     )
 
-    strong = strong_block(
-        rng
-    )
+    strong = strong_block(rng)
 
     # Start an event in session 7.
     assert (
         feed_group(
             detector,
-            base_index=
-                index,
+            base_index=index,
             samples_by_node={
-                1:
-                    strong,
-                2:
-                    strong.copy(),
-                3:
-                    strong.copy(),
+                1: strong,
+                2: strong.copy(),
+                3: strong.copy(),
             },
-            session_id=
-                SESSION_ID,
+            session_id=SESSION_ID,
         )
         == []
     )
@@ -1404,43 +940,31 @@ def test_session_change_discards_incomplete_previous_event() -> None:
     new_index = feed_background(
         detector,
         rng,
-        start_index=
-            0,
-        groups=
-            10,
-        session_id=
-            SECOND_SESSION_ID,
+        start_index=0,
+        groups=10,
+        session_id=SECOND_SESSION_ID,
     )
 
     # Nothing from session 7 should have been completed by session-8
     # background blocks.
 
-    strong = strong_block(
-        rng
-    )
+    strong = strong_block(rng)
 
     assert (
         feed_group(
             detector,
-            base_index=
-                new_index,
+            base_index=new_index,
             samples_by_node={
-                1:
-                    strong,
-                2:
-                    strong.copy(),
-                3:
-                    strong.copy(),
+                1: strong,
+                2: strong.copy(),
+                3: strong.copy(),
             },
-            session_id=
-                SECOND_SESSION_ID,
+            session_id=SECOND_SESSION_ID,
         )
         == []
     )
 
-    new_index += (
-        FRAMES_PER_BLOCK
-    )
+    new_index += FRAMES_PER_BLOCK
 
     (
         _,
@@ -1448,25 +972,13 @@ def test_session_change_discards_incomplete_previous_event() -> None:
     ) = release_event(
         detector,
         rng,
-        start_index=
-            new_index,
-        session_id=
-            SECOND_SESSION_ID,
+        start_index=new_index,
+        session_id=SECOND_SESSION_ID,
     )
 
-    assert (
-        len(
-            completed
-        )
-        == 1
-    )
+    assert len(completed) == 1
 
-    assert (
-        completed[
-            0
-        ].session_id
-        == SECOND_SESSION_ID
-    )
+    assert completed[0].session_id == SECOND_SESSION_ID
 
 
 # ======================================================================
@@ -1476,23 +988,16 @@ def test_session_change_discards_incomplete_previous_event() -> None:
 
 def test_duplicate_node_block_does_not_create_duplicate_event() -> None:
 
-    detector = make_detector(
-        min_nodes=
-            2
-    )
+    detector = make_detector(min_nodes=2)
 
-    rng = np.random.default_rng(
-        10
-    )
+    rng = np.random.default_rng(10)
 
     index = feed_background(
         detector,
         rng,
     )
 
-    strong = strong_block(
-        rng
-    )
+    strong = strong_block(rng)
 
     node_1_block = make_block(
         1,
@@ -1501,21 +1006,11 @@ def test_duplicate_node_block_does_not_create_duplicate_event() -> None:
     )
 
     # First copy is accepted.
-    assert (
-        detector.process(
-            node_1_block
-        )
-        == []
-    )
+    assert detector.process(node_1_block) == []
 
     # Exact same timeline block is stale/duplicate and must not become a
     # second detector vote.
-    assert (
-        detector.process(
-            node_1_block
-        )
-        == []
-    )
+    assert detector.process(node_1_block) == []
 
     # Complete the real three-node group.
     assert (
@@ -1540,9 +1035,7 @@ def test_duplicate_node_block_does_not_create_duplicate_event() -> None:
         == []
     )
 
-    index += (
-        FRAMES_PER_BLOCK
-    )
+    index += FRAMES_PER_BLOCK
 
     (
         _,
@@ -1550,28 +1043,17 @@ def test_duplicate_node_block_does_not_create_duplicate_event() -> None:
     ) = release_event(
         detector,
         rng,
-        start_index=
-            index,
+        start_index=index,
     )
 
-    assert (
-        len(
-            completed
-        )
-        == 1
-    )
+    assert len(completed) == 1
 
 
 def test_overlapping_old_block_is_ignored_without_breaking_future_detection() -> None:
 
-    detector = make_detector(
-        min_nodes=
-            2
-    )
+    detector = make_detector(min_nodes=2)
 
-    rng = np.random.default_rng(
-        11
-    )
+    rng = np.random.default_rng(11)
 
     index = feed_background(
         detector,
@@ -1579,76 +1061,51 @@ def test_overlapping_old_block_is_ignored_without_breaking_future_detection() ->
     )
 
     # Feed one normal quiet group.
-    quiet = {
-        node_id:
-            quiet_block(
-                rng
-            )
-        for node_id
-        in NODE_IDS
-    }
+    quiet = {node_id: quiet_block(rng) for node_id in NODE_IDS}
 
     assert (
         feed_group(
             detector,
-            base_index=
-                index,
-            samples_by_node=
-                quiet,
+            base_index=index,
+            samples_by_node=quiet,
         )
         == []
     )
 
     # Node 1 now receives an overlapping block beginning halfway inside
     # its already-consumed previous block.
-    overlapping_start = (
-        index
-        + FRAMES_PER_BLOCK
-        // 2
-    )
+    overlapping_start = index + FRAMES_PER_BLOCK // 2
 
     assert (
         detector.process(
             make_block(
                 1,
                 overlapping_start,
-                strong_block(
-                    rng
-                ),
+                strong_block(rng),
             )
         )
         == []
     )
 
     # Continue at the correct next absolute block boundary.
-    index += (
-        FRAMES_PER_BLOCK
-    )
+    index += FRAMES_PER_BLOCK
 
-    strong = strong_block(
-        rng
-    )
+    strong = strong_block(rng)
 
     assert (
         feed_group(
             detector,
-            base_index=
-                index,
+            base_index=index,
             samples_by_node={
-                1:
-                    strong,
-                2:
-                    strong.copy(),
-                3:
-                    strong.copy(),
+                1: strong,
+                2: strong.copy(),
+                3: strong.copy(),
             },
         )
         == []
     )
 
-    index += (
-        FRAMES_PER_BLOCK
-    )
+    index += FRAMES_PER_BLOCK
 
     (
         _,
@@ -1656,16 +1113,10 @@ def test_overlapping_old_block_is_ignored_without_breaking_future_detection() ->
     ) = release_event(
         detector,
         rng,
-        start_index=
-            index,
+        start_index=index,
     )
 
-    assert (
-        len(
-            completed
-        )
-        == 1
-    )
+    assert len(completed) == 1
 
 
 # ======================================================================
@@ -1675,36 +1126,25 @@ def test_overlapping_old_block_is_ignored_without_breaking_future_detection() ->
 
 def test_reset_discards_active_detector_state() -> None:
 
-    detector = make_detector(
-        min_nodes=
-            2
-    )
+    detector = make_detector(min_nodes=2)
 
-    rng = np.random.default_rng(
-        12
-    )
+    rng = np.random.default_rng(12)
 
     index = feed_background(
         detector,
         rng,
     )
 
-    strong = strong_block(
-        rng
-    )
+    strong = strong_block(rng)
 
     assert (
         feed_group(
             detector,
-            base_index=
-                index,
+            base_index=index,
             samples_by_node={
-                1:
-                    strong,
-                2:
-                    strong.copy(),
-                3:
-                    strong.copy(),
+                1: strong,
+                2: strong.copy(),
+                3: strong.copy(),
             },
         )
         == []
@@ -1714,44 +1154,23 @@ def test_reset_discards_active_detector_state() -> None:
 
     # Quiet blocks after reset must not finish the event that was active
     # before reset.
-    completed: list[
-        AcousticEvent
-    ] = []
+    completed: list[AcousticEvent] = []
 
-    index = (
-        0
-    )
+    index = 0
 
-    for _ in range(
-        5
-    ):
-
+    for _ in range(5):
         completed.extend(
             feed_group(
                 detector,
-                base_index=
-                    index,
-                samples_by_node={
-                    node_id:
-                        quiet_block(
-                            rng
-                        )
-                    for node_id
-                    in NODE_IDS
-                },
-                session_id=
-                    SECOND_SESSION_ID,
+                base_index=index,
+                samples_by_node={node_id: quiet_block(rng) for node_id in NODE_IDS},
+                session_id=SECOND_SESSION_ID,
             )
         )
 
-        index += (
-            FRAMES_PER_BLOCK
-        )
+        index += FRAMES_PER_BLOCK
 
-    assert (
-        completed
-        == []
-    )
+    assert completed == []
 
 
 def test_event_ids_continue_increasing_after_reset() -> None:
@@ -1760,14 +1179,9 @@ def test_event_ids_continue_increasing_after_reset() -> None:
     inside the same process.
     """
 
-    detector = make_detector(
-        min_nodes=
-            2
-    )
+    detector = make_detector(min_nodes=2)
 
-    rng = np.random.default_rng(
-        13
-    )
+    rng = np.random.default_rng(13)
 
     # ==============================================================
     # FIRST EVENT
@@ -1776,33 +1190,23 @@ def test_event_ids_continue_increasing_after_reset() -> None:
     index = feed_background(
         detector,
         rng,
-        session_id=
-            SESSION_ID,
+        session_id=SESSION_ID,
     )
 
-    strong = strong_block(
-        rng
-    )
+    strong = strong_block(rng)
 
     feed_group(
         detector,
-        base_index=
-            index,
+        base_index=index,
         samples_by_node={
-            1:
-                strong,
-            2:
-                strong.copy(),
-            3:
-                strong.copy(),
+            1: strong,
+            2: strong.copy(),
+            3: strong.copy(),
         },
-        session_id=
-            SESSION_ID,
+        session_id=SESSION_ID,
     )
 
-    index += (
-        FRAMES_PER_BLOCK
-    )
+    index += FRAMES_PER_BLOCK
 
     (
         _,
@@ -1810,24 +1214,13 @@ def test_event_ids_continue_increasing_after_reset() -> None:
     ) = release_event(
         detector,
         rng,
-        start_index=
-            index,
-        session_id=
-            SESSION_ID,
+        start_index=index,
+        session_id=SESSION_ID,
     )
 
-    assert (
-        len(
-            first_completed
-        )
-        == 1
-    )
+    assert len(first_completed) == 1
 
-    first_id = (
-        first_completed[
-            0
-        ].event_id
-    )
+    first_id = first_completed[0].event_id
 
     # ==============================================================
     # RESET
@@ -1842,35 +1235,24 @@ def test_event_ids_continue_increasing_after_reset() -> None:
     index = feed_background(
         detector,
         rng,
-        start_index=
-            0,
-        session_id=
-            SECOND_SESSION_ID,
+        start_index=0,
+        session_id=SECOND_SESSION_ID,
     )
 
-    strong = strong_block(
-        rng
-    )
+    strong = strong_block(rng)
 
     feed_group(
         detector,
-        base_index=
-            index,
+        base_index=index,
         samples_by_node={
-            1:
-                strong,
-            2:
-                strong.copy(),
-            3:
-                strong.copy(),
+            1: strong,
+            2: strong.copy(),
+            3: strong.copy(),
         },
-        session_id=
-            SECOND_SESSION_ID,
+        session_id=SECOND_SESSION_ID,
     )
 
-    index += (
-        FRAMES_PER_BLOCK
-    )
+    index += FRAMES_PER_BLOCK
 
     (
         _,
@@ -1878,29 +1260,15 @@ def test_event_ids_continue_increasing_after_reset() -> None:
     ) = release_event(
         detector,
         rng,
-        start_index=
-            index,
-        session_id=
-            SECOND_SESSION_ID,
+        start_index=index,
+        session_id=SECOND_SESSION_ID,
     )
 
-    assert (
-        len(
-            second_completed
-        )
-        == 1
-    )
+    assert len(second_completed) == 1
 
-    second_id = (
-        second_completed[
-            0
-        ].event_id
-    )
+    second_id = second_completed[0].event_id
 
-    assert (
-        second_id
-        > first_id
-    )
+    assert second_id > first_id
 
 
 # ======================================================================
@@ -1911,58 +1279,35 @@ def test_event_ids_continue_increasing_after_reset() -> None:
 def test_disabled_detector_never_emits_event() -> None:
 
     detector = make_detector(
-        enabled=
-            False,
-
-        min_nodes=
-            2,
+        enabled=False,
+        min_nodes=2,
     )
 
-    rng = np.random.default_rng(
-        14
-    )
+    rng = np.random.default_rng(14)
 
-    completed: list[
-        AcousticEvent
-    ] = []
+    completed: list[AcousticEvent] = []
 
-    index = (
-        0
-    )
+    index = 0
 
     # Deliberately feed sustained high-energy audio.
-    for _ in range(
-        10
-    ):
-
-        strong = strong_block(
-            rng
-        )
+    for _ in range(10):
+        strong = strong_block(rng)
 
         completed.extend(
             feed_group(
                 detector,
-                base_index=
-                    index,
+                base_index=index,
                 samples_by_node={
-                    1:
-                        strong,
-                    2:
-                        strong.copy(),
-                    3:
-                        strong.copy(),
+                    1: strong,
+                    2: strong.copy(),
+                    3: strong.copy(),
                 },
             )
         )
 
-        index += (
-            FRAMES_PER_BLOCK
-        )
+        index += FRAMES_PER_BLOCK
 
-    assert (
-        completed
-        == []
-    )
+    assert completed == []
 
 
 # ======================================================================
@@ -1972,47 +1317,30 @@ def test_disabled_detector_never_emits_event() -> None:
 
 def test_completed_event_contains_consistent_metadata() -> None:
 
-    detector = make_detector(
-        min_nodes=
-            2
-    )
+    detector = make_detector(min_nodes=2)
 
-    rng = np.random.default_rng(
-        15
-    )
+    rng = np.random.default_rng(15)
 
     index = feed_background(
         detector,
         rng,
     )
 
-    trigger_index = (
-        index
-    )
+    trigger_index = index
 
-    strong = strong_block(
-        rng
-    )
+    strong = strong_block(rng)
 
     feed_group(
         detector,
-        base_index=
-            index,
+        base_index=index,
         samples_by_node={
-            1:
-                strong,
-            2:
-                strong.copy(),
-            3:
-                quiet_block(
-                    rng
-                ),
+            1: strong,
+            2: strong.copy(),
+            3: quiet_block(rng),
         },
     )
 
-    index += (
-        FRAMES_PER_BLOCK
-    )
+    index += FRAMES_PER_BLOCK
 
     (
         _,
@@ -2020,72 +1348,33 @@ def test_completed_event_contains_consistent_metadata() -> None:
     ) = release_event(
         detector,
         rng,
-        start_index=
-            index,
+        start_index=index,
     )
 
-    assert (
-        len(
-            completed
-        )
-        == 1
+    assert len(completed) == 1
+
+    event = completed[0]
+
+    assert event.event_id > 0
+
+    assert event.session_id == SESSION_ID
+
+    assert event.trigger_nodes == (
+        1,
+        2,
     )
 
-    event = (
-        completed[
-            0
-        ]
-    )
+    assert event.start_sample >= 0
 
-    assert (
-        event.event_id
-        > 0
-    )
+    assert event.start_sample <= trigger_index
 
-    assert (
-        event.session_id
-        == SESSION_ID
-    )
+    assert event.end_sample > trigger_index
 
-    assert (
-        event.trigger_nodes
-        == (
-            1,
-            2,
-        )
-    )
+    assert event.sample_count > 0
 
-    assert (
-        event.start_sample
-        >= 0
-    )
+    assert event.sample_count == (event.end_sample - event.start_sample)
 
-    assert (
-        event.start_sample
-        <= trigger_index
-    )
-
-    assert (
-        event.end_sample
-        > trigger_index
-    )
-
-    assert (
-        event.sample_count
-        > 0
-    )
-
-    assert (
-        event.sample_count
-        == (
-            event.end_sample
-            - event.start_sample
-        )
-    )
-
-    assert np.isfinite(
-        event.peak_rms_dbfs
-    )
+    assert np.isfinite(event.peak_rms_dbfs)
 
 
 # ======================================================================
@@ -2100,25 +1389,15 @@ def test_detector_rejects_sync_tolerance_equal_to_block_size() -> None:
     """
 
     audio = AudioConfig(
-        sample_rate=
-            SAMPLE_RATE,
-
-        frames_per_block=
-            16,
-
-        buffer_seconds=
-            5,
-
-        sync_tolerance_samples=
-            16,
+        sample_rate=SAMPLE_RATE,
+        frames_per_block=16,
+        buffer_seconds=5,
+        sync_tolerance_samples=16,
     )
 
     config = make_detection_config()
 
-    with pytest.raises(
-        ValueError
-    ):
-
+    with pytest.raises(ValueError):
         MultiNodeEventDetector(
             audio,
             config,
@@ -2130,15 +1409,9 @@ def test_detector_rejects_min_nodes_larger_than_configured_node_count() -> None:
 
     audio = make_audio_config()
 
-    config = make_detection_config(
-        min_nodes=
-            4
-    )
+    config = make_detection_config(min_nodes=4)
 
-    with pytest.raises(
-        ValueError
-    ):
-
+    with pytest.raises(ValueError):
         MultiNodeEventDetector(
             audio,
             config,

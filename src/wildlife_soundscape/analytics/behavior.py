@@ -61,7 +61,6 @@ It does not by itself establish biological causation.
 No database access is performed in this module.
 """
 
-
 from __future__ import annotations
 
 
@@ -98,29 +97,19 @@ from .models import (
 # ======================================================================
 
 
-DEFAULT_MIN_ACTIVITY_EVENTS = (
-    5
-)
+DEFAULT_MIN_ACTIVITY_EVENTS = 5
 
 
-DEFAULT_MIN_LOCALIZED_EVENTS = (
-    5
-)
+DEFAULT_MIN_LOCALIZED_EVENTS = 5
 
 
-DEFAULT_MIN_TRANSITIONS = (
-    3
-)
+DEFAULT_MIN_TRANSITIONS = 3
 
 
-LOW_SCORE_LIMIT = (
-    0.33
-)
+LOW_SCORE_LIMIT = 0.33
 
 
-MODERATE_SCORE_LIMIT = (
-    0.66
-)
+MODERATE_SCORE_LIMIT = 0.66
 
 
 # ======================================================================
@@ -137,35 +126,19 @@ def _require_nonnegative_int(
     Require a Python integer >= 0.
     """
 
-    if (
-        isinstance(
-            value,
-            bool,
-        )
-        or not isinstance(
-            value,
-            int,
-        )
+    if isinstance(
+        value,
+        bool,
+    ) or not isinstance(
+        value,
+        int,
     ):
+        raise TypeError(f"{name} must be an integer.")
 
-        raise TypeError(
-            f"{name} must be an integer."
-        )
+    if value < 0:
+        raise ValueError(f"{name} cannot be negative.")
 
-    if (
-        value
-        < 0
-    ):
-
-        raise ValueError(
-            f"{name} cannot be negative."
-        )
-
-    return (
-        int(
-            value
-        )
-    )
+    return int(value)
 
 
 def _require_positive_int(
@@ -179,22 +152,13 @@ def _require_positive_int(
 
     value = _require_nonnegative_int(
         value,
-        name=
-            name,
+        name=name,
     )
 
-    if (
-        value
-        == 0
-    ):
+    if value == 0:
+        raise ValueError(f"{name} must be greater than 0.")
 
-        raise ValueError(
-            f"{name} must be greater than 0."
-        )
-
-    return (
-        value
-    )
+    return value
 
 
 def _clamp_probability(
@@ -205,27 +169,16 @@ def _clamp_probability(
     """
 
     try:
-
-        value = float(
-            value
-        )
+        value = float(value)
 
     except (
         TypeError,
         ValueError,
     ) as exc:
+        raise TypeError("score must be numeric.") from exc
 
-        raise TypeError(
-            "score must be numeric."
-        ) from exc
-
-    if not math.isfinite(
-        value
-    ):
-
-        raise ValueError(
-            "score must be finite."
-        )
+    if not math.isfinite(value):
+        raise ValueError("score must be finite.")
 
     return min(
         1.0,
@@ -269,57 +222,23 @@ def score_to_behavior_status(
         sufficient_data,
         bool,
     ):
+        raise TypeError("sufficient_data must be bool.")
 
-        raise TypeError(
-            "sufficient_data must be bool."
-        )
+    if not (sufficient_data):
+        return BehaviorIndicatorStatus.INSUFFICIENT_DATA
 
-    if not (
-        sufficient_data
-    ):
+    if score is None:
+        return BehaviorIndicatorStatus.INSUFFICIENT_DATA
 
-        return (
-            BehaviorIndicatorStatus
-            .INSUFFICIENT_DATA
-        )
+    score = _clamp_probability(score)
 
-    if (
-        score
-        is None
-    ):
+    if score < LOW_SCORE_LIMIT:
+        return BehaviorIndicatorStatus.LOW
 
-        return (
-            BehaviorIndicatorStatus
-            .INSUFFICIENT_DATA
-        )
+    if score < MODERATE_SCORE_LIMIT:
+        return BehaviorIndicatorStatus.MODERATE
 
-    score = (
-        _clamp_probability(
-            score
-        )
-    )
-
-    if (
-        score
-        < LOW_SCORE_LIMIT
-    ):
-
-        return (
-            BehaviorIndicatorStatus.LOW
-        )
-
-    if (
-        score
-        < MODERATE_SCORE_LIMIT
-    ):
-
-        return (
-            BehaviorIndicatorStatus.MODERATE
-        )
-
-    return (
-        BehaviorIndicatorStatus.HIGH
-    )
+    return BehaviorIndicatorStatus.HIGH
 
 
 # ======================================================================
@@ -328,9 +247,7 @@ def score_to_behavior_status(
 
 
 def build_temporal_concentration_indicator(
-    bins: Iterable[
-        ActivityBin
-    ],
+    bins: Iterable[ActivityBin],
     *,
     min_events: int = DEFAULT_MIN_ACTIVITY_EVENTS,
 ) -> BehaviorIndicator:
@@ -377,166 +294,77 @@ def build_temporal_concentration_indicator(
 
     min_events = _require_positive_int(
         min_events,
-        name=
-            "min_events",
+        name="min_events",
     )
 
-    materialized = tuple(
-        bins
-    )
+    materialized = tuple(bins)
 
-    for activity_bin in (
-        materialized
-    ):
-
+    for activity_bin in materialized:
         if not isinstance(
             activity_bin,
             ActivityBin,
         ):
+            raise TypeError(("bins must contain ActivityBin objects."))
 
-            raise TypeError(
-                (
-                    "bins must contain "
-                    "ActivityBin objects."
-                )
-            )
+    total_events = sum(activity_bin.event_count for activity_bin in materialized)
 
-    total_events = sum(
-        activity_bin.event_count
-
-        for activity_bin
-        in materialized
-    )
-
-    if (
-        total_events
-        < min_events
-    ):
-
+    if total_events < min_events:
         return BehaviorIndicator(
-            name=
-                "temporal_activity_concentration",
-
-            status=
-                BehaviorIndicatorStatus
-                .INSUFFICIENT_DATA,
-
-            score=
-                None,
-
-            supporting_event_count=
-                total_events,
-
-            description=
-                (
-                    "Insufficient detected acoustic "
-                    "events to estimate temporal "
-                    "activity concentration reliably."
-                ),
-
-            evidence=
-                (
-                    (
-                        f"Observed events: "
-                        f"{total_events}"
-                    ),
-                    (
-                        f"Minimum required: "
-                        f"{min_events}"
-                    ),
-                ),
+            name="temporal_activity_concentration",
+            status=BehaviorIndicatorStatus.INSUFFICIENT_DATA,
+            score=None,
+            supporting_event_count=total_events,
+            description=(
+                "Insufficient detected acoustic "
+                "events to estimate temporal "
+                "activity concentration reliably."
+            ),
+            evidence=(
+                (f"Observed events: {total_events}"),
+                (f"Minimum required: {min_events}"),
+            ),
         )
 
-    if not (
-        materialized
-    ):
-
+    if not (materialized):
         return BehaviorIndicator(
-            name=
-                "temporal_activity_concentration",
-
-            status=
-                BehaviorIndicatorStatus
-                .INSUFFICIENT_DATA,
-
-            score=
-                None,
-
-            supporting_event_count=
-                0,
-
-            description=
-                (
-                    "No temporal activity bins were "
-                    "available for analysis."
-                ),
-
-            evidence=
-                (),
+            name="temporal_activity_concentration",
+            status=BehaviorIndicatorStatus.INSUFFICIENT_DATA,
+            score=None,
+            supporting_event_count=0,
+            description=("No temporal activity bins were available for analysis."),
+            evidence=(),
         )
 
-    peak_bin_count = max(
-        activity_bin.event_count
+    peak_bin_count = max(activity_bin.event_count for activity_bin in materialized)
 
-        for activity_bin
-        in materialized
-    )
+    score = peak_bin_count / total_events
 
-    score = (
-        peak_bin_count
-        / total_events
-    )
+    score = _clamp_probability(score)
 
-    score = (
-        _clamp_probability(
-            score
-        )
-    )
-
-    status = (
-        score_to_behavior_status(
-            score,
-            sufficient_data=
-                True,
-        )
+    status = score_to_behavior_status(
+        score,
+        sufficient_data=True,
     )
 
     return BehaviorIndicator(
-        name=
-            "temporal_activity_concentration",
-
-        status=
-            status,
-
-        score=
-            score,
-
-        supporting_event_count=
-            total_events,
-
-        description=
+        name="temporal_activity_concentration",
+        status=status,
+        score=score,
+        supporting_event_count=total_events,
+        description=(
+            "Degree to which detected acoustic "
+            "event onsets are concentrated in "
+            "the most active temporal bin."
+        ),
+        evidence=(
+            (f"Total events: {total_events}"),
+            (f"Peak-bin events: {peak_bin_count}"),
             (
-                "Degree to which detected acoustic "
-                "event onsets are concentrated in "
-                "the most active temporal bin."
+                "This describes acoustic-event "
+                "timing concentration, not a "
+                "confirmed behavioral state."
             ),
-
-        evidence=
-            (
-                (
-                    f"Total events: "
-                    f"{total_events}"
-                ),
-                (
-                    f"Peak-bin events: "
-                    f"{peak_bin_count}"
-                ),
-                (
-                    "This describes acoustic-event "
-                    "timing concentration, not a "
-                    "confirmed behavioral state."
-                ),
-            ),
+        ),
     )
 
 
@@ -584,133 +412,67 @@ def build_class_concentration_indicator(
         activity,
         ActivitySummary,
     ):
-
-        raise TypeError(
-            (
-                "activity must be an "
-                "ActivitySummary."
-            )
-        )
+        raise TypeError(("activity must be an ActivitySummary."))
 
     min_events = _require_positive_int(
         min_events,
-        name=
-            "min_events",
+        name="min_events",
     )
 
-    total_events = (
-        activity.total_events
-    )
+    total_events = activity.total_events
 
-    if (
-        total_events
-        < min_events
-        or not activity.class_summaries
-    ):
-
+    if total_events < min_events or not activity.class_summaries:
         return BehaviorIndicator(
-            name=
-                "acoustic_class_concentration",
-
-            status=
-                BehaviorIndicatorStatus
-                .INSUFFICIENT_DATA,
-
-            score=
-                None,
-
-            supporting_event_count=
-                total_events,
-
-            description=
-                (
-                    "Insufficient classified acoustic "
-                    "events to estimate class "
-                    "concentration reliably."
-                ),
-
-            evidence=
-                (
-                    (
-                        f"Observed events: "
-                        f"{total_events}"
-                    ),
-                    (
-                        f"Minimum required: "
-                        f"{min_events}"
-                    ),
-                ),
+            name="acoustic_class_concentration",
+            status=BehaviorIndicatorStatus.INSUFFICIENT_DATA,
+            score=None,
+            supporting_event_count=total_events,
+            description=(
+                "Insufficient classified acoustic "
+                "events to estimate class "
+                "concentration reliably."
+            ),
+            evidence=(
+                (f"Observed events: {total_events}"),
+                (f"Minimum required: {min_events}"),
+            ),
         )
 
     dominant_summary = max(
         activity.class_summaries,
-
-        key=
-            lambda summary:
-                (
-                    summary
-                    .proportion_of_events,
-
-                    summary
-                    .event_count,
-                ),
+        key=lambda summary: (
+            summary.proportion_of_events,
+            summary.event_count,
+        ),
     )
 
-    score = (
-        _clamp_probability(
-            dominant_summary
-            .proportion_of_events
-        )
-    )
+    score = _clamp_probability(dominant_summary.proportion_of_events)
 
-    status = (
-        score_to_behavior_status(
-            score,
-            sufficient_data=
-                True,
-        )
+    status = score_to_behavior_status(
+        score,
+        sufficient_data=True,
     )
 
     return BehaviorIndicator(
-        name=
-            "acoustic_class_concentration",
-
-        status=
-            status,
-
-        score=
-            score,
-
-        supporting_event_count=
-            total_events,
-
-        description=
+        name="acoustic_class_concentration",
+        status=status,
+        score=score,
+        supporting_event_count=total_events,
+        description=(
+            "Concentration of detected acoustic "
+            "events within the most common broad "
+            "classification category."
+        ),
+        evidence=(
+            (f"Dominant class: {dominant_summary.class_label}"),
+            (f"Dominant-class events: {dominant_summary.event_count}"),
+            (f"Dominant-class proportion: {dominant_summary.proportion_of_events:.3f}"),
             (
-                "Concentration of detected acoustic "
-                "events within the most common broad "
-                "classification category."
+                "Class dominance represents "
+                "detected acoustic composition, "
+                "not population abundance."
             ),
-
-        evidence=
-            (
-                (
-                    "Dominant class: "
-                    f"{dominant_summary.class_label}"
-                ),
-                (
-                    "Dominant-class events: "
-                    f"{dominant_summary.event_count}"
-                ),
-                (
-                    "Dominant-class proportion: "
-                    f"{dominant_summary.proportion_of_events:.3f}"
-                ),
-                (
-                    "Class dominance represents "
-                    "detected acoustic composition, "
-                    "not population abundance."
-                ),
-            ),
+        ),
     )
 
 
@@ -720,9 +482,7 @@ def build_class_concentration_indicator(
 
 
 def _normalized_spatial_entropy(
-    cells: Iterable[
-        SpatialCell
-    ],
+    cells: Iterable[SpatialCell],
 ) -> float:
     """
     Compute normalized Shannon entropy over occupied cells.
@@ -736,91 +496,35 @@ def _normalized_spatial_entropy(
         events are evenly distributed over occupied cells.
     """
 
-    counts: list[
-        int
-    ] = []
+    counts: list[int] = []
 
-    for cell in (
-        cells
-    ):
-
+    for cell in cells:
         if not isinstance(
             cell,
             SpatialCell,
         ):
+            raise TypeError(("cells must contain SpatialCell objects."))
 
-            raise TypeError(
-                (
-                    "cells must contain "
-                    "SpatialCell objects."
-                )
-            )
+        if cell.event_count > 0:
+            counts.append(cell.event_count)
 
-        if (
-            cell.event_count
-            > 0
-        ):
+    if len(counts) <= 1:
+        return 0.0
 
-            counts.append(
-                cell.event_count
-            )
+    total = float(sum(counts))
 
-    if (
-        len(
-            counts
-        )
-        <= 1
-    ):
-
-        return (
-            0.0
-        )
-
-    total = float(
-        sum(
-            counts
-        )
-    )
-
-    probabilities = [
-        count
-        / total
-
-        for count
-        in counts
-    ]
+    probabilities = [count / total for count in counts]
 
     entropy = -math.fsum(
-        probability
-        * math.log(
-            probability
-        )
-
-        for probability
-        in probabilities
+        probability * math.log(probability) for probability in probabilities
     )
 
-    maximum_entropy = math.log(
-        len(
-            probabilities
-        )
-    )
+    maximum_entropy = math.log(len(probabilities))
 
-    if (
-        maximum_entropy
-        <= 0.0
-    ):
+    if maximum_entropy <= 0.0:
+        return 0.0
 
-        return (
-            0.0
-        )
-
-    return (
-        _clamp_probability(
-            entropy
-            / maximum_entropy
-        )
-    )
+    return _clamp_probability(entropy / maximum_entropy)
 
 
 # ======================================================================
@@ -868,204 +572,93 @@ def build_spatial_concentration_indicator(
         spatial,
         SpatialSummary,
     ):
+        raise TypeError(("spatial must be a SpatialSummary."))
 
-        raise TypeError(
-            (
-                "spatial must be a "
-                "SpatialSummary."
-            )
-        )
-
-    min_localized_events = (
-        _require_positive_int(
-            min_localized_events,
-            name=
-                "min_localized_events",
-        )
+    min_localized_events = _require_positive_int(
+        min_localized_events,
+        name="min_localized_events",
     )
 
-    localized_count = (
-        spatial.localized_event_count
-    )
+    localized_count = spatial.localized_event_count
 
-    if (
-        localized_count
-        < min_localized_events
-        or not spatial.cells
-    ):
-
+    if localized_count < min_localized_events or not spatial.cells:
         return BehaviorIndicator(
-            name=
-                "spatial_acoustic_concentration",
-
-            status=
-                BehaviorIndicatorStatus
-                .INSUFFICIENT_DATA,
-
-            score=
-                None,
-
-            supporting_event_count=
-                localized_count,
-
-            description=
-                (
-                    "Insufficient localized acoustic "
-                    "events to estimate spatial "
-                    "concentration reliably."
-                ),
-
-            evidence=
-                (
-                    (
-                        "Localized events: "
-                        f"{localized_count}"
-                    ),
-                    (
-                        "Minimum required: "
-                        f"{min_localized_events}"
-                    ),
-                ),
+            name="spatial_acoustic_concentration",
+            status=BehaviorIndicatorStatus.INSUFFICIENT_DATA,
+            score=None,
+            supporting_event_count=localized_count,
+            description=(
+                "Insufficient localized acoustic "
+                "events to estimate spatial "
+                "concentration reliably."
+            ),
+            evidence=(
+                (f"Localized events: {localized_count}"),
+                (f"Minimum required: {min_localized_events}"),
+            ),
         )
 
-    occupied_cells = [
-        cell
+    occupied_cells = [cell for cell in spatial.cells if (cell.event_count > 0)]
 
-        for cell
-        in spatial.cells
-
-        if (
-            cell.event_count
-            > 0
-        )
-    ]
-
-    if not (
-        occupied_cells
-    ):
-
+    if not (occupied_cells):
         return BehaviorIndicator(
-            name=
-                "spatial_acoustic_concentration",
-
-            status=
-                BehaviorIndicatorStatus
-                .INSUFFICIENT_DATA,
-
-            score=
-                None,
-
-            supporting_event_count=
-                localized_count,
-
-            description=
-                (
-                    "No occupied spatial cells were "
-                    "available despite localized "
-                    "event metadata."
-                ),
-
-            evidence=
-                (),
+            name="spatial_acoustic_concentration",
+            status=BehaviorIndicatorStatus.INSUFFICIENT_DATA,
+            score=None,
+            supporting_event_count=localized_count,
+            description=(
+                "No occupied spatial cells were "
+                "available despite localized "
+                "event metadata."
+            ),
+            evidence=(),
         )
 
     hotspot = max(
         occupied_cells,
-
-        key=
-            lambda cell:
-                (
-                    cell.event_count,
-                    cell.cell_id,
-                ),
+        key=lambda cell: (
+            cell.event_count,
+            cell.cell_id,
+        ),
     )
 
-    hotspot_fraction = (
-        hotspot.event_count
-        / localized_count
-    )
+    hotspot_fraction = hotspot.event_count / localized_count
 
-    entropy = (
-        _normalized_spatial_entropy(
-            occupied_cells
-        )
-    )
+    entropy = _normalized_spatial_entropy(occupied_cells)
 
-    entropy_concentration = (
-        1.0
-        - entropy
-    )
+    entropy_concentration = 1.0 - entropy
 
-    score = (
-        0.5
-        * hotspot_fraction
-        +
-        0.5
-        * entropy_concentration
-    )
+    score = 0.5 * hotspot_fraction + 0.5 * entropy_concentration
 
-    score = (
-        _clamp_probability(
-            score
-        )
-    )
+    score = _clamp_probability(score)
 
-    status = (
-        score_to_behavior_status(
-            score,
-            sufficient_data=
-                True,
-        )
+    status = score_to_behavior_status(
+        score,
+        sufficient_data=True,
     )
 
     return BehaviorIndicator(
-        name=
-            "spatial_acoustic_concentration",
-
-        status=
-            status,
-
-        score=
-            score,
-
-        supporting_event_count=
-            localized_count,
-
-        description=
+        name="spatial_acoustic_concentration",
+        status=status,
+        score=score,
+        supporting_event_count=localized_count,
+        description=(
+            "Concentration of localized acoustic "
+            "events within the observed spatial "
+            "grid."
+        ),
+        evidence=(
+            (f"Localized events: {localized_count}"),
+            (f"Occupied cells: {len(occupied_cells)}"),
+            (f"Hotspot cell: {hotspot.cell_id}"),
+            (f"Hotspot event fraction: {hotspot_fraction:.3f}"),
+            (f"Normalized spatial entropy: {entropy:.3f}"),
             (
-                "Concentration of localized acoustic "
-                "events within the observed spatial "
-                "grid."
+                "Spatial concentration describes "
+                "acoustic detections and does not "
+                "establish territory or home range."
             ),
-
-        evidence=
-            (
-                (
-                    f"Localized events: "
-                    f"{localized_count}"
-                ),
-                (
-                    f"Occupied cells: "
-                    f"{len(occupied_cells)}"
-                ),
-                (
-                    f"Hotspot cell: "
-                    f"{hotspot.cell_id}"
-                ),
-                (
-                    "Hotspot event fraction: "
-                    f"{hotspot_fraction:.3f}"
-                ),
-                (
-                    "Normalized spatial entropy: "
-                    f"{entropy:.3f}"
-                ),
-                (
-                    "Spatial concentration describes "
-                    "acoustic detections and does not "
-                    "establish territory or home range."
-                ),
-            ),
+        ),
     )
 
 
@@ -1075,41 +668,24 @@ def build_spatial_concentration_indicator(
 
 
 def _total_transition_count(
-    transitions: Iterable[
-        SpatialTransition
-    ],
+    transitions: Iterable[SpatialTransition],
 ) -> int:
     """
     Sum observed transition counts.
     """
 
-    total = (
-        0
-    )
+    total = 0
 
-    for transition in (
-        transitions
-    ):
-
+    for transition in transitions:
         if not isinstance(
             transition,
             SpatialTransition,
         ):
+            raise TypeError(("transitions must contain SpatialTransition objects."))
 
-            raise TypeError(
-                (
-                    "transitions must contain "
-                    "SpatialTransition objects."
-                )
-            )
+        total += transition.transition_count
 
-        total += (
-            transition.transition_count
-        )
-
-    return (
-        total
-    )
+    return total
 
 
 # ======================================================================
@@ -1163,145 +739,71 @@ def build_spatial_redistribution_indicator(
         spatial,
         SpatialSummary,
     ):
+        raise TypeError(("spatial must be a SpatialSummary."))
 
-        raise TypeError(
-            (
-                "spatial must be a "
-                "SpatialSummary."
-            )
-        )
-
-    min_transitions = (
-        _require_positive_int(
-            min_transitions,
-            name=
-                "min_transitions",
-        )
+    min_transitions = _require_positive_int(
+        min_transitions,
+        name="min_transitions",
     )
 
-    total_transitions = (
-        _total_transition_count(
-            spatial.transitions
-        )
-    )
+    total_transitions = _total_transition_count(spatial.transitions)
 
-    if (
-        total_transitions
-        < min_transitions
-    ):
-
+    if total_transitions < min_transitions:
         return BehaviorIndicator(
-            name=
-                "spatial_redistribution",
-
-            status=
-                BehaviorIndicatorStatus
-                .INSUFFICIENT_DATA,
-
-            score=
-                None,
-
-            supporting_event_count=
-                spatial.localized_event_count,
-
-            description=
-                (
-                    "Insufficient consecutive "
-                    "localized-event transitions to "
-                    "estimate spatial redistribution."
-                ),
-
-            evidence=
-                (
-                    (
-                        "Observed transitions: "
-                        f"{total_transitions}"
-                    ),
-                    (
-                        "Minimum required: "
-                        f"{min_transitions}"
-                    ),
-                ),
+            name="spatial_redistribution",
+            status=BehaviorIndicatorStatus.INSUFFICIENT_DATA,
+            score=None,
+            supporting_event_count=spatial.localized_event_count,
+            description=(
+                "Insufficient consecutive "
+                "localized-event transitions to "
+                "estimate spatial redistribution."
+            ),
+            evidence=(
+                (f"Observed transitions: {total_transitions}"),
+                (f"Minimum required: {min_transitions}"),
+            ),
         )
 
     different_cell_transitions = sum(
         transition.transition_count
-
-        for transition
-        in spatial.transitions
-
-        if (
-            transition.source_cell_id
-            != transition.destination_cell_id
-        )
+        for transition in spatial.transitions
+        if (transition.source_cell_id != transition.destination_cell_id)
     )
 
-    same_cell_transitions = (
-        total_transitions
-        - different_cell_transitions
-    )
+    same_cell_transitions = total_transitions - different_cell_transitions
 
-    score = (
-        different_cell_transitions
-        / total_transitions
-    )
+    score = different_cell_transitions / total_transitions
 
-    score = (
-        _clamp_probability(
-            score
-        )
-    )
+    score = _clamp_probability(score)
 
-    status = (
-        score_to_behavior_status(
-            score,
-            sufficient_data=
-                True,
-        )
+    status = score_to_behavior_status(
+        score,
+        sufficient_data=True,
     )
 
     return BehaviorIndicator(
-        name=
-            "spatial_redistribution",
-
-        status=
-            status,
-
-        score=
-            score,
-
-        supporting_event_count=
-            spatial.localized_event_count,
-
-        description=
+        name="spatial_redistribution",
+        status=status,
+        score=score,
+        supporting_event_count=spatial.localized_event_count,
+        description=(
+            "Fraction of consecutive localized "
+            "acoustic-event transitions that "
+            "occur between different spatial "
+            "cells."
+        ),
+        evidence=(
+            (f"Total transitions: {total_transitions}"),
+            (f"Different-cell transitions: {different_cell_transitions}"),
+            (f"Same-cell transitions: {same_cell_transitions}"),
             (
-                "Fraction of consecutive localized "
-                "acoustic-event transitions that "
-                "occur between different spatial "
-                "cells."
+                "Spatial redistribution is an "
+                "acoustic-location pattern and "
+                "must not be interpreted as a "
+                "confirmed individual trajectory."
             ),
-
-        evidence=
-            (
-                (
-                    f"Total transitions: "
-                    f"{total_transitions}"
-                ),
-                (
-                    "Different-cell transitions: "
-                    f"{different_cell_transitions}"
-                ),
-                (
-                    "Same-cell transitions: "
-                    f"{same_cell_transitions}"
-                ),
-                (
-                    "Spatial redistribution is an "
-                    "acoustic-location pattern and "
-                    "must not be interpreted as a "
-                    "confirmed individual trajectory."
-                ),
-            ),
+        ),
     )
 
 
@@ -1341,135 +843,67 @@ def build_repeated_area_indicator(
         spatial,
         SpatialSummary,
     ):
+        raise TypeError(("spatial must be a SpatialSummary."))
 
-        raise TypeError(
-            (
-                "spatial must be a "
-                "SpatialSummary."
-            )
-        )
-
-    min_transitions = (
-        _require_positive_int(
-            min_transitions,
-            name=
-                "min_transitions",
-        )
+    min_transitions = _require_positive_int(
+        min_transitions,
+        name="min_transitions",
     )
 
-    total_transitions = (
-        _total_transition_count(
-            spatial.transitions
-        )
-    )
+    total_transitions = _total_transition_count(spatial.transitions)
 
-    if (
-        total_transitions
-        < min_transitions
-    ):
-
+    if total_transitions < min_transitions:
         return BehaviorIndicator(
-            name=
-                "repeated_area_acoustic_activity",
-
-            status=
-                BehaviorIndicatorStatus
-                .INSUFFICIENT_DATA,
-
-            score=
-                None,
-
-            supporting_event_count=
-                spatial.localized_event_count,
-
-            description=
-                (
-                    "Insufficient consecutive "
-                    "localized-event transitions to "
-                    "estimate repeated-area acoustic "
-                    "activity."
-                ),
-
-            evidence=
-                (
-                    (
-                        "Observed transitions: "
-                        f"{total_transitions}"
-                    ),
-                    (
-                        "Minimum required: "
-                        f"{min_transitions}"
-                    ),
-                ),
+            name="repeated_area_acoustic_activity",
+            status=BehaviorIndicatorStatus.INSUFFICIENT_DATA,
+            score=None,
+            supporting_event_count=spatial.localized_event_count,
+            description=(
+                "Insufficient consecutive "
+                "localized-event transitions to "
+                "estimate repeated-area acoustic "
+                "activity."
+            ),
+            evidence=(
+                (f"Observed transitions: {total_transitions}"),
+                (f"Minimum required: {min_transitions}"),
+            ),
         )
 
     same_cell_transitions = sum(
         transition.transition_count
-
-        for transition
-        in spatial.transitions
-
-        if (
-            transition.source_cell_id
-            == transition.destination_cell_id
-        )
+        for transition in spatial.transitions
+        if (transition.source_cell_id == transition.destination_cell_id)
     )
 
-    score = (
-        same_cell_transitions
-        / total_transitions
-    )
+    score = same_cell_transitions / total_transitions
 
-    score = (
-        _clamp_probability(
-            score
-        )
-    )
+    score = _clamp_probability(score)
 
-    status = (
-        score_to_behavior_status(
-            score,
-            sufficient_data=
-                True,
-        )
+    status = score_to_behavior_status(
+        score,
+        sufficient_data=True,
     )
 
     return BehaviorIndicator(
-        name=
-            "repeated_area_acoustic_activity",
-
-        status=
-            status,
-
-        score=
-            score,
-
-        supporting_event_count=
-            spatial.localized_event_count,
-
-        description=
+        name="repeated_area_acoustic_activity",
+        status=status,
+        score=score,
+        supporting_event_count=spatial.localized_event_count,
+        description=(
+            "Frequency with which consecutive "
+            "localized acoustic events remain "
+            "within the same analysis cell."
+        ),
+        evidence=(
+            (f"Total transitions: {total_transitions}"),
+            (f"Same-cell transitions: {same_cell_transitions}"),
             (
-                "Frequency with which consecutive "
-                "localized acoustic events remain "
-                "within the same analysis cell."
+                "Repeated localization does not "
+                "establish individual identity, "
+                "territory, nesting or residence."
             ),
-
-        evidence=
-            (
-                (
-                    f"Total transitions: "
-                    f"{total_transitions}"
-                ),
-                (
-                    "Same-cell transitions: "
-                    f"{same_cell_transitions}"
-                ),
-                (
-                    "Repeated localization does not "
-                    "establish individual identity, "
-                    "territory, nesting or residence."
-                ),
-            ),
+        ),
     )
 
 
@@ -1481,10 +915,7 @@ def build_repeated_area_indicator(
 def build_behavior_indicators(
     *,
     activity: ActivitySummary | None = None,
-    activity_bins: Iterable[
-        ActivityBin
-    ]
-    | None = None,
+    activity_bins: Iterable[ActivityBin] | None = None,
     spatial: SpatialSummary | None = None,
     min_activity_events: int = DEFAULT_MIN_ACTIVITY_EVENTS,
     min_localized_events: int = DEFAULT_MIN_LOCALIZED_EVENTS,
@@ -1516,49 +947,32 @@ def build_behavior_indicators(
     Missing upstream analyses simply omit the corresponding indicators.
     """
 
-    min_activity_events = (
-        _require_positive_int(
-            min_activity_events,
-            name=
-                "min_activity_events",
-        )
+    min_activity_events = _require_positive_int(
+        min_activity_events,
+        name="min_activity_events",
     )
 
-    min_localized_events = (
-        _require_positive_int(
-            min_localized_events,
-            name=
-                "min_localized_events",
-        )
+    min_localized_events = _require_positive_int(
+        min_localized_events,
+        name="min_localized_events",
     )
 
-    min_transitions = (
-        _require_positive_int(
-            min_transitions,
-            name=
-                "min_transitions",
-        )
+    min_transitions = _require_positive_int(
+        min_transitions,
+        name="min_transitions",
     )
 
-    indicators: list[
-        BehaviorIndicator
-    ] = []
+    indicators: list[BehaviorIndicator] = []
 
     # ==============================================================
     # TEMPORAL CONCENTRATION
     # ==============================================================
 
-    if (
-        activity_bins
-        is not None
-    ):
-
+    if activity_bins is not None:
         indicators.append(
             build_temporal_concentration_indicator(
                 activity_bins,
-
-                min_events=
-                    min_activity_events,
+                min_events=min_activity_events,
             )
         )
 
@@ -1566,17 +980,11 @@ def build_behavior_indicators(
     # CLASS CONCENTRATION
     # ==============================================================
 
-    if (
-        activity
-        is not None
-    ):
-
+    if activity is not None:
         indicators.append(
             build_class_concentration_indicator(
                 activity,
-
-                min_events=
-                    min_activity_events,
+                min_events=min_activity_events,
             )
         )
 
@@ -1584,41 +992,29 @@ def build_behavior_indicators(
     # SPATIAL INDICATORS
     # ==============================================================
 
-    if (
-        spatial
-        is not None
-    ):
-
+    if spatial is not None:
         indicators.append(
             build_spatial_concentration_indicator(
                 spatial,
-
-                min_localized_events=
-                    min_localized_events,
+                min_localized_events=min_localized_events,
             )
         )
 
         indicators.append(
             build_spatial_redistribution_indicator(
                 spatial,
-
-                min_transitions=
-                    min_transitions,
+                min_transitions=min_transitions,
             )
         )
 
         indicators.append(
             build_repeated_area_indicator(
                 spatial,
-
-                min_transitions=
-                    min_transitions,
+                min_transitions=min_transitions,
             )
         )
 
-    return tuple(
-        indicators
-    )
+    return tuple(indicators)
 
 
 # ======================================================================
@@ -1627,9 +1023,7 @@ def build_behavior_indicators(
 
 
 def valid_behavior_indicators(
-    indicators: Iterable[
-        BehaviorIndicator
-    ],
+    indicators: Iterable[BehaviorIndicator],
 ) -> tuple[
     BehaviorIndicator,
     ...,
@@ -1638,39 +1032,19 @@ def valid_behavior_indicators(
     Return indicators with sufficient data and a numerical score.
     """
 
-    valid: list[
-        BehaviorIndicator
-    ] = []
+    valid: list[BehaviorIndicator] = []
 
-    for indicator in (
-        indicators
-    ):
-
+    for indicator in indicators:
         if not isinstance(
             indicator,
             BehaviorIndicator,
         ):
-
-            raise TypeError(
-                (
-                    "indicators must contain "
-                    "BehaviorIndicator objects."
-                )
-            )
+            raise TypeError(("indicators must contain BehaviorIndicator objects."))
 
         if (
-            indicator.status
-            != BehaviorIndicatorStatus
-            .INSUFFICIENT_DATA
-
-            and indicator.score
-            is not None
+            indicator.status != BehaviorIndicatorStatus.INSUFFICIENT_DATA
+            and indicator.score is not None
         ):
+            valid.append(indicator)
 
-            valid.append(
-                indicator
-            )
-
-    return tuple(
-        valid
-    )
+    return tuple(valid)

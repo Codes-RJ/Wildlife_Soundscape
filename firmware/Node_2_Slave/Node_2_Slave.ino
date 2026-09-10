@@ -84,7 +84,7 @@
 
 #include <WiFi.h>
 
-#include <ESP_I2S.h>
+#include "driver/i2s_std.h"
 
 #include <math.h>
 
@@ -668,9 +668,6 @@ static_assert(
 // ======================================================================
 
 
-I2SClass I2S;
-
-
 WiFiClient tcpClient;
 
 
@@ -813,6 +810,14 @@ uint32_t packetSequence =
 
 bool audioDriverStarted =
     false;
+
+
+i2s_chan_handle_t audioRxChannel =
+    nullptr;
+
+
+esp_err_t audioLastError =
+    ESP_OK;
 
 
 // ======================================================================
@@ -1684,28 +1689,85 @@ bool audioSensorBeginSlave() {
       audioDriverStarted
   ) {
 
-    I2S.end();
+    i2s_channel_disable(
+        audioRxChannel
+    );
+
+    i2s_del_channel(
+        audioRxChannel
+    );
+
+    audioRxChannel =
+        nullptr;
 
     audioDriverStarted =
         false;
   }
 
-  I2S.setPins(
-      PIN_BCLK,
-      PIN_WS,
-      -1,
-      PIN_MIC_DATA
-  );
-
-  bool ok =
-      I2S.begin(
-          I2S_MODE_STD,
-          SAMPLE_RATE,
-          I2S_DATA_BIT_WIDTH_32BIT,
-          I2S_SLOT_MODE_STEREO,
-          -1,
+  i2s_chan_config_t channelConfig =
+      I2S_CHANNEL_DEFAULT_CONFIG(
+          I2S_NUM_AUTO,
           I2S_ROLE_SLAVE
       );
+
+  audioLastError =
+      i2s_new_channel(
+          &channelConfig,
+          nullptr,
+          &audioRxChannel
+      );
+
+  i2s_std_config_t standardConfig = {
+      .clk_cfg = I2S_STD_CLK_DEFAULT_CONFIG(
+          SAMPLE_RATE
+      ),
+      .slot_cfg = I2S_STD_PHILIP_SLOT_DEFAULT_CONFIG(
+          I2S_DATA_BIT_WIDTH_32BIT,
+          I2S_SLOT_MODE_STEREO
+      ),
+      .gpio_cfg = {
+          .mclk = I2S_GPIO_UNUSED,
+          .bclk = static_cast<gpio_num_t>(
+              PIN_BCLK
+          ),
+          .ws = static_cast<gpio_num_t>(
+              PIN_WS
+          ),
+          .dout = I2S_GPIO_UNUSED,
+          .din = static_cast<gpio_num_t>(
+              PIN_MIC_DATA
+          ),
+          .invert_flags = {
+              .mclk_inv = false,
+              .bclk_inv = false,
+              .ws_inv = false,
+          },
+      },
+  };
+
+  if (
+      audioLastError == ESP_OK
+  ) {
+
+    audioLastError =
+        i2s_channel_init_std_mode(
+            audioRxChannel,
+            &standardConfig
+        );
+  }
+
+  if (
+      audioLastError == ESP_OK
+  ) {
+
+    audioLastError =
+        i2s_channel_enable(
+            audioRxChannel
+        );
+  }
+
+  const bool ok =
+      audioLastError == ESP_OK;
 
   if (
       !ok
@@ -1721,21 +1783,25 @@ bool audioSensorBeginSlave() {
         static_cast<unsigned long>(
             errorCount
         ),
-        I2S.lastError()
+        static_cast<int>(
+            audioLastError
+        )
     );
 
-    I2S.end();
+    if (
+        audioRxChannel != nullptr
+    ) {
+
+      i2s_del_channel(
+          audioRxChannel
+      );
+
+      audioRxChannel =
+          nullptr;
+    }
 
     return false;
   }
-
-  // I2SClass inherits Stream.
-  //
-  // This keeps missing external clocks from creating an indefinitely
-  // uninterruptible application-level read loop.
-  I2S.setTimeout(
-      I2S_READ_TIMEOUT_MS
-  );
 
   audioDriverStarted =
       true;
@@ -1763,7 +1829,26 @@ void audioSensorEnd() {
     return;
   }
 
-  I2S.end();
+  audioLastError =
+      i2s_channel_disable(
+          audioRxChannel
+      );
+
+  const esp_err_t deleteError =
+      i2s_del_channel(
+          audioRxChannel
+      );
+
+  if (
+      audioLastError == ESP_OK
+  ) {
+
+    audioLastError =
+        deleteError;
+  }
+
+  audioRxChannel =
+      nullptr;
 
   audioDriverStarted =
       false;
@@ -1784,12 +1869,27 @@ size_t audioSensorReadRaw(
     size_t rawValueCount
 ) {
 
-  return I2S.readBytes(
-      reinterpret_cast<char*>(
-          destination
-      ),
-      rawValueCount
-          * sizeof(int32_t)
+  size_t bytesRead =
+      0;
+
+  audioLastError =
+      i2s_channel_read(
+          audioRxChannel,
+          destination,
+          rawValueCount
+              * sizeof(int32_t),
+          &bytesRead,
+          I2S_READ_TIMEOUT_MS
+      );
+
+  return bytesRead;
+}
+
+
+int audioSensorLastError() {
+
+  return static_cast<int>(
+      audioLastError
   );
 }
 
@@ -2447,7 +2547,7 @@ void audioCaptureTask(
         );
 
     const int i2sLastError =
-        I2S.lastError();
+        audioSensorLastError();
 
     // ================================================================
     // PROCESS STOP IMMEDIATELY AFTER READ/TIMEOUT

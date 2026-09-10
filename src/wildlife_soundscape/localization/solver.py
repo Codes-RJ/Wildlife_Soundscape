@@ -36,16 +36,38 @@ def solve_position(
 ) -> PositionResult:
     valid = [m for m in measurements if m.valid]
     if len(valid) < 2:
-        return PositionResult(math.nan, math.nan, False, math.inf, math.inf, math.inf, 0, "need at least two valid TDOAs")
+        return PositionResult(
+            math.nan,
+            math.nan,
+            False,
+            math.inf,
+            math.inf,
+            math.inf,
+            0,
+            "need at least two valid TDOAs",
+        )
 
     used_nodes = {m.node_a for m in valid} | {m.node_b for m in valid}
     if len(used_nodes) < 3:
-        return PositionResult(math.nan, math.nan, False, math.inf, math.inf, math.inf, 0, "2D localization needs at least three distinct nodes")
+        return PositionResult(
+            math.nan,
+            math.nan,
+            False,
+            math.inf,
+            math.inf,
+            math.inf,
+            0,
+            "2D localization needs at least three distinct nodes",
+        )
 
     if speed_of_sound_mps <= 0:
         raise ValueError("speed_of_sound_mps must be positive")
 
-    x0 = np.asarray(initial_xy, dtype=np.float64) if initial_xy else _centroid(node_positions)
+    x0 = (
+        np.asarray(initial_xy, dtype=np.float64)
+        if initial_xy
+        else _centroid(node_positions)
+    )
 
     def residuals(xy: np.ndarray) -> np.ndarray:
         x, y = float(xy[0]), float(xy[1])

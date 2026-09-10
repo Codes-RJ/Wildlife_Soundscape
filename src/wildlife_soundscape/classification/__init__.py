@@ -146,7 +146,6 @@ def __getattr__(
     """
 
     if name == "create_classifier_backend":
-
         from .factory import (
             create_classifier_backend,
         )
@@ -154,7 +153,6 @@ def __getattr__(
         return create_classifier_backend
 
     if name == "BirdNETTaxonomy":
-
         from .birdnet_context import (
             BirdNETTaxonomy,
         )
@@ -162,19 +160,13 @@ def __getattr__(
         return BirdNETTaxonomy
 
     if name == "BirdNETGeoContext":
-
         from .birdnet_context import (
             BirdNETGeoContext,
         )
 
         return BirdNETGeoContext
 
-    raise AttributeError(
-        (
-            f"module {__name__!r} "
-            f"has no attribute {name!r}"
-        )
-    )
+    raise AttributeError((f"module {__name__!r} has no attribute {name!r}"))
 
 
 # ======================================================================

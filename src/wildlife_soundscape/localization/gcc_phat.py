@@ -18,14 +18,10 @@ from scipy.fft import (
 # ======================================================================
 
 
-DEFAULT_EPSILON = (
-    1e-12
-)
+DEFAULT_EPSILON = 1e-12
 
 
-MINIMUM_WINDOW_SAMPLES = (
-    8
-)
+MINIMUM_WINDOW_SAMPLES = 8
 
 
 # ======================================================================
@@ -84,34 +80,13 @@ def _invalid_result(
     """
 
     return GCCPHATResult(
-        delay_seconds=
-            0.0,
-
-        delay_samples=
-            0.0,
-
-        peak_value=
-            float(
-                peak_value
-            ),
-
-        peak_ratio=
-            float(
-                peak_ratio
-            ),
-
-        max_delay_samples=
-            float(
-                max_delay_samples
-            ),
-
-        valid=
-            False,
-
-        reason=
-            str(
-                reason
-            ),
+        delay_seconds=0.0,
+        delay_samples=0.0,
+        peak_value=float(peak_value),
+        peak_ratio=float(peak_ratio),
+        max_delay_samples=float(max_delay_samples),
+        valid=False,
+        reason=str(reason),
     )
 
 
@@ -152,27 +127,14 @@ def _prepare(
     # DIMENSIONALITY
     # ==================================================================
 
-    if (
-        x.ndim
-        != 1
-    ):
-
-        raise ValueError(
-            (
-                f"{name} must be mono 1-D audio, "
-                f"got shape {x.shape}."
-            )
-        )
+    if x.ndim != 1:
+        raise ValueError((f"{name} must be mono 1-D audio, got shape {x.shape}."))
 
     # ==================================================================
     # EMPTY
     # ==================================================================
 
-    if (
-        x.size
-        == 0
-    ):
-
+    if x.size == 0:
         return np.ascontiguousarray(
             x,
             dtype=np.float64,
@@ -182,18 +144,8 @@ def _prepare(
     # FINITE VALUES
     # ==================================================================
 
-    if not np.all(
-        np.isfinite(
-            x
-        )
-    ):
-
-        raise ValueError(
-            (
-                f"{name} contains NaN "
-                "or infinite samples."
-            )
-        )
+    if not np.all(np.isfinite(x)):
+        raise ValueError((f"{name} contains NaN or infinite samples."))
 
     # ==================================================================
     # REMOVE DC
@@ -206,10 +158,7 @@ def _prepare(
         )
     )
 
-    x = (
-        x
-        - mean_value
-    )
+    x = x - mean_value
 
     return np.ascontiguousarray(
         x,
@@ -302,259 +251,124 @@ def gcc_phat(
     # ==================================================================
 
     try:
-
-        sample_rate = float(
-            sample_rate
-        )
+        sample_rate = float(sample_rate)
 
     except (
         TypeError,
         ValueError,
     ) as exc:
+        raise TypeError(("sample_rate must be a numeric value.")) from exc
 
-        raise TypeError(
-            (
-                "sample_rate must be "
-                "a numeric value."
-            )
-        ) from exc
-
-    if (
-        not math.isfinite(
-            sample_rate
-        )
-        or sample_rate
-        <= 0.0
-    ):
-
-        raise ValueError(
-            (
-                "sample_rate must be finite "
-                "and greater than 0."
-            )
-        )
+    if not math.isfinite(sample_rate) or sample_rate <= 0.0:
+        raise ValueError(("sample_rate must be finite and greater than 0."))
 
     # ==================================================================
     # INTERPOLATION
     # ==================================================================
 
-    if (
-        isinstance(
-            interpolation,
-            bool,
-        )
-        or not isinstance(
-            interpolation,
-            int,
-        )
+    if isinstance(
+        interpolation,
+        bool,
+    ) or not isinstance(
+        interpolation,
+        int,
     ):
+        raise TypeError(("interpolation must be an integer."))
 
-        raise TypeError(
-            (
-                "interpolation must be "
-                "an integer."
-            )
-        )
-
-    if (
-        interpolation
-        <= 0
-    ):
-
-        raise ValueError(
-            (
-                "interpolation must be "
-                "greater than 0."
-            )
-        )
+    if interpolation <= 0:
+        raise ValueError(("interpolation must be greater than 0."))
 
     # ==================================================================
     # EPSILON
     # ==================================================================
 
     try:
-
-        epsilon = float(
-            epsilon
-        )
+        epsilon = float(epsilon)
 
     except (
         TypeError,
         ValueError,
     ) as exc:
+        raise TypeError(("epsilon must be a numeric value.")) from exc
 
-        raise TypeError(
-            (
-                "epsilon must be "
-                "a numeric value."
-            )
-        ) from exc
-
-    if (
-        not math.isfinite(
-            epsilon
-        )
-        or epsilon
-        <= 0.0
-    ):
-
-        raise ValueError(
-            (
-                "epsilon must be finite "
-                "and greater than 0."
-            )
-        )
+    if not math.isfinite(epsilon) or epsilon <= 0.0:
+        raise ValueError(("epsilon must be finite and greater than 0."))
 
     # ==================================================================
     # PEAK-RATIO THRESHOLD
     # ==================================================================
 
     try:
-
-        min_peak_ratio = float(
-            min_peak_ratio
-        )
+        min_peak_ratio = float(min_peak_ratio)
 
     except (
         TypeError,
         ValueError,
     ) as exc:
+        raise TypeError(("min_peak_ratio must be a numeric value.")) from exc
 
-        raise TypeError(
-            (
-                "min_peak_ratio must be "
-                "a numeric value."
-            )
-        ) from exc
-
-    if (
-        not math.isfinite(
-            min_peak_ratio
-        )
-        or min_peak_ratio
-        < 1.0
-    ):
-
-        raise ValueError(
-            (
-                "min_peak_ratio must be finite "
-                "and at least 1.0."
-            )
-        )
+    if not math.isfinite(min_peak_ratio) or min_peak_ratio < 1.0:
+        raise ValueError(("min_peak_ratio must be finite and at least 1.0."))
 
     # ==================================================================
     # FRACTIONAL PHAT WEIGHTING (BETA)
     # ==================================================================
 
     try:
-
-        beta = float(
-            beta
-        )
+        beta = float(beta)
 
     except (
         TypeError,
         ValueError,
     ) as exc:
+        raise TypeError(("beta must be a numeric value.")) from exc
 
-        raise TypeError(
-            (
-                "beta must be a numeric value."
-            )
-        ) from exc
-
-    if (
-        not math.isfinite(
-            beta
-        )
-        or not (
-            0.0
-            <= beta
-            <= 1.0
-        )
-    ):
-
-        raise ValueError(
-            (
-                "beta must be finite and lie between 0 and 1."
-            )
-        )
+    if not math.isfinite(beta) or not (0.0 <= beta <= 1.0):
+        raise ValueError(("beta must be finite and lie between 0 and 1."))
 
     # ==================================================================
     # FREQUENCY BAND-LIMITING
     # ==================================================================
 
-    if (
-        frequency_band_hz
-        is not None
-    ):
-
-        if not isinstance(
-            frequency_band_hz,
-            (tuple, list),
-        ) or len(frequency_band_hz) != 2:
-
+    if frequency_band_hz is not None:
+        if (
+            not isinstance(
+                frequency_band_hz,
+                (tuple, list),
+            )
+            or len(frequency_band_hz) != 2
+        ):
             raise TypeError(
-                (
-                    "frequency_band_hz must be a tuple of (low_hz, high_hz) or None."
-                )
+                ("frequency_band_hz must be a tuple of (low_hz, high_hz) or None.")
             )
 
         try:
+            low_hz = float(frequency_band_hz[0])
 
-            low_hz = float(
-                frequency_band_hz[0]
-            )
-
-            high_hz = float(
-                frequency_band_hz[1]
-            )
+            high_hz = float(frequency_band_hz[1])
 
         except (
             TypeError,
             ValueError,
         ) as exc:
+            raise TypeError(("frequency_band_hz elements must be numeric.")) from exc
 
-            raise TypeError(
-                (
-                    "frequency_band_hz elements must be numeric."
-                )
-            ) from exc
-
-        if not (
-            math.isfinite(low_hz)
-            and math.isfinite(high_hz)
-        ):
-
-            raise ValueError(
-                (
-                    "frequency_band_hz elements must be finite."
-                )
-            )
+        if not (math.isfinite(low_hz) and math.isfinite(high_hz)):
+            raise ValueError(("frequency_band_hz elements must be finite."))
 
         if low_hz < 0.0:
-
-            raise ValueError(
-                (
-                    "frequency_band_hz lower bound must be non-negative."
-                )
-            )
+            raise ValueError(("frequency_band_hz lower bound must be non-negative."))
 
         if high_hz <= low_hz:
-
             raise ValueError(
                 (
                     "frequency_band_hz upper bound must be strictly greater than lower bound."
                 )
             )
 
-        nyquist = (
-            sample_rate
-            / 2.0
-        )
+        nyquist = sample_rate / 2.0
 
         if high_hz > nyquist:
-
             raise ValueError(
                 (
                     f"frequency_band_hz upper bound ({high_hz} Hz) exceeds Nyquist ({nyquist} Hz)."
@@ -565,78 +379,39 @@ def gcc_phat(
     # PHYSICAL DELAY LIMIT
     # ==================================================================
 
-    if (
-        max_delay_seconds
-        is not None
-    ):
-
+    if max_delay_seconds is not None:
         try:
-
-            max_delay_seconds = float(
-                max_delay_seconds
-            )
+            max_delay_seconds = float(max_delay_seconds)
 
         except (
             TypeError,
             ValueError,
         ) as exc:
+            raise TypeError(("max_delay_seconds must be numeric or None.")) from exc
 
-            raise TypeError(
-                (
-                    "max_delay_seconds must be "
-                    "numeric or None."
-                )
-            ) from exc
-
-        if (
-            not math.isfinite(
-                max_delay_seconds
-            )
-            or max_delay_seconds
-            < 0.0
-        ):
-
-            raise ValueError(
-                (
-                    "max_delay_seconds must be "
-                    "finite and non-negative."
-                )
-            )
+        if not math.isfinite(max_delay_seconds) or max_delay_seconds < 0.0:
+            raise ValueError(("max_delay_seconds must be finite and non-negative."))
 
     # ==================================================================
     # PREPARE WAVEFORMS
     # ==================================================================
 
-    x = (
-        _prepare(
-            signal,
-            name=
-                "signal",
-        )
+    x = _prepare(
+        signal,
+        name="signal",
     )
 
-    y = (
-        _prepare(
-            reference,
-            name=
-                "reference",
-        )
+    y = _prepare(
+        reference,
+        name="reference",
     )
 
     # ==================================================================
     # WINDOW LENGTH
     # ==================================================================
 
-    if (
-        x.size
-        < MINIMUM_WINDOW_SAMPLES
-        or y.size
-        < MINIMUM_WINDOW_SAMPLES
-    ):
-
-        return _invalid_result(
-            "window too short"
-        )
+    if x.size < MINIMUM_WINDOW_SAMPLES or y.size < MINIMUM_WINDOW_SAMPLES:
+        return _invalid_result("window too short")
 
     # --------------------------------------------------------------
     # Our localization system extracts equal absolute sample windows
@@ -646,17 +421,8 @@ def gcc_phat(
     # construction error rather than a condition GCC-PHAT should hide.
     # --------------------------------------------------------------
 
-    if (
-        x.size
-        != y.size
-    ):
-
-        raise ValueError(
-            (
-                "signal/reference window "
-                "length mismatch"
-            )
-        )
+    if x.size != y.size:
+        raise ValueError(("signal/reference window length mismatch"))
 
     # ==================================================================
     # ENERGY CHECK
@@ -677,76 +443,42 @@ def gcc_phat(
     )
 
     if (
-        not math.isfinite(
-            x_energy
-        )
-        or not math.isfinite(
-            y_energy
-        )
-        or x_energy
-        <= epsilon
-        or y_energy
-        <= epsilon
+        not math.isfinite(x_energy)
+        or not math.isfinite(y_energy)
+        or x_energy <= epsilon
+        or y_energy <= epsilon
     ):
-
-        return _invalid_result(
-            "zero-energy window"
-        )
+        return _invalid_result("zero-energy window")
 
     # ==================================================================
     # LINEAR-CORRELATION FFT SIZE
     # ==================================================================
 
-    n_linear = (
-        int(
-            x.size
-        )
-        + int(
-            y.size
-        )
-        - 1
-    )
+    n_linear = int(x.size) + int(y.size) - 1
 
-    n_fft = int(
-        next_fast_len(
-            n_linear
-        )
-    )
+    n_fft = int(next_fast_len(n_linear))
 
     # ==================================================================
     # FFT
     # ==================================================================
 
-    spectrum_x = (
-        rfft(
-            x,
-            n=
-                n_fft,
-        )
+    spectrum_x = rfft(
+        x,
+        n=n_fft,
     )
 
-    spectrum_y = (
-        rfft(
-            y,
-            n=
-                n_fft,
-        )
+    spectrum_y = rfft(
+        y,
+        n=n_fft,
     )
 
     # ==================================================================
     # CROSS POWER SPECTRUM
     # ==================================================================
 
-    cross_spectrum = (
-        spectrum_x
-        * np.conj(
-            spectrum_y
-        )
-    )
+    cross_spectrum = spectrum_x * np.conj(spectrum_y)
 
-    magnitude = np.abs(
-        cross_spectrum
-    )
+    magnitude = np.abs(cross_spectrum)
 
     # ==================================================================
     # PHAT WEIGHTING
@@ -757,119 +489,56 @@ def gcc_phat(
     # treating numerical noise as informative phase.
     # ==================================================================
 
-    informative_bins = (
-        magnitude
-        > epsilon
-    )
+    informative_bins = magnitude > epsilon
 
-    if not np.any(
-        informative_bins
-    ):
+    if not np.any(informative_bins):
+        return _invalid_result(("no informative cross-spectrum bins"))
 
-        return _invalid_result(
-            (
-                "no informative "
-                "cross-spectrum bins"
-            )
-        )
-
-    phat = np.zeros_like(
-        cross_spectrum
-    )
+    phat = np.zeros_like(cross_spectrum)
 
     if beta == 1.0:
-
-        phat[
-            informative_bins
-        ] = (
-            cross_spectrum[
-                informative_bins
-            ]
-            / magnitude[
-                informative_bins
-            ]
+        phat[informative_bins] = (
+            cross_spectrum[informative_bins] / magnitude[informative_bins]
         )
 
     elif beta == 0.0:
-
-        phat[
-            informative_bins
-        ] = (
-            cross_spectrum[
-                informative_bins
-            ]
-        )
+        phat[informative_bins] = cross_spectrum[informative_bins]
 
     else:
-
-        phat[
-            informative_bins
-        ] = (
-            cross_spectrum[
-                informative_bins
-            ]
-            / (
-                magnitude[
-                    informative_bins
-                ]
-                ** beta
-            )
+        phat[informative_bins] = cross_spectrum[informative_bins] / (
+            magnitude[informative_bins] ** beta
         )
 
     # ==================================================================
     # BAND LIMITING
     # ==================================================================
 
-    if (
-        frequency_band_hz
-        is not None
-    ):
-
+    if frequency_band_hz is not None:
         freq_grid = np.linspace(
             0.0,
             sample_rate / 2.0,
             len(cross_spectrum),
         )
 
-        band_mask = (
-            (freq_grid >= frequency_band_hz[0])
-            & (freq_grid <= frequency_band_hz[1])
+        band_mask = (freq_grid >= frequency_band_hz[0]) & (
+            freq_grid <= frequency_band_hz[1]
         )
 
-        phat = (
-            phat
-            * band_mask
-        )
+        phat = phat * band_mask
 
     # ==================================================================
     # INTERPOLATED CORRELATION
     # ==================================================================
 
-    correlation_length = (
-        n_fft
-        * interpolation
+    correlation_length = n_fft * interpolation
+
+    correlation_circular = irfft(
+        phat,
+        n=correlation_length,
     )
 
-    correlation_circular = (
-        irfft(
-            phat,
-            n=
-                correlation_length,
-        )
-    )
-
-    if not np.all(
-        np.isfinite(
-            correlation_circular
-        )
-    ):
-
-        return _invalid_result(
-            (
-                "non-finite GCC "
-                "correlation"
-            )
-        )
+    if not np.all(np.isfinite(correlation_circular)):
+        return _invalid_result(("non-finite GCC correlation"))
 
     # ==================================================================
     # CENTER ZERO LAG
@@ -883,36 +552,20 @@ def gcc_phat(
     # represented on the interpolated grid.
     # ==================================================================
 
-    max_linear_lag_samples = (
-        int(
-            x.size
-        )
-        - 1
-    )
+    max_linear_lag_samples = int(x.size) - 1
 
-    max_linear_lag_i = (
-        max_linear_lag_samples
-        * interpolation
-    )
+    max_linear_lag_i = max_linear_lag_samples * interpolation
 
     correlation = np.concatenate(
         (
-            correlation_circular[
-                -max_linear_lag_i:
-            ],
-
-            correlation_circular[
-                :
-                max_linear_lag_i
-                + 1
-            ],
+            correlation_circular[-max_linear_lag_i:],
+            correlation_circular[: max_linear_lag_i + 1],
         )
     )
 
     interpolated_lags = np.arange(
         -max_linear_lag_i,
-        max_linear_lag_i
-        + 1,
+        max_linear_lag_i + 1,
         dtype=np.int64,
     )
 
@@ -920,114 +573,52 @@ def gcc_phat(
     # PHYSICALLY POSSIBLE DELAY
     # ==================================================================
 
-    if (
-        max_delay_seconds
-        is None
-    ):
-
-        max_delay_samples = float(
-            max_linear_lag_samples
-        )
+    if max_delay_seconds is None:
+        max_delay_samples = float(max_linear_lag_samples)
 
     else:
-
-        requested_max_delay_samples = (
-            max_delay_seconds
-            * sample_rate
-        )
+        requested_max_delay_samples = max_delay_seconds * sample_rate
 
         max_delay_samples = min(
-            float(
-                max_linear_lag_samples
-            ),
-            float(
-                requested_max_delay_samples
-            ),
+            float(max_linear_lag_samples),
+            float(requested_max_delay_samples),
         )
 
-    max_delay_i = int(
-        math.floor(
-            max_delay_samples
-            * interpolation
-        )
-    )
+    max_delay_i = int(math.floor(max_delay_samples * interpolation))
 
-    feasible = (
-        np.abs(
-            interpolated_lags
-        )
-        <= max_delay_i
-    )
+    feasible = np.abs(interpolated_lags) <= max_delay_i
 
-    if not np.any(
-        feasible
-    ):
-
+    if not np.any(feasible):
         return _invalid_result(
             "empty physical lag window",
-            max_delay_samples=
-                max_delay_samples,
+            max_delay_samples=max_delay_samples,
         )
 
     # ==================================================================
     # PEAK SEARCH
     # ==================================================================
 
-    feasible_correlation = np.abs(
-        correlation[
-            feasible
-        ]
-    )
+    feasible_correlation = np.abs(correlation[feasible])
 
-    feasible_lags = (
-        interpolated_lags[
-            feasible
-        ]
-    )
+    feasible_lags = interpolated_lags[feasible]
 
-    if (
-        feasible_correlation.size
-        == 0
-    ):
-
+    if feasible_correlation.size == 0:
         return _invalid_result(
             "empty GCC correlation window",
-            max_delay_samples=
-                max_delay_samples,
+            max_delay_samples=max_delay_samples,
         )
 
-    peak_local_index = int(
-        np.argmax(
-            feasible_correlation
-        )
-    )
+    peak_local_index = int(np.argmax(feasible_correlation))
 
-    peak_value = float(
-        feasible_correlation[
-            peak_local_index
-        ]
-    )
+    peak_value = float(feasible_correlation[peak_local_index])
 
-    winning_lag_i = int(
-        feasible_lags[
-            peak_local_index
-        ]
-    )
+    winning_lag_i = int(feasible_lags[peak_local_index])
 
-    if (
-        not math.isfinite(
-            peak_value
-        )
-        or peak_value
-        <= epsilon
-    ):
-
+    if not math.isfinite(peak_value) or peak_value <= epsilon:
         return _invalid_result(
             "no meaningful GCC peak",
-            max_delay_samples=
-                max_delay_samples,
-            peak_value=
-                peak_value,
+            max_delay_samples=max_delay_samples,
+            peak_value=peak_value,
         )
 
     # ==================================================================
@@ -1041,9 +632,7 @@ def gcc_phat(
     # one broad physical correlation peak look artificially ambiguous.
     # ==================================================================
 
-    exclusion_radius = (
-        interpolation
-    )
+    exclusion_radius = interpolation
 
     competing_mask = np.ones(
         feasible_correlation.size,
@@ -1052,127 +641,60 @@ def gcc_phat(
 
     exclusion_start = max(
         0,
-        peak_local_index
-        - exclusion_radius,
+        peak_local_index - exclusion_radius,
     )
 
     exclusion_end = min(
         feasible_correlation.size,
-        peak_local_index
-        + exclusion_radius
-        + 1,
+        peak_local_index + exclusion_radius + 1,
     )
 
-    competing_mask[
-        exclusion_start:
-        exclusion_end
-    ] = (
-        False
-    )
+    competing_mask[exclusion_start:exclusion_end] = False
 
-    if np.any(
-        competing_mask
-    ):
-
-        second_peak = float(
-            np.max(
-                feasible_correlation[
-                    competing_mask
-                ]
-            )
-        )
+    if np.any(competing_mask):
+        second_peak = float(np.max(feasible_correlation[competing_mask]))
 
     else:
+        second_peak = 0.0
 
-        second_peak = (
-            0.0
-        )
-
-    peak_ratio = (
-        peak_value
-        / max(
-            second_peak,
-            epsilon,
-        )
+    peak_ratio = peak_value / max(
+        second_peak,
+        epsilon,
     )
 
-    if not math.isfinite(
-        peak_ratio
-    ):
-
-        peak_ratio = float(
-            "inf"
-        )
+    if not math.isfinite(peak_ratio):
+        peak_ratio = float("inf")
 
     # ==================================================================
     # DELAY
     # ==================================================================
 
-    delay_samples = (
-        winning_lag_i
-        / interpolation
-    )
+    delay_samples = winning_lag_i / interpolation
 
-    delay_seconds = (
-        delay_samples
-        / sample_rate
-    )
+    delay_seconds = delay_samples / sample_rate
 
     # ==================================================================
     # QUALITY DECISION
     # ==================================================================
 
-    valid = bool(
-        peak_ratio
-        >= min_peak_ratio
-    )
+    valid = bool(peak_ratio >= min_peak_ratio)
 
     if valid:
-
-        reason = (
-            ""
-        )
+        reason = ""
 
     else:
-
-        reason = (
-            "ambiguous GCC peak ratio "
-            f"{peak_ratio:.3f}"
-        )
+        reason = f"ambiguous GCC peak ratio {peak_ratio:.3f}"
 
     # ==================================================================
     # RESULT
     # ==================================================================
 
     return GCCPHATResult(
-        delay_seconds=
-            float(
-                delay_seconds
-            ),
-
-        delay_samples=
-            float(
-                delay_samples
-            ),
-
-        peak_value=
-            float(
-                peak_value
-            ),
-
-        peak_ratio=
-            float(
-                peak_ratio
-            ),
-
-        max_delay_samples=
-            float(
-                max_delay_samples
-            ),
-
-        valid=
-            valid,
-
-        reason=
-            reason,
+        delay_seconds=float(delay_seconds),
+        delay_samples=float(delay_samples),
+        peak_value=float(peak_value),
+        peak_ratio=float(peak_ratio),
+        max_delay_samples=float(max_delay_samples),
+        valid=valid,
+        reason=reason,
     )

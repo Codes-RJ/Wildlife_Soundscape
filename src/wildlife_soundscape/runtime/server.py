@@ -4,6 +4,10 @@ import asyncio
 import contextlib
 import logging
 import secrets
+from functools import partial
+
+from .processing import OrderedProcessor, ProcessingMetrics
+from wildlife_soundscape.storage.database import SessionAlreadyExistsError
 
 from typing import (
     Any,
@@ -50,9 +54,7 @@ from wildlife_soundscape.acquisition.stream_manager import (
 )
 
 
-logger = logging.getLogger(
-    __name__
-)
+logger = logging.getLogger(__name__)
 
 
 # ======================================================================
@@ -85,9 +87,7 @@ AUXILIARY_PACKET_TYPES = frozenset(
 # ======================================================================
 
 
-INVALID_SESSION_LABEL_CHARACTERS = frozenset(
-    '<>:"/\\|?*'
-)
+INVALID_SESSION_LABEL_CHARACTERS = frozenset('<>:"/\\|?*')
 
 
 WINDOWS_RESERVED_NAMES = frozenset(
@@ -165,22 +165,15 @@ class ReceiverServer:
             config,
             AppConfig,
         ):
-            raise TypeError(
-                "config must be an AppConfig instance"
-            )
+            raise TypeError("config must be an AppConfig instance")
 
-        if (
-            MASTER_NODE_ID
-            not in config.expected_nodes
-        ):
+        if MASTER_NODE_ID not in config.expected_nodes:
             raise ValueError(
-                (
-                    "Current shared-clock architecture "
-                    "requires Node 1 as the I2S master."
-                )
+                ("Current shared-clock architecture requires Node 1 as the I2S master.")
             )
 
         self.config = config
+        self.processing = OrderedProcessor(config.network.processing_queue_blocks)
 
         # ==============================================================
         # ACTIVE ESP32 CONNECTIONS
@@ -195,9 +188,7 @@ class ReceiverServer:
         # STREAM STORAGE
         # ==============================================================
 
-        self.streams = StreamManager(
-            config.audio
-        )
+        self.streams = StreamManager(config.audio)
 
         # ==============================================================
         # CONTINUOUS WAV RECORDING
@@ -223,40 +214,29 @@ class ReceiverServer:
 
         self.soundscape: SoundscapeService | None
 
-        if (
-            config.analytics.enabled
-            and config.analytics.soundscape_enabled
-        ):
-
+        if config.analytics.enabled and config.analytics.soundscape_enabled:
             self.soundscape = SoundscapeService(
                 config=SoundscapeIndicesConfig(
                     sample_rate=config.audio.sample_rate,
                 ),
-                window_duration_seconds=
-                    config.analytics.soundscape_window_seconds,
+                window_duration_seconds=config.analytics.soundscape_window_seconds,
                 database=self.events.database,
             )
 
         else:
-
             self.soundscape = None
 
         # ==============================================================
         # TCP LISTENER
         # ==============================================================
 
-        self._server: (
-            asyncio.AbstractServer
-            | None
-        ) = None
+        self._server: asyncio.AbstractServer | None = None
 
         # ==============================================================
         # CONNECTION REGISTRY LOCK
         # ==============================================================
 
-        self._connection_lock = (
-            asyncio.Lock()
-        )
+        self._connection_lock = asyncio.Lock()
 
         # ==============================================================
         # SESSION-LIFECYCLE LOCK
@@ -272,18 +252,13 @@ class ReceiverServer:
         # They must therefore never overlap.
         # ==============================================================
 
-        self._session_lock = (
-            asyncio.Lock()
-        )
+        self._session_lock = asyncio.Lock()
 
         # ==============================================================
         # ACTIVE ACQUISITION
         # ==============================================================
 
-        self.active_session_id: (
-            int
-            | None
-        ) = None
+        self.active_session_id: int | None = None
 
     # ==================================================================
     # NODE ORDER
@@ -304,10 +279,8 @@ class ReceiverServer:
         return tuple(
             sorted(
                 node_id
-                for node_id
-                in self.config.expected_nodes
-                if node_id
-                != MASTER_NODE_ID
+                for node_id in self.config.expected_nodes
+                if node_id != MASTER_NODE_ID
             )
         )
 
@@ -335,59 +308,29 @@ class ReceiverServer:
             value,
             str,
         ):
-            raise TypeError(
-                "session_label must be a string"
-            )
+            raise TypeError("session_label must be a string")
 
         label = value.strip()
 
         if not label:
-            raise ValueError(
-                "session_label cannot be empty"
-            )
+            raise ValueError("session_label cannot be empty")
 
-        if len(
-            label
-        ) > 96:
-            raise ValueError(
-                (
-                    "session_label cannot exceed "
-                    "96 characters"
-                )
-            )
+        if len(label) > 96:
+            raise ValueError(("session_label cannot exceed 96 characters"))
 
         if label in {
             ".",
             "..",
         }:
-            raise ValueError(
-                "invalid session_label"
-            )
+            raise ValueError("invalid session_label")
 
         for character in label:
+            if ord(character) < 32:
+                raise ValueError(("session_label cannot contain control characters"))
 
-            if (
-                ord(
-                    character
-                )
-                < 32
-            ):
+            if character in INVALID_SESSION_LABEL_CHARACTERS:
                 raise ValueError(
-                    (
-                        "session_label cannot contain "
-                        "control characters"
-                    )
-                )
-
-            if (
-                character
-                in INVALID_SESSION_LABEL_CHARACTERS
-            ):
-                raise ValueError(
-                    (
-                        "session_label contains "
-                        f"invalid character {character!r}"
-                    )
+                    (f"session_label contains invalid character {character!r}")
                 )
 
         # Windows rejects names ending with a period or space.
@@ -397,31 +340,17 @@ class ReceiverServer:
                 " ",
             )
         ):
-            raise ValueError(
-                (
-                    "session_label cannot end "
-                    "with a period or space"
-                )
-            )
+            raise ValueError(("session_label cannot end with a period or space"))
 
         # Windows also reserves names such as CON, NUL, COM1...
-        stem = (
-            label.split(
-                ".",
-                1,
-            )[0]
-            .upper()
-        )
+        stem = label.split(
+            ".",
+            1,
+        )[0].upper()
 
-        if (
-            stem
-            in WINDOWS_RESERVED_NAMES
-        ):
+        if stem in WINDOWS_RESERVED_NAMES:
             raise ValueError(
-                (
-                    "session_label uses a reserved "
-                    f"filesystem name: {label!r}"
-                )
+                (f"session_label uses a reserved filesystem name: {label!r}")
             )
 
         return label
@@ -437,36 +366,24 @@ class ReceiverServer:
         Start the laptop TCP receiver.
         """
 
-        if (
-            self._server
-            is not None
-        ):
+        if self._server is not None:
             return
 
         stream_limit = max(
-            64
-            * 1024,
-
-            self.config.network.max_payload_bytes
-            + HEADER_SIZE,
+            64 * 1024,
+            self.config.network.max_payload_bytes + HEADER_SIZE,
         )
 
-        self._server = (
-            await asyncio.start_server(
-                self._handle_client,
-                self.config.network.host,
-                self.config.network.port,
-                limit=stream_limit,
-            )
+        self._server = await asyncio.start_server(
+            self._handle_client,
+            self.config.network.host,
+            self.config.network.port,
+            limit=stream_limit,
         )
 
-        sockets: tuple[Any, ...] = tuple(
-            self._server.sockets
-            or ()
-        )
+        sockets: tuple[Any, ...] = tuple(self._server.sockets or ())
 
         for sock in sockets:
-
             logger.info(
                 "Listening on %s",
                 sock.getsockname(),
@@ -483,20 +400,12 @@ class ReceiverServer:
         Run the receiver until cancellation.
         """
 
-        if (
-            self._server
-            is None
-        ):
+        if self._server is None:
             await self.start()
 
-        assert (
-            self._server
-            is not None
-        )
+        assert self._server is not None
 
-        async with (
-            self._server
-        ):
+        async with self._server:
             await self._server.serve_forever()
 
     # ==================================================================
@@ -517,7 +426,6 @@ class ReceiverServer:
         # ==============================================================
 
         try:
-
             # Calling this unconditionally is intentional.
             #
             # If START is currently in progress, _session_lock ensures
@@ -526,67 +434,41 @@ class ReceiverServer:
             await self.stop_acquisition()
 
         except asyncio.CancelledError:
-
             raise
 
         except Exception:
-
-            logger.exception(
-                (
-                    "Failed to stop acquisition "
-                    "during server shutdown"
-                )
-            )
+            logger.exception(("Failed to stop acquisition during server shutdown"))
 
         # ==============================================================
         # CLOSE LISTENER
         # ==============================================================
 
-        if (
-            self._server
-            is not None
-        ):
-
+        if self._server is not None:
             self._server.close()
 
             await self._server.wait_closed()
 
-            self._server = (
-                None
-            )
+            self._server = None
 
         # ==============================================================
         # DETACH ACTIVE CONNECTIONS
         # ==============================================================
 
-        async with (
-            self._connection_lock
-        ):
-
-            connections = list(
-                self.connections.values()
-            )
+        async with self._connection_lock:
+            connections = list(self.connections.values())
 
             self.connections.clear()
 
             for connection in connections:
-
-                connection.state.connected = (
-                    False
-                )
+                connection.state.connected = False
 
         # ==============================================================
         # CLOSE NODE SOCKETS
         # ==============================================================
 
         if connections:
-
             await asyncio.gather(
-                *(
-                    connection.close()
-                    for connection
-                    in connections
-                ),
+                *(connection.close() for connection in connections),
                 return_exceptions=True,
             )
 
@@ -602,30 +484,16 @@ class ReceiverServer:
         connection.
         """
 
-        for node_id in (
-            self.config.expected_nodes
-        ):
+        for node_id in self.config.expected_nodes:
+            connection = self.connections.get(node_id)
 
-            connection = (
-                self.connections.get(
-                    node_id
-                )
-            )
-
-            if (
-                connection
-                is None
-            ):
+            if connection is None:
                 return False
 
-            if not (
-                connection.state.connected
-            ):
+            if not (connection.state.connected):
                 return False
 
-            if (
-                connection.writer.is_closing()
-            ):
+            if connection.writer.is_closing():
                 return False
 
         return True
@@ -642,27 +510,15 @@ class ReceiverServer:
         Wait until every configured acoustic node is connected.
         """
 
-        if (
-            timeout
-            is not None
-            and timeout <= 0
-        ):
-            raise ValueError(
-                "timeout must be greater than 0"
-            )
+        if timeout is not None and timeout <= 0:
+            raise ValueError("timeout must be greater than 0")
 
         async def _wait() -> None:
 
-            while not (
-                self.all_expected_nodes_connected()
-            ):
-
-                await asyncio.sleep(
-                    0.05
-                )
+            while not (self.all_expected_nodes_connected()):
+                await asyncio.sleep(0.05)
 
         if timeout is None:
-
             await _wait()
 
             return
@@ -691,43 +547,25 @@ class ReceiverServer:
         STOP indefinitely.
         """
 
-        node_id = int(
-            node_id
-        )
+        node_id = int(node_id)
 
-        connection = (
-            self.connections.get(
-                node_id
-            )
-        )
+        connection = self.connections.get(node_id)
 
         if connection is None:
-
-            raise RuntimeError(
-                (
-                    f"node {node_id} "
-                    "is not connected"
-                )
-            )
+            raise RuntimeError((f"node {node_id} is not connected"))
 
         try:
-
             await asyncio.wait_for(
                 connection.send_command(
                     command,
                     session_id=session_id,
                 ),
-                timeout=
-                    self.config.network.read_timeout_s,
+                timeout=self.config.network.read_timeout_s,
             )
 
         except asyncio.TimeoutError as exc:
-
             raise asyncio.TimeoutError(
-                (
-                    f"control command {command.name} "
-                    f"timed out for node {node_id}"
-                )
+                (f"control command {command.name} timed out for node {node_id}")
             ) from exc
 
         # --------------------------------------------------------------
@@ -741,19 +579,9 @@ class ReceiverServer:
         # node connection.
         # --------------------------------------------------------------
 
-        if (
-            self.connections.get(
-                node_id
-            )
-            is not connection
-        ):
-
+        if self.connections.get(node_id) is not connection:
             raise ConnectionError(
-                (
-                    f"node {node_id} connection "
-                    "was replaced while sending "
-                    f"{command.name}"
-                )
+                (f"node {node_id} connection was replaced while sending {command.name}")
             )
 
     # ==================================================================
@@ -769,12 +597,7 @@ class ReceiverServer:
         One identical ID is supplied to every node.
         """
 
-        return (
-            secrets.randbits(
-                32
-            )
-            or 1
-        )
+        return secrets.randbits(32) or 1
 
     # ==================================================================
     # START ACQUISITION
@@ -805,15 +628,8 @@ class ReceiverServer:
         Startup is transactional.
         """
 
-        async with (
-            self._session_lock
-        ):
-
-            return await (
-                self._start_acquisition_locked(
-                    session_label
-                )
-            )
+        async with self._session_lock:
+            return await self._start_acquisition_locked(session_label)
 
     async def _start_acquisition_locked(
         self,
@@ -829,27 +645,14 @@ class ReceiverServer:
         # LABEL
         # ==============================================================
 
-        normalized_label = (
-            self._normalize_session_label(
-                session_label
-            )
-        )
+        normalized_label = self._normalize_session_label(session_label)
 
         # ==============================================================
         # PREVENT OVERLAPPING SESSION
         # ==============================================================
 
-        if (
-            self.active_session_id
-            is not None
-        ):
-
-            raise RuntimeError(
-                (
-                    "an acquisition session "
-                    "is already active"
-                )
-            )
+        if self.active_session_id is not None:
+            raise RuntimeError(("an acquisition session is already active"))
 
         # ==============================================================
         # REQUIRE ALL NODES
@@ -857,49 +660,33 @@ class ReceiverServer:
 
         missing = {
             node_id
-            for node_id
-            in self.config.expected_nodes
+            for node_id in self.config.expected_nodes
             if (
-                node_id
-                not in self.connections
-                or not self.connections[
-                    node_id
-                ].state.connected
-                or self.connections[
-                    node_id
-                ].writer.is_closing()
+                node_id not in self.connections
+                or not self.connections[node_id].state.connected
+                or self.connections[node_id].writer.is_closing()
             )
         }
 
         if missing:
-
             raise RuntimeError(
-                (
-                    "cannot START; missing or "
-                    "unavailable nodes: "
-                    f"{sorted(missing)}"
-                )
+                (f"cannot START; missing or unavailable nodes: {sorted(missing)}")
             )
 
         # ==============================================================
         # SESSION ID
         # ==============================================================
 
-        session_id = (
-            self._generate_session_id()
-        )
+        session_id = self._generate_session_id()
+        self.processing.metrics = ProcessingMetrics()
 
         # ==============================================================
         # TRANSACTION STATE
         # ==============================================================
 
-        event_session_started = (
-            False
-        )
+        event_session_started = False
 
-        recorder_started = (
-            False
-        )
+        recorder_started = False
 
         # attempted_nodes includes a node before its send operation so
         # rollback can issue STOP even if START reached the wire but
@@ -909,32 +696,27 @@ class ReceiverServer:
         started_nodes: list[int] = []
 
         try:
-
             # ==========================================================
             # EVENT/DATABASE SESSION
             # ==============================================================
 
-            self.events.start_session(
-                session_id,
-                normalized_label,
-            )
+            for _attempt in range(32):
+                try:
+                    self.events.start_session(session_id, normalized_label)
+                    break
+                except SessionAlreadyExistsError:
+                    session_id = self._generate_session_id()
+            else:
+                raise RuntimeError("Unable to allocate a unique acquisition session ID")
 
-            event_session_started = (
-                True
-            )
+            event_session_started = True
 
             # ==========================================================
             # CONTINUOUS SOUNDSCAPE SESSION
             # ==========================================================
 
-            if (
-                self.soundscape
-                is not None
-            ):
-
-                self.soundscape.start_session(
-                    session_id
-                )
+            if self.soundscape is not None:
+                self.soundscape.start_session(session_id)
 
             # ==========================================================
             # CLEAR PREVIOUS PCM
@@ -949,45 +731,28 @@ class ReceiverServer:
             # ACTIVATE LAPTOP SESSION FILTER
             # ==============================================================
 
-            self.active_session_id = (
-                session_id
-            )
+            self.active_session_id = session_id
 
             # ==========================================================
             # CONTINUOUS RECORDING
             # ==============================================================
 
-            if (
-                self.config.audio.record_wav
-            ):
-
-                recorder_label = (
-                    f"{normalized_label}"
-                    f"_sid_{session_id:08X}"
-                )
+            if self.config.audio.record_wav:
+                recorder_label = f"{normalized_label}_sid_{session_id:08X}"
 
                 self.recorder.start(
                     recorder_label,
-                    sorted(
-                        self.config.expected_nodes
-                    ),
+                    sorted(self.config.expected_nodes),
                 )
 
-                recorder_started = (
-                    True
-                )
+                recorder_started = True
 
             # ==========================================================
             # ARM EVERY SLAVE
             # ==============================================================
 
-            for node_id in (
-                self.slave_node_ids
-            ):
-
-                attempted_nodes.append(
-                    node_id
-                )
+            for node_id in self.slave_node_ids:
+                attempted_nodes.append(node_id)
 
                 await self.send_command(
                     node_id,
@@ -995,27 +760,20 @@ class ReceiverServer:
                     session_id=session_id,
                 )
 
-                started_nodes.append(
-                    node_id
-                )
+                started_nodes.append(node_id)
 
             # ==========================================================
             # SLAVE ARMING PERIOD
             # ==============================================================
 
             if self.slave_node_ids:
-
-                await asyncio.sleep(
-                    0.10
-                )
+                await asyncio.sleep(0.10)
 
             # ==========================================================
             # START MASTER LAST
             # ==============================================================
 
-            attempted_nodes.append(
-                MASTER_NODE_ID
-            )
+            attempted_nodes.append(MASTER_NODE_ID)
 
             await self.send_command(
                 MASTER_NODE_ID,
@@ -1023,54 +781,36 @@ class ReceiverServer:
                 session_id=session_id,
             )
 
-            started_nodes.append(
-                MASTER_NODE_ID
-            )
+            started_nodes.append(MASTER_NODE_ID)
 
         except asyncio.CancelledError:
-
             # Cancellation still requires transactional rollback before
             # propagating.
             await self._rollback_start(
                 session_id=session_id,
                 attempted_nodes=attempted_nodes,
-                event_session_started=
-                    event_session_started,
-                recorder_started=
-                    recorder_started,
+                event_session_started=event_session_started,
+                recorder_started=recorder_started,
             )
 
             raise
 
         except Exception as exc:
-
             await self._rollback_start(
                 session_id=session_id,
                 attempted_nodes=attempted_nodes,
-                event_session_started=
-                    event_session_started,
-                recorder_started=
-                    recorder_started,
+                event_session_started=event_session_started,
+                recorder_started=recorder_started,
             )
 
-            raise RuntimeError(
-                (
-                    "START failed: "
-                    f"{exc}"
-                )
-            ) from exc
+            raise RuntimeError((f"START failed: {exc}")) from exc
 
         # ==============================================================
         # START COMPLETE
         # ==============================================================
 
         logger.info(
-            (
-                "Acquisition START requested "
-                "| label=%s "
-                "| session=0x%08X "
-                "| nodes=%s"
-            ),
+            ("Acquisition START requested | label=%s | session=0x%08X | nodes=%s"),
             normalized_label,
             session_id,
             started_nodes,
@@ -1098,14 +838,10 @@ class ReceiverServer:
         # ESP32 ROLLBACK
         # ==============================================================
 
-        for node_id in reversed(
-            attempted_nodes
-        ):
-
-            with contextlib.suppress(
-                Exception
-            ):
-
+        self.active_session_id = None
+        await self.processing.drain()
+        for node_id in reversed(attempted_nodes):
+            with contextlib.suppress(Exception):
                 await self.send_command(
                     node_id,
                     ControlCommand.STOP,
@@ -1118,15 +854,8 @@ class ReceiverServer:
 
         # WavRecorder.stop() is intentionally safe even when start()
         # failed partway.
-        if (
-            recorder_started
-            or self.config.audio.record_wav
-        ):
-
-            with contextlib.suppress(
-                Exception
-            ):
-
+        if recorder_started or self.config.audio.record_wav:
+            with contextlib.suppress(Exception):
                 self.recorder.stop()
 
         # ==============================================================
@@ -1134,33 +863,18 @@ class ReceiverServer:
         # ==============================================================
 
         if event_session_started:
-
-            with contextlib.suppress(
-                Exception
-            ):
-
+            with contextlib.suppress(Exception):
                 self.events.stop_session()
 
-        if (
-            self.soundscape
-            is not None
-        ):
-
-            with contextlib.suppress(
-                Exception
-            ):
-
-                self.soundscape.stop_session(
-                    session_id
-                )
+        if self.soundscape is not None:
+            with contextlib.suppress(Exception):
+                self.soundscape.stop_session(session_id)
 
         # ==============================================================
         # SERVER SESSION STATE
         # ==============================================================
 
-        self.active_session_id = (
-            None
-        )
+        self.active_session_id = None
 
     # ==================================================================
     # STOP ACQUISITION
@@ -1184,10 +898,7 @@ class ReceiverServer:
         slaves tear down their I2S receivers.
         """
 
-        async with (
-            self._session_lock
-        ):
-
+        async with self._session_lock:
             await self._stop_acquisition_locked()
 
     async def _stop_acquisition_locked(
@@ -1199,41 +910,39 @@ class ReceiverServer:
         Caller must hold _session_lock.
         """
 
-        session_id = (
-            self.active_session_id
-        )
+        session_id = self.active_session_id
+        self.active_session_id = None
+        await self.processing.drain()
 
         # ==============================================================
         # NO SERVER SESSION
         # ==============================================================
 
         if session_id is None:
-
             # Defensive recovery from inconsistent partial state.
-            with contextlib.suppress(
-                Exception
-            ):
+            with contextlib.suppress(Exception):
                 self.recorder.stop()
 
-            if (
-                self.soundscape
-                is not None
-            ):
-                with contextlib.suppress(
-                    Exception
-                ):
+            if self.soundscape is not None:
+                with contextlib.suppress(Exception):
                     self.soundscape.stop_session()
 
-            if (
-                self.events.active_session_id
-                is not None
-            ):
-                with contextlib.suppress(
-                    Exception
-                ):
+            if self.events.active_session_id is not None:
+                with contextlib.suppress(Exception):
                     self.events.stop_session()
 
             return
+
+        metrics = self.processing.snapshot()
+        logger.info(
+            "Session processing metrics | session=0x%08X | %s", session_id, metrics
+        )
+        try:
+            await asyncio.to_thread(
+                self.events.database.save_session_metrics, session_id, metrics
+            )
+        except Exception:
+            logger.exception("Unable to persist processing metrics")
 
         # ==============================================================
         # STOP ALL SLAVES, THEN MASTER
@@ -1245,15 +954,10 @@ class ReceiverServer:
         )
 
         for node_id in stop_order:
-
-            if (
-                node_id
-                not in self.connections
-            ):
+            if node_id not in self.connections:
                 continue
 
             try:
-
                 await self.send_command(
                     node_id,
                     ControlCommand.STOP,
@@ -1261,7 +965,6 @@ class ReceiverServer:
                 )
 
             except asyncio.CancelledError:
-
                 raise
 
             except (
@@ -1270,12 +973,8 @@ class ReceiverServer:
                 OSError,
                 asyncio.TimeoutError,
             ) as exc:
-
                 logger.warning(
-                    (
-                        "STOP command failed "
-                        "for node %d: %s"
-                    ),
+                    ("STOP command failed for node %d: %s"),
                     node_id,
                     exc,
                 )
@@ -1284,86 +983,45 @@ class ReceiverServer:
         # LOCAL CLEANUP
         # ==============================================================
 
-        cleanup_errors: list[
-            Exception
-        ] = []
+        cleanup_errors: list[Exception] = []
 
         try:
-
             self.recorder.stop()
 
         except Exception as exc:
+            cleanup_errors.append(exc)
 
-            cleanup_errors.append(
-                exc
-            )
-
-            logger.exception(
-                (
-                    "Continuous recorder "
-                    "shutdown failed"
-                )
-            )
+            logger.exception(("Continuous recorder shutdown failed"))
 
         try:
-
             self.events.stop_session()
 
         except Exception as exc:
+            cleanup_errors.append(exc)
 
-            cleanup_errors.append(
-                exc
-            )
+            logger.exception(("Event pipeline session shutdown failed"))
 
-            logger.exception(
-                (
-                    "Event pipeline "
-                    "session shutdown failed"
-                )
-            )
-
-        if (
-            self.soundscape
-            is not None
-        ):
-
+        if self.soundscape is not None:
             try:
-
-                self.soundscape.stop_session(
-                    session_id
-                )
+                self.soundscape.stop_session(session_id)
 
             except Exception as exc:
+                cleanup_errors.append(exc)
 
-                cleanup_errors.append(
-                    exc
-                )
-
-                logger.exception(
-                    (
-                        "Soundscape analytics "
-                        "session shutdown failed"
-                    )
-                )
+                logger.exception(("Soundscape analytics session shutdown failed"))
 
         # This must happen even when local persistence encounters a
         # failure. Otherwise the server can become permanently stuck in
         # an active-session state. Every cleanup operation above records
         # its error instead of propagating immediately.
-        self.active_session_id = (
-            None
-        )
+        self.active_session_id = None
 
         logger.info(
-            (
-                "Acquisition STOP requested "
-                "| session=0x%08X"
-            ),
+            ("Acquisition STOP requested | session=0x%08X"),
             session_id,
         )
 
         if cleanup_errors:
-
             raise RuntimeError(
                 (
                     "Acquisition stopped, but "
@@ -1383,11 +1041,7 @@ class ReceiverServer:
         Send PING to every currently registered node.
         """
 
-        node_ids = tuple(
-            sorted(
-                self.connections.keys()
-            )
-        )
+        node_ids = tuple(sorted(self.connections.keys()))
 
         if not node_ids:
             return
@@ -1397,13 +1051,9 @@ class ReceiverServer:
                 self.send_command(
                     node_id,
                     ControlCommand.PING,
-                    session_id=(
-                        self.active_session_id
-                        or 0
-                    ),
+                    session_id=(self.active_session_id or 0),
                 )
-                for node_id
-                in node_ids
+                for node_id in node_ids
             ),
             return_exceptions=True,
         )
@@ -1416,17 +1066,12 @@ class ReceiverServer:
             results,
             strict=False,
         ):
-
             if isinstance(
                 result,
                 BaseException,
             ):
-
                 logger.debug(
-                    (
-                        "PING failed for "
-                        "node %d: %s"
-                    ),
+                    ("PING failed for node %d: %s"),
                     node_id,
                     result,
                 )
@@ -1447,31 +1092,18 @@ class ReceiverServer:
         # 40-BYTE HEADER
         # ==============================================================
 
-        header_bytes = (
-            await asyncio.wait_for(
-                reader.readexactly(
-                    HEADER_SIZE
-                ),
-                timeout=
-                    self.config.network.read_timeout_s,
-            )
+        header_bytes = await asyncio.wait_for(
+            reader.readexactly(HEADER_SIZE),
+            timeout=self.config.network.read_timeout_s,
         )
 
-        header = (
-            unpack_header(
-                header_bytes
-            )
-        )
+        header = unpack_header(header_bytes)
 
         # ==============================================================
         # PAYLOAD SIZE GUARD
         # ==============================================================
 
-        if (
-            header.payload_length
-            > self.config.network.max_payload_bytes
-        ):
-
+        if header.payload_length > self.config.network.max_payload_bytes:
             raise ProtocolError(
                 (
                     f"node {header.node_id} "
@@ -1485,23 +1117,13 @@ class ReceiverServer:
         # PAYLOAD
         # ==============================================================
 
-        if (
-            header.payload_length
-            == 0
-        ):
-
+        if header.payload_length == 0:
             payload = b""
 
         else:
-
-            payload = (
-                await asyncio.wait_for(
-                    reader.readexactly(
-                        header.payload_length
-                    ),
-                    timeout=
-                        self.config.network.read_timeout_s,
-                )
+            payload = await asyncio.wait_for(
+                reader.readexactly(header.payload_length),
+                timeout=self.config.network.read_timeout_s,
             )
 
         # ==============================================================
@@ -1534,12 +1156,7 @@ class ReceiverServer:
         entering current buffers after another handler replaced it.
         """
 
-        return (
-            self.connections.get(
-                connection.node_id
-            )
-            is connection
-        )
+        return self.connections.get(connection.node_id) is connection
 
     # ==================================================================
     # FIRST HELLO SESSION CHECK
@@ -1564,19 +1181,12 @@ class ReceiverServer:
         A different non-zero session is stale/incompatible.
         """
 
-        active_session = (
-            self.active_session_id
-        )
+        active_session = self.active_session_id
 
-        if (
-            active_session
-            is None
-        ):
+        if active_session is None:
             return
 
-        packet_session = (
-            packet.header.session_id
-        )
+        packet_session = packet.header.session_id
 
         if packet_session in {
             0,
@@ -1609,29 +1219,16 @@ class ReceiverServer:
         sample-index buffers.
         """
 
-        header = (
-            packet.header
-        )
+        header = packet.header
 
-        active_session = (
-            self.active_session_id
-        )
+        active_session = self.active_session_id
 
         # --------------------------------------------------------------
         # AUDIO / ENVIRONMENT / SYNC
         # --------------------------------------------------------------
 
-        if (
-            header.packet_type
-            in SESSION_BOUND_PACKET_TYPES
-        ):
-
-            return (
-                active_session
-                is not None
-                and header.session_id
-                == active_session
-            )
+        if header.packet_type in SESSION_BOUND_PACKET_TYPES:
+            return active_session is not None and header.session_id == active_session
 
         # --------------------------------------------------------------
         # HEARTBEAT / REFRESH HELLO
@@ -1645,20 +1242,11 @@ class ReceiverServer:
         # but not another non-zero session.
         # --------------------------------------------------------------
 
-        if (
-            active_session
-            is not None
-            and header.packet_type
-            in AUXILIARY_PACKET_TYPES
-        ):
-
-            return (
-                header.session_id
-                in {
-                    0,
-                    active_session,
-                }
-            )
+        if active_session is not None and header.packet_type in AUXILIARY_PACKET_TYPES:
+            return header.session_id in {
+                0,
+                active_session,
+            }
 
         return True
 
@@ -1675,78 +1263,39 @@ class ReceiverServer:
         Handle one ESP32 TCP connection.
         """
 
-        peer = writer.get_extra_info(
-            "peername"
-        )
+        peer = writer.get_extra_info("peername")
 
-        peer_text = str(
-            peer
-        )
+        peer_text = str(peer)
 
-        connection: (
-            NodeConnection
-            | None
-        ) = None
+        connection: NodeConnection | None = None
 
-        state: (
-            NodeState
-            | None
-        ) = None
+        state: NodeState | None = None
 
         try:
-
             # ==========================================================
             # FIRST PACKET MUST BE HELLO
             # ==============================================================
 
-            first = (
-                await asyncio.wait_for(
-                    self._read_packet(
-                        reader
-                    ),
-                    timeout=
-                        self.config.network.hello_timeout_s,
-                )
+            first = await asyncio.wait_for(
+                self._read_packet(reader),
+                timeout=self.config.network.hello_timeout_s,
             )
 
-            if (
-                first.header.packet_type
-                != PacketType.HELLO
-            ):
+            if first.header.packet_type != PacketType.HELLO:
+                raise ProtocolError("first packet must be HELLO")
 
-                raise ProtocolError(
-                    "first packet must be HELLO"
-                )
+            self._validate_initial_session(first)
 
-            self._validate_initial_session(
-                first
-            )
+            hello = parse_hello(first.payload)
 
-            hello = (
-                parse_hello(
-                    first.payload
-                )
-            )
-
-            node_id = int(
-                first.header.node_id
-            )
+            node_id = int(first.header.node_id)
 
             # ==========================================================
             # EXPECTED NODE
             # ==============================================================
 
-            if (
-                node_id
-                not in self.config.expected_nodes
-            ):
-
-                raise ProtocolError(
-                    (
-                        "unexpected node id "
-                        f"{node_id}"
-                    )
-                )
+            if node_id not in self.config.expected_nodes:
+                raise ProtocolError((f"unexpected node id {node_id}"))
 
             # ==========================================================
             # HELLO CONTRACT
@@ -1766,17 +1315,11 @@ class ReceiverServer:
                 audio_config=self.config.audio,
             )
 
-            state.connected = (
-                True
-            )
+            state.connected = True
 
-            state.peer = (
-                peer_text
-            )
+            state.peer = peer_text
 
-            state.hello = (
-                hello
-            )
+            state.hello = hello
 
             state.observe_header(
                 first.header.sequence,
@@ -1795,61 +1338,30 @@ class ReceiverServer:
             # REGISTER / REPLACE CONNECTION
             # ==============================================================
 
-            old_connection: (
-                NodeConnection
-                | None
-            ) = None
+            old_connection: NodeConnection | None = None
 
-            async with (
-                self._connection_lock
-            ):
+            async with self._connection_lock:
+                old_connection = self.connections.get(node_id)
 
-                old_connection = (
-                    self.connections.get(
-                        node_id
-                    )
-                )
+                self.connections[node_id] = connection
 
-                self.connections[
-                    node_id
-                ] = connection
-
-                self.streams.register_state(
-                    state
-                )
+                self.streams.register_state(state)
 
             # ----------------------------------------------------------
             # CLOSE PREVIOUS SOCKET OUTSIDE LOCK
             # ----------------------------------------------------------
 
-            if (
-                old_connection
-                is not None
-                and old_connection
-                is not connection
-            ):
-
+            if old_connection is not None and old_connection is not connection:
                 logger.warning(
-                    (
-                        "Node %d reconnected; "
-                        "closing previous socket"
-                    ),
+                    ("Node %d reconnected; closing previous socket"),
                     node_id,
                 )
 
-                with contextlib.suppress(
-                    Exception
-                ):
-
+                with contextlib.suppress(Exception):
                     await old_connection.close()
 
             logger.info(
-                (
-                    "Node %d connected from %s "
-                    "| master=%s "
-                    "| fw=%s "
-                    "| %d Hz"
-                ),
+                ("Node %d connected from %s | master=%s | fw=%s | %d Hz"),
                 node_id,
                 peer_text,
                 hello.master_node,
@@ -1862,40 +1374,23 @@ class ReceiverServer:
             # ==============================================================
 
             while True:
-
                 # ------------------------------------------------------
                 # SUPERSEDED SOCKET CHECK
                 # ------------------------------------------------------
 
-                if not (
-                    self._connection_is_current(
-                        connection
-                    )
-                ):
-
+                if not (self._connection_is_current(connection)):
                     logger.debug(
-                        (
-                            "Stopping superseded "
-                            "handler for node %d"
-                        ),
+                        ("Stopping superseded handler for node %d"),
                         node_id,
                     )
 
                     break
 
                 try:
-
-                    packet = (
-                        await self._read_packet(
-                            reader
-                        )
-                    )
+                    packet = await self._read_packet(reader)
 
                 except CRCMismatch as exc:
-
-                    state.crc_errors += (
-                        1
-                    )
+                    state.crc_errors += 1
 
                     logger.warning(
                         "%s",
@@ -1908,11 +1403,7 @@ class ReceiverServer:
                 # NODE ID IMMUTABILITY
                 # ------------------------------------------------------
 
-                if (
-                    packet.header.node_id
-                    != node_id
-                ):
-
+                if packet.header.node_id != node_id:
                     raise ProtocolError(
                         (
                             "socket registered as node "
@@ -1925,24 +1416,14 @@ class ReceiverServer:
                 # CONNECTION MAY HAVE BEEN REPLACED WHILE AWAITING READ
                 # ------------------------------------------------------
 
-                if not (
-                    self._connection_is_current(
-                        connection
-                    )
-                ):
-
+                if not (self._connection_is_current(connection)):
                     break
 
                 # ------------------------------------------------------
                 # STALE SESSION FILTER BEFORE NODESTATE MUTATION
                 # ------------------------------------------------------
 
-                if not (
-                    self._packet_session_is_acceptable(
-                        packet
-                    )
-                ):
-
+                if not (self._packet_session_is_acceptable(packet)):
                     self._log_stale_packet(
                         state,
                         packet,
@@ -1971,22 +1452,14 @@ class ReceiverServer:
                 )
 
         except asyncio.IncompleteReadError:
-
             logger.info(
-                (
-                    "Connection closed "
-                    "by %s"
-                ),
+                ("Connection closed by %s"),
                 peer_text,
             )
 
         except asyncio.TimeoutError:
-
             logger.warning(
-                (
-                    "Connection timed out: "
-                    "%s"
-                ),
+                ("Connection timed out: %s"),
                 peer_text,
             )
 
@@ -1995,18 +1468,11 @@ class ReceiverServer:
             ValueError,
             TypeError,
         ) as exc:
-
             if state is not None:
-
-                state.protocol_errors += (
-                    1
-                )
+                state.protocol_errors += 1
 
             logger.warning(
-                (
-                    "Protocol error from "
-                    "%s: %s"
-                ),
+                ("Protocol error from %s: %s"),
                 peer_text,
                 exc,
             )
@@ -2015,65 +1481,39 @@ class ReceiverServer:
             ConnectionError,
             OSError,
         ) as exc:
-
             logger.info(
-                (
-                    "Connection error from "
-                    "%s: %s"
-                ),
+                ("Connection error from %s: %s"),
                 peer_text,
                 exc,
             )
 
         except asyncio.CancelledError:
-
             raise
 
         except Exception:
-
             logger.exception(
-                (
-                    "Unexpected client-handler "
-                    "failure from %s"
-                ),
+                ("Unexpected client-handler failure from %s"),
                 peer_text,
             )
 
         finally:
-
             if state is not None:
-
-                state.connected = (
-                    False
-                )
+                state.connected = False
 
             if connection is not None:
-
                 assert connection is not None
 
                 active_connection = connection
                 active_node_id = active_connection.node_id
 
-                async with (
-                    self._connection_lock
-                ):
-
-                    if (
-                        self.connections.get(
-                            active_node_id
-                        )
-                        is active_connection
-                    ):
-
+                async with self._connection_lock:
+                    if self.connections.get(active_node_id) is active_connection:
                         self.connections.pop(
                             active_node_id,
                             None,
                         )
 
-                with contextlib.suppress(
-                    Exception
-                ):
-
+                with contextlib.suppress(Exception):
                     await active_connection.close()
 
     # ==================================================================
@@ -2093,11 +1533,7 @@ class ReceiverServer:
         # SAMPLE RATE
         # ==============================================================
 
-        if (
-            hello.sample_rate
-            != self.config.audio.sample_rate
-        ):
-
+        if hello.sample_rate != self.config.audio.sample_rate:
             raise ProtocolError(
                 (
                     f"node {node_id} sample rate "
@@ -2110,11 +1546,7 @@ class ReceiverServer:
         # BLOCK SIZE
         # ==============================================================
 
-        if (
-            hello.frames_per_packet
-            != self.config.audio.frames_per_block
-        ):
-
+        if hello.frames_per_packet != self.config.audio.frames_per_block:
             raise ProtocolError(
                 (
                     f"node {node_id} frames/packet "
@@ -2128,11 +1560,7 @@ class ReceiverServer:
         # PCM FORMAT
         # ==============================================================
 
-        if (
-            hello.bits_per_sample
-            != 16
-        ):
-
+        if hello.bits_per_sample != 16:
             raise ProtocolError(
                 (
                     f"node {node_id} reports "
@@ -2141,11 +1569,7 @@ class ReceiverServer:
                 )
             )
 
-        if (
-            hello.channels
-            != self.config.audio.channels
-        ):
-
+        if hello.channels != self.config.audio.channels:
             raise ProtocolError(
                 (
                     f"node {node_id} reports "
@@ -2159,11 +1583,7 @@ class ReceiverServer:
         # SYNC TOLERANCE
         # ==============================================================
 
-        if (
-            hello.sync_tolerance_samples
-            != self.config.audio.sync_tolerance_samples
-        ):
-
+        if hello.sync_tolerance_samples != self.config.audio.sync_tolerance_samples:
             raise ProtocolError(
                 (
                     f"node {node_id} sync tolerance "
@@ -2177,42 +1597,20 @@ class ReceiverServer:
         # MASTER / SLAVE ROLE
         # ==============================================================
 
-        expected_master = (
-            node_id
-            == MASTER_NODE_ID
-        )
+        expected_master = node_id == MASTER_NODE_ID
 
-        if (
-            hello.master_node
-            != expected_master
-        ):
+        if hello.master_node != expected_master:
+            expected_role = "master" if expected_master else "slave"
 
-            expected_role = (
-                "master"
-                if expected_master
-                else "slave"
-            )
-
-            raise ProtocolError(
-                (
-                    f"node {node_id} must identify "
-                    f"as {expected_role}"
-                )
-            )
+            raise ProtocolError((f"node {node_id} must identify as {expected_role}"))
 
         # ==============================================================
         # FIRMWARE IDENTIFIER
         # ==============================================================
 
-        if not (
-            hello.firmware.strip()
-        ):
-
+        if not (hello.firmware.strip()):
             raise ProtocolError(
-                (
-                    f"node {node_id} reported "
-                    "an empty firmware identifier"
-                )
+                (f"node {node_id} reported an empty firmware identifier")
             )
 
     # ==================================================================
@@ -2227,18 +1625,12 @@ class ReceiverServer:
         Whether a session-bound packet belongs to the active acquisition.
         """
 
-        session_id = (
-            self.active_session_id
-        )
+        session_id = self.active_session_id
 
         if session_id is None:
-
             return False
 
-        return (
-            packet.header.session_id
-            == session_id
-        )
+        return packet.header.session_id == session_id
 
     # ==================================================================
     # STALE PACKET LOG
@@ -2255,11 +1647,8 @@ class ReceiverServer:
 
         active_session = (
             "NONE"
-            if self.active_session_id
-            is None
-            else (
-                f"0x{self.active_session_id:08X}"
-            )
+            if self.active_session_id is None
+            else (f"0x{self.active_session_id:08X}")
         )
 
         logger.debug(
@@ -2288,9 +1677,7 @@ class ReceiverServer:
         Route one validated Protocol-v4 packet.
         """
 
-        header = (
-            packet.header
-        )
+        header = packet.header
 
         # --------------------------------------------------------------
         # DEFENSIVE SESSION FILTER
@@ -2302,12 +1689,7 @@ class ReceiverServer:
         # to _dispatch_packet cannot bypass the session contract.
         # --------------------------------------------------------------
 
-        if not (
-            self._packet_session_is_acceptable(
-                packet
-            )
-        ):
-
+        if not (self._packet_session_is_acceptable(packet)):
             self._log_stale_packet(
                 state,
                 packet,
@@ -2319,21 +1701,12 @@ class ReceiverServer:
         # AUDIO
         # ==============================================================
 
-        if (
-            header.packet_type
-            == PacketType.AUDIO
-        ):
-
+        if header.packet_type == PacketType.AUDIO:
             # ----------------------------------------------------------
             # ACTIVE SESSION
             # ----------------------------------------------------------
 
-            if not (
-                self._packet_is_current_session(
-                    packet
-                )
-            ):
-
+            if not (self._packet_is_current_session(packet)):
                 self._log_stale_packet(
                     state,
                     packet,
@@ -2345,21 +1718,11 @@ class ReceiverServer:
             # EXACT PCM16 PAYLOAD SIZE
             # ----------------------------------------------------------
 
-            expected_payload_bytes = (
-                self.config.audio.bytes_per_block
-            )
+            expected_payload_bytes = self.config.audio.bytes_per_block
 
-            actual_payload_bytes = (
-                len(
-                    packet.payload
-                )
-            )
+            actual_payload_bytes = len(packet.payload)
 
-            if (
-                actual_payload_bytes
-                != expected_payload_bytes
-            ):
-
+            if actual_payload_bytes != expected_payload_bytes:
                 raise ProtocolError(
                     (
                         f"node {state.node_id} AUDIO "
@@ -2373,19 +1736,12 @@ class ReceiverServer:
             # PCM16 DECODE
             # ----------------------------------------------------------
 
-            samples = (
-                np.frombuffer(
-                    packet.payload,
-                    dtype="<i2",
-                )
-                .copy()
-            )
+            samples = np.frombuffer(
+                packet.payload,
+                dtype="<i2",
+            ).copy()
 
-            if (
-                samples.size
-                != self.config.audio.frames_per_block
-            ):
-
+            if samples.size != self.config.audio.frames_per_block:
                 raise ProtocolError(
                     (
                         f"node {state.node_id} AUDIO block "
@@ -2400,93 +1756,23 @@ class ReceiverServer:
             # ----------------------------------------------------------
 
             block = AudioBlock(
-                node_id=
-                    state.node_id,
-
-                sequence=
-                    header.sequence,
-
-                session_id=
-                    header.session_id,
-
-                sample_index=
-                    header.sample_index,
-
-                local_micros=
-                    header.local_micros,
-
-                i2s_error_count=
-                    header.i2s_error_count,
-
-                flags=
-                    header.flags,
-
-                samples=
-                    samples,
+                node_id=state.node_id,
+                sequence=header.sequence,
+                session_id=header.session_id,
+                sample_index=header.sample_index,
+                local_micros=header.local_micros,
+                i2s_error_count=header.i2s_error_count,
+                flags=header.flags,
+                samples=samples,
             )
 
             # ----------------------------------------------------------
             # STREAM BUFFER
             # ----------------------------------------------------------
 
-            self.streams.add_audio(
-                block
-            )
-
-            # ----------------------------------------------------------
-            # CONTINUOUS SOUNDSCAPE INDICES
-            # ----------------------------------------------------------
-
-            if (
-                self.soundscape
-                is not None
-            ):
-
-                try:
-
-                    self.soundscape.append_audio(
-                        block.node_id,
-                        block.samples,
-                        session_id=block.session_id,
-                        start_sample=block.sample_index,
-                    )
-
-                except Exception:
-
-                    # Continuous research analytics are optional. A
-                    # calculation or persistence failure must remain
-                    # visible without interrupting acquisition.
-                    logger.exception(
-                        (
-                            "Continuous soundscape "
-                            "processing failed "
-                            "| node=%d "
-                            "| session=0x%08X "
-                            "| sample=%d"
-                        ),
-                        block.node_id,
-                        block.session_id,
-                        block.sample_index,
-                    )
-
-            # ----------------------------------------------------------
-            # CONTINUOUS WAV
-            # ----------------------------------------------------------
-
-            if (
-                self.config.audio.record_wav
-            ):
-
-                self.recorder.write(
-                    block
-                )
-
-            # ----------------------------------------------------------
-            # EVENT PIPELINE
-            # ----------------------------------------------------------
-
-            self.events.on_audio(
-                block
+            samples.flags.writeable = False
+            self.processing.submit(
+                partial(self._process_audio, block), samples=int(samples.size)
             )
 
             return
@@ -2495,17 +1781,8 @@ class ReceiverServer:
         # ENVIRONMENT
         # ==============================================================
 
-        if (
-            header.packet_type
-            == PacketType.ENVIRONMENT
-        ):
-
-            if not (
-                self._packet_is_current_session(
-                    packet
-                )
-            ):
-
+        if header.packet_type == PacketType.ENVIRONMENT:
+            if not (self._packet_is_current_session(packet)):
                 self._log_stale_packet(
                     state,
                     packet,
@@ -2518,11 +1795,7 @@ class ReceiverServer:
             # BME280 BELONGS TO NODE 1 MASTER
             # ----------------------------------------------------------
 
-            if (
-                state.node_id
-                != MASTER_NODE_ID
-            ):
-
+            if state.node_id != MASTER_NODE_ID:
                 raise ProtocolError(
                     (
                         "ENVIRONMENT packet received "
@@ -2532,52 +1805,21 @@ class ReceiverServer:
                     )
                 )
 
-            environment = (
-                parse_environment(
-                    packet.payload
-                )
-            )
+            environment = parse_environment(packet.payload)
 
-            environment_sample = (
-                EnvironmentSample(
-                    node_id=
-                        state.node_id,
-
-                    session_id=
-                        header.session_id,
-
-                    sample_index=
-                        header.sample_index,
-
-                    value=
-                        environment,
-                )
+            environment_sample = EnvironmentSample(
+                node_id=state.node_id,
+                session_id=header.session_id,
+                sample_index=header.sample_index,
+                value=environment,
             )
 
             # ----------------------------------------------------------
             # NODE RUNTIME HISTORY
             # ----------------------------------------------------------
 
-            state.add_environment(
-                environment_sample
-            )
-
-            # ----------------------------------------------------------
-            # DATABASE
-            # ----------------------------------------------------------
-
-            self.events.add_environment(
-                node_id=
-                    state.node_id,
-
-                session_id=
-                    header.session_id,
-
-                sample_index=
-                    header.sample_index,
-
-                environment=
-                    environment,
+            self.processing.submit(
+                partial(self._process_environment, state, environment_sample)
             )
 
             return
@@ -2586,30 +1828,15 @@ class ReceiverServer:
         # HEARTBEAT
         # ==============================================================
 
-        if (
-            header.packet_type
-            == PacketType.HEARTBEAT
-        ):
-
-            if (
-                state.hello
-                is None
-            ):
-
+        if header.packet_type == PacketType.HEARTBEAT:
+            if state.hello is None:
                 raise ProtocolError(
-                    (
-                        f"node {state.node_id} "
-                        "HEARTBEAT received "
-                        "before HELLO"
-                    )
+                    (f"node {state.node_id} HEARTBEAT received before HELLO")
                 )
 
-            state.latest_heartbeat = (
-                parse_heartbeat(
-                    packet.payload,
-                    master_node=
-                        state.hello.master_node,
-                )
+            state.latest_heartbeat = parse_heartbeat(
+                packet.payload,
+                master_node=state.hello.master_node,
             )
 
             return
@@ -2618,17 +1845,8 @@ class ReceiverServer:
         # SYNC
         # ==============================================================
 
-        if (
-            header.packet_type
-            == PacketType.SYNC
-        ):
-
-            if not (
-                self._packet_is_current_session(
-                    packet
-                )
-            ):
-
+        if header.packet_type == PacketType.SYNC:
+            if not (self._packet_is_current_session(packet)):
                 self._log_stale_packet(
                     state,
                     packet,
@@ -2636,21 +1854,13 @@ class ReceiverServer:
 
                 return
 
-            sync = (
-                parse_sync(
-                    packet.payload
-                )
-            )
+            sync = parse_sync(packet.payload)
 
             # ----------------------------------------------------------
             # SESSION CONSISTENCY
             # ----------------------------------------------------------
 
-            if (
-                sync.session_id
-                != header.session_id
-            ):
-
+            if sync.session_id != header.session_id:
                 raise ProtocolError(
                     (
                         f"node {state.node_id} SYNC "
@@ -2665,11 +1875,7 @@ class ReceiverServer:
             # SAMPLE-INDEX CONSISTENCY
             # ----------------------------------------------------------
 
-            if (
-                sync.sample_index
-                != header.sample_index
-            ):
-
+            if sync.sample_index != header.sample_index:
                 raise ProtocolError(
                     (
                         f"node {state.node_id} SYNC "
@@ -2685,9 +1891,7 @@ class ReceiverServer:
             # Payload and header may be generated a few microseconds
             # apart, and localMicros is only a diagnostic clock.
 
-            state.latest_sync = (
-                sync
-            )
+            state.latest_sync = sync
 
             return
 
@@ -2695,25 +1899,15 @@ class ReceiverServer:
         # HELLO REFRESH
         # ==============================================================
 
-        if (
-            header.packet_type
-            == PacketType.HELLO
-        ):
-
-            hello = (
-                parse_hello(
-                    packet.payload
-                )
-            )
+        if header.packet_type == PacketType.HELLO:
+            hello = parse_hello(packet.payload)
 
             self._validate_hello(
                 state.node_id,
                 hello,
             )
 
-            state.hello = (
-                hello
-            )
+            state.hello = hello
 
             return
 
@@ -2721,9 +1915,64 @@ class ReceiverServer:
         # UNHANDLED PACKET
         # ==============================================================
 
-        raise ProtocolError(
-            (
-                "unhandled packet type "
-                f"{header.packet_type}"
-            )
+        raise ProtocolError((f"unhandled packet type {header.packet_type}"))
+
+    def _process_audio(self, block: AudioBlock) -> None:
+        self.streams.add_audio(block)
+
+        # ----------------------------------------------------------
+        # CONTINUOUS SOUNDSCAPE INDICES
+        # ----------------------------------------------------------
+
+        if self.soundscape is not None:
+            try:
+                self.soundscape.append_audio(
+                    block.node_id,
+                    block.samples,
+                    session_id=block.session_id,
+                    start_sample=block.sample_index,
+                )
+
+            except Exception:
+                # Continuous research analytics are optional. A
+                # calculation or persistence failure must remain
+                # visible without interrupting acquisition.
+                logger.exception(
+                    (
+                        "Continuous soundscape "
+                        "processing failed "
+                        "| node=%d "
+                        "| session=0x%08X "
+                        "| sample=%d"
+                    ),
+                    block.node_id,
+                    block.session_id,
+                    block.sample_index,
+                )
+
+        # ----------------------------------------------------------
+        # CONTINUOUS WAV
+        # ----------------------------------------------------------
+
+        if self.config.audio.record_wav:
+            try:
+                self.recorder.write(block)
+            except OSError:
+                logger.exception(
+                    "Continuous recording failed; preserving event detection"
+                )
+
+        # ----------------------------------------------------------
+        # EVENT PIPELINE
+        # ----------------------------------------------------------
+
+        self.events.on_audio(block)
+
+    def _process_environment(self, state: NodeState, sample: EnvironmentSample) -> None:
+        state.add_environment(sample)
+        self.events.add_environment(
+            node_id=sample.node_id,
+            session_id=sample.session_id,
+            sample_index=sample.sample_index,
+            environment=sample.value,
         )

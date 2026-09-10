@@ -38,25 +38,15 @@ from wildlife_soundscape.core.protocol import (
 # ======================================================================
 
 
-UINT8_MAX = (
-    0xFF
-)
+UINT8_MAX = 0xFF
 
-UINT32_MASK = (
-    0xFFFFFFFF
-)
+UINT32_MASK = 0xFFFFFFFF
 
-UINT32_HALF = (
-    0x80000000
-)
+UINT32_HALF = 0x80000000
 
-UINT32_MAX = (
-    0xFFFFFFFF
-)
+UINT32_MAX = 0xFFFFFFFF
 
-UINT64_MAX = (
-    0xFFFFFFFFFFFFFFFF
-)
+UINT64_MAX = 0xFFFFFFFFFFFFFFFF
 
 
 # ======================================================================
@@ -91,13 +81,9 @@ class SequenceResult:
     shared I2S clock.
     """
 
-    gap: int = (
-        0
-    )
+    gap: int = 0
 
-    duplicate_or_old: bool = (
-        False
-    )
+    duplicate_or_old: bool = False
 
 
 # ======================================================================
@@ -121,29 +107,15 @@ def _validate_integer(
         value,
         bool,
     ):
-
-        raise TypeError(
-            (
-                f"{name} must be "
-                "an integer."
-            )
-        )
+        raise TypeError((f"{name} must be an integer."))
 
     if not isinstance(
         value,
         int,
     ):
+        raise TypeError((f"{name} must be an integer."))
 
-        raise TypeError(
-            (
-                f"{name} must be "
-                "an integer."
-            )
-        )
-
-    return int(
-        value
-    )
+    return int(value)
 
 
 def _validate_uint8(
@@ -155,25 +127,13 @@ def _validate_uint8(
     Validate one unsigned 8-bit integer.
     """
 
-    value = (
-        _validate_integer(
-            value,
-            name=name,
-        )
+    value = _validate_integer(
+        value,
+        name=name,
     )
 
-    if not (
-        0
-        <= value
-        <= UINT8_MAX
-    ):
-
-        raise ValueError(
-            (
-                f"{name} must lie in "
-                "the uint8 range."
-            )
-        )
+    if not (0 <= value <= UINT8_MAX):
+        raise ValueError((f"{name} must lie in the uint8 range."))
 
     return value
 
@@ -187,25 +147,13 @@ def _validate_uint32(
     Validate one unsigned 32-bit integer.
     """
 
-    value = (
-        _validate_integer(
-            value,
-            name=name,
-        )
+    value = _validate_integer(
+        value,
+        name=name,
     )
 
-    if not (
-        0
-        <= value
-        <= UINT32_MAX
-    ):
-
-        raise ValueError(
-            (
-                f"{name} must lie in "
-                "the uint32 range."
-            )
-        )
+    if not (0 <= value <= UINT32_MAX):
+        raise ValueError((f"{name} must lie in the uint32 range."))
 
     return value
 
@@ -219,25 +167,13 @@ def _validate_uint64(
     Validate one unsigned 64-bit integer.
     """
 
-    value = (
-        _validate_integer(
-            value,
-            name=name,
-        )
+    value = _validate_integer(
+        value,
+        name=name,
     )
 
-    if not (
-        0
-        <= value
-        <= UINT64_MAX
-    ):
-
-        raise ValueError(
-            (
-                f"{name} must lie in "
-                "the uint64 range."
-            )
-        )
+    if not (0 <= value <= UINT64_MAX):
+        raise ValueError((f"{name} must lie in the uint64 range."))
 
     return value
 
@@ -293,61 +229,41 @@ def classify_sequence(
     They are not used for TDOA alignment.
     """
 
-    new_sequence = (
-        _validate_uint32(
-            new_sequence,
-            name=
-                "new_sequence",
-        )
+    new_sequence = _validate_uint32(
+        new_sequence,
+        name="new_sequence",
     )
 
     # ==================================================================
     # FIRST PACKET
     # ==================================================================
 
-    if (
-        last_sequence
-        is None
-    ):
-
+    if last_sequence is None:
         return SequenceResult()
 
-    last_sequence = (
-        _validate_uint32(
-            last_sequence,
-            name=
-                "last_sequence",
-        )
+    last_sequence = _validate_uint32(
+        last_sequence,
+        name="last_sequence",
     )
 
     # ==================================================================
     # EXPECTED NEXT VALUE
     # ==================================================================
 
-    expected = (
-        last_sequence
-        + 1
-    ) & UINT32_MASK
+    expected = (last_sequence + 1) & UINT32_MASK
 
     # ==================================================================
     # NORMAL PROGRESSION
     # ==================================================================
 
-    if (
-        new_sequence
-        == expected
-    ):
-
+    if new_sequence == expected:
         return SequenceResult()
 
     # ==================================================================
     # MODULAR DISTANCE FROM EXPECTED
     # ==================================================================
 
-    delta = (
-        new_sequence
-        - expected
-    ) & UINT32_MASK
+    delta = (new_sequence - expected) & UINT32_MASK
 
     # --------------------------------------------------------------
     # FORWARD JUMP
@@ -357,24 +273,14 @@ def classify_sequence(
     # interpreted as forward movement with packet loss.
     # --------------------------------------------------------------
 
-    if (
-        delta
-        < UINT32_HALF
-    ):
-
-        return SequenceResult(
-            gap=int(
-                delta
-            )
-        )
+    if delta < UINT32_HALF:
+        return SequenceResult(gap=int(delta))
 
     # --------------------------------------------------------------
     # OLD / DUPLICATE
     # --------------------------------------------------------------
 
-    return SequenceResult(
-        duplicate_or_old=True
-    )
+    return SequenceResult(duplicate_or_old=True)
 
 
 # ======================================================================
@@ -419,133 +325,79 @@ class NodeState:
     # CONNECTION
     # ------------------------------------------------------------------
 
-    connected: bool = (
-        False
-    )
+    connected: bool = False
 
-    peer: str | None = (
-        None
-    )
+    peer: str | None = None
 
-    hello: HelloPayload | None = (
-        None
-    )
+    hello: HelloPayload | None = None
 
     # ------------------------------------------------------------------
     # CURRENT ESP32 SESSION
     # ------------------------------------------------------------------
 
-    session_id: int | None = (
-        None
-    )
+    session_id: int | None = None
 
     # ------------------------------------------------------------------
     # NETWORK SEQUENCE TRACKING
     # ------------------------------------------------------------------
 
-    last_sequence: int | None = (
-        None
-    )
+    last_sequence: int | None = None
 
     # ------------------------------------------------------------------
     # SAMPLE TIMELINE
     # ------------------------------------------------------------------
 
-    last_sample_index: int | None = (
-        None
-    )
+    last_sample_index: int | None = None
 
-    expected_next_audio_sample: (
-        int
-        | None
-    ) = None
+    expected_next_audio_sample: int | None = None
 
     # ------------------------------------------------------------------
     # PACKET COUNTERS
     # ------------------------------------------------------------------
 
-    packets_received: int = (
-        0
-    )
+    packets_received: int = 0
 
-    audio_packets_received: int = (
-        0
-    )
+    audio_packets_received: int = 0
 
-    crc_errors: int = (
-        0
-    )
+    crc_errors: int = 0
 
-    protocol_errors: int = (
-        0
-    )
+    protocol_errors: int = 0
 
-    sequence_gaps: int = (
-        0
-    )
+    sequence_gaps: int = 0
 
-    sequence_resets: int = (
-        0
-    )
+    sequence_resets: int = 0
 
-    sample_gaps: int = (
-        0
-    )
+    sample_gaps: int = 0
 
-    duplicate_or_old_packets: int = (
-        0
-    )
+    duplicate_or_old_packets: int = 0
 
     # ------------------------------------------------------------------
     # HEALTH FLAGS
     # ------------------------------------------------------------------
 
-    clipped_packets: int = (
-        0
-    )
+    clipped_packets: int = 0
 
-    clock_fault_packets: int = (
-        0
-    )
+    clock_fault_packets: int = 0
 
-    congested_packets: int = (
-        0
-    )
+    congested_packets: int = 0
 
     # ------------------------------------------------------------------
     # LATEST TELEMETRY
     # ------------------------------------------------------------------
 
-    latest_environment: (
-        EnvironmentPayload
-        | None
-    ) = None
+    latest_environment: EnvironmentPayload | None = None
 
-    latest_heartbeat: (
-        HeartbeatPayload
-        | None
-    ) = None
+    latest_heartbeat: HeartbeatPayload | None = None
 
-    latest_sync: (
-        SyncPayload
-        | None
-    ) = None
+    latest_sync: SyncPayload | None = None
 
     # ------------------------------------------------------------------
     # HISTORY BUFFERS
     # ------------------------------------------------------------------
 
-    audio_blocks: Deque[
-        AudioBlock
-    ] = field(
-        init=False
-    )
+    audio_blocks: Deque[AudioBlock] = field(init=False)
 
-    environment_history: Deque[
-        EnvironmentSample
-    ] = field(
-        init=False
-    )
+    environment_history: Deque[EnvironmentSample] = field(init=False)
 
     # ==================================================================
     # INITIALIZATION
@@ -562,25 +414,13 @@ class NodeState:
         # NODE ID
         # ==============================================================
 
-        self.node_id = (
-            _validate_uint8(
-                self.node_id,
-                name=
-                    "node_id",
-            )
+        self.node_id = _validate_uint8(
+            self.node_id,
+            name="node_id",
         )
 
-        if (
-            self.node_id
-            == 0
-        ):
-
-            raise ValueError(
-                (
-                    "node_id must lie between "
-                    "1 and 255."
-                )
-            )
+        if self.node_id == 0:
+            raise ValueError(("node_id must lie between 1 and 255."))
 
         # ==============================================================
         # AUDIO CONFIGURATION
@@ -590,23 +430,13 @@ class NodeState:
             self.audio_config,
             AudioConfig,
         ):
-
-            raise TypeError(
-                (
-                    "audio_config must be "
-                    "an AudioConfig instance."
-                )
-            )
+            raise TypeError(("audio_config must be an AudioConfig instance."))
 
         # ==============================================================
         # AUDIO BUFFER
         # ==============================================================
 
-        self.audio_blocks = deque(
-            maxlen=
-                self.audio_config
-                .blocks_in_buffer
-        )
+        self.audio_blocks = deque(maxlen=self.audio_config.blocks_in_buffer)
 
         # ==============================================================
         # ENVIRONMENT BUFFER
@@ -618,9 +448,7 @@ class NodeState:
         # recording interval without meaningful memory pressure.
         # ==============================================================
 
-        self.environment_history = deque(
-            maxlen=600
-        )
+        self.environment_history = deque(maxlen=600)
 
     # ==================================================================
     # SESSION RESET
@@ -648,42 +476,27 @@ class NodeState:
         # SESSION ID
         # ==============================================================
 
-        if (
-            session_id
-            is not None
-        ):
-
-            session_id = (
-                _validate_uint32(
-                    session_id,
-                    name=
-                        "session_id",
-                )
+        if session_id is not None:
+            session_id = _validate_uint32(
+                session_id,
+                name="session_id",
             )
 
-        self.session_id = (
-            session_id
-        )
+        self.session_id = session_id
 
         # ==============================================================
         # NETWORK TIMELINE
         # ==============================================================
 
-        self.last_sequence = (
-            None
-        )
+        self.last_sequence = None
 
         # ==============================================================
         # AUDIO TIMELINE
         # ==============================================================
 
-        self.last_sample_index = (
-            None
-        )
+        self.last_sample_index = None
 
-        self.expected_next_audio_sample = (
-            None
-        )
+        self.expected_next_audio_sample = None
 
         self.audio_blocks.clear()
 
@@ -691,19 +504,14 @@ class NodeState:
         # SYNC MARKER
         # ==============================================================
 
-        self.latest_sync = (
-            None
-        )
+        self.latest_sync = None
 
         # ==============================================================
         # ENVIRONMENT
         # ==============================================================
 
         if clear_environment:
-
-            self.latest_environment = (
-                None
-            )
+            self.latest_environment = None
 
             self.environment_history.clear()
 
@@ -745,137 +553,75 @@ class NodeState:
         # FIELD VALIDATION
         # ==============================================================
 
-        sequence = (
-            _validate_uint32(
-                sequence,
-                name=
-                    "sequence",
-            )
+        sequence = _validate_uint32(
+            sequence,
+            name="sequence",
         )
 
-        session_id = (
-            _validate_uint32(
-                session_id,
-                name=
-                    "session_id",
-            )
+        session_id = _validate_uint32(
+            session_id,
+            name="session_id",
         )
 
-        sample_index = (
-            _validate_uint64(
-                sample_index,
-                name=
-                    "sample_index",
-            )
+        sample_index = _validate_uint64(
+            sample_index,
+            name="sample_index",
         )
 
-        flags = (
-            _validate_uint8(
-                flags,
-                name=
-                    "flags",
-            )
+        flags = _validate_uint8(
+            flags,
+            name="flags",
         )
 
         # ==============================================================
         # PACKET COUNTER
         # ==============================================================
 
-        self.packets_received += (
-            1
-        )
+        self.packets_received += 1
 
         # ==============================================================
         # SESSION TRACKING
         # ==============================================================
 
-        if (
-            self.session_id
-            is None
-        ):
+        if self.session_id is None:
+            self.session_id = session_id
 
-            self.session_id = (
-                session_id
-            )
-
-        elif (
-            session_id
-            != 0
-            and session_id
-            != self.session_id
-        ):
-
-            self.sequence_resets += (
-                1
-            )
+        elif session_id != 0 and session_id != self.session_id:
+            self.sequence_resets += 1
 
             self.reset_stream_tracking(
-                session_id=
-                    session_id,
-
-                clear_environment=
-                    True,
+                session_id=session_id,
+                clear_environment=True,
             )
 
         # ==============================================================
         # NETWORK SEQUENCE
         # ==============================================================
 
-        result = (
-            classify_sequence(
-                self.last_sequence,
-                sequence,
-            )
+        result = classify_sequence(
+            self.last_sequence,
+            sequence,
         )
 
-        self.sequence_gaps += (
-            result.gap
-        )
+        self.sequence_gaps += result.gap
 
-        if (
-            result.duplicate_or_old
-        ):
-
-            self.duplicate_or_old_packets += (
-                1
-            )
+        if result.duplicate_or_old:
+            self.duplicate_or_old_packets += 1
 
         # ==============================================================
         # HEALTH FLAGS
         # ==============================================================
 
-        packet_flags = (
-            PacketFlags(
-                flags
-            )
-        )
+        packet_flags = PacketFlags(flags)
 
-        if (
-            packet_flags
-            & PacketFlags.CLIPPED
-        ):
+        if packet_flags & PacketFlags.CLIPPED:
+            self.clipped_packets += 1
 
-            self.clipped_packets += (
-                1
-            )
+        if packet_flags & PacketFlags.CLOCK_FAULT:
+            self.clock_fault_packets += 1
 
-        if (
-            packet_flags
-            & PacketFlags.CLOCK_FAULT
-        ):
-
-            self.clock_fault_packets += (
-                1
-            )
-
-        if (
-            packet_flags
-            & PacketFlags.QUEUE_CONGESTED
-        ):
-
-            self.congested_packets += (
-                1
-            )
+        if packet_flags & PacketFlags.QUEUE_CONGESTED:
+            self.congested_packets += 1
 
         # ==============================================================
         # LATEST ACCEPTED HEADER
@@ -887,17 +633,10 @@ class NodeState:
         # observed.
         # ==============================================================
 
-        if not (
-            result.duplicate_or_old
-        ):
+        if not (result.duplicate_or_old):
+            self.last_sequence = sequence
 
-            self.last_sequence = (
-                sequence
-            )
-
-            self.last_sample_index = (
-                sample_index
-            )
+            self.last_sample_index = sample_index
 
     # ==================================================================
     # AUDIO INGESTION
@@ -935,23 +674,13 @@ class NodeState:
             block,
             AudioBlock,
         ):
-
-            raise TypeError(
-                (
-                    "block must be "
-                    "an AudioBlock instance."
-                )
-            )
+            raise TypeError(("block must be an AudioBlock instance."))
 
         # ==============================================================
         # NODE ID
         # ==============================================================
 
-        if (
-            block.node_id
-            != self.node_id
-        ):
-
+        if block.node_id != self.node_id:
             raise ValueError(
                 (
                     "AudioBlock node_id does "
@@ -978,10 +707,8 @@ class NodeState:
                 None,
                 0,
             }
-            and block.session_id
-            != self.session_id
+            and block.session_id != self.session_id
         ):
-
             raise ValueError(
                 (
                     "AudioBlock session_id does "
@@ -1002,88 +729,53 @@ class NodeState:
                 None,
                 0,
             }
-            and block.session_id
-            != 0
+            and block.session_id != 0
         ):
-
             self.reset_stream_tracking(
-                session_id=
-                    block.session_id,
-
-                clear_environment=
-                    True,
+                session_id=block.session_id,
+                clear_environment=True,
             )
 
         # ==============================================================
         # SAMPLE BOUNDARIES
         # ==============================================================
 
-        block_start = (
-            _validate_uint64(
-                block.sample_index,
-                name=
-                    "AudioBlock sample_index",
-            )
+        block_start = _validate_uint64(
+            block.sample_index,
+            name="AudioBlock sample_index",
         )
 
-        block_end = int(
-            block.end_sample
-        )
+        block_end = int(block.end_sample)
 
-        if (
-            block_end
-            <= block_start
-        ):
-
+        if block_end <= block_start:
             return
 
         # ==============================================================
         # AUDIO PACKET COUNTER
         # ==============================================================
 
-        self.audio_packets_received += (
-            1
-        )
+        self.audio_packets_received += 1
 
-        expected = (
-            self.expected_next_audio_sample
-        )
+        expected = self.expected_next_audio_sample
 
         # ==============================================================
         # EXISTING TIMELINE
         # ==============================================================
 
-        if (
-            expected
-            is not None
-        ):
-
+        if expected is not None:
             # ----------------------------------------------------------
             # FORWARD GAP
             # ----------------------------------------------------------
 
-            if (
-                block_start
-                > expected
-            ):
-
-                self.sample_gaps += (
-                    block_start
-                    - expected
-                )
+            if block_start > expected:
+                self.sample_gaps += block_start - expected
 
             # ----------------------------------------------------------
             # OLD / DUPLICATE / OVERLAPPING PCM
             # ----------------------------------------------------------
 
-            elif (
-                block_start
-                < expected
-            ):
-
-                self.duplicate_or_old_packets += (
-                    1
-                )
+            elif block_start < expected:
+                self.duplicate_or_old_packets += 1
 
                 return
 
@@ -1091,13 +783,9 @@ class NodeState:
         # STORE
         # ==============================================================
 
-        self.audio_blocks.append(
-            block
-        )
+        self.audio_blocks.append(block)
 
-        self.expected_next_audio_sample = (
-            block_end
-        )
+        self.expected_next_audio_sample = block_end
 
     # ==================================================================
     # ENVIRONMENT INGESTION
@@ -1123,29 +811,14 @@ class NodeState:
             sample,
             EnvironmentSample,
         ):
-
-            raise TypeError(
-                (
-                    "sample must be an "
-                    "EnvironmentSample instance."
-                )
-            )
+            raise TypeError(("sample must be an EnvironmentSample instance."))
 
         # ==============================================================
         # NODE
         # ==============================================================
 
-        if (
-            sample.node_id
-            != self.node_id
-        ):
-
-            raise ValueError(
-                (
-                    "EnvironmentSample node_id "
-                    "does not match NodeState."
-                )
-            )
+        if sample.node_id != self.node_id:
+            raise ValueError(("EnvironmentSample node_id does not match NodeState."))
 
         # ==============================================================
         # SESSION
@@ -1157,10 +830,8 @@ class NodeState:
                 None,
                 0,
             }
-            and sample.session_id
-            != self.session_id
+            and sample.session_id != self.session_id
         ):
-
             return
 
         # --------------------------------------------------------------
@@ -1174,25 +845,17 @@ class NodeState:
                 None,
                 0,
             }
-            and sample.session_id
-            != 0
+            and sample.session_id != 0
         ):
-
-            self.session_id = (
-                sample.session_id
-            )
+            self.session_id = sample.session_id
 
         # ==============================================================
         # STORE
         # ==============================================================
 
-        self.latest_environment = (
-            sample.value
-        )
+        self.latest_environment = sample.value
 
-        self.environment_history.append(
-            sample
-        )
+        self.environment_history.append(sample)
 
     # ==================================================================
     # ENVIRONMENT LOOKUP
@@ -1210,81 +873,53 @@ class NodeState:
         """
 
         try:
-
-            sample_index = (
-                _validate_uint64(
-                    sample_index,
-                    name=
-                        "sample_index",
-                )
+            sample_index = _validate_uint64(
+                sample_index,
+                name="sample_index",
             )
 
         except (
             TypeError,
             ValueError,
         ):
-
             return None
 
-        current_session = (
-            self.session_id
-        )
+        current_session = self.session_id
 
         # ==============================================================
         # NO HISTORY
         # ==============================================================
 
-        if not (
-            self.environment_history
-        ):
-
+        if not (self.environment_history):
             # During a known acquisition session we cannot prove that an
             # unindexed latest_environment belongs to that session unless
             # its corresponding history entry still exists.
-            if (
-                current_session
-                not in {
-                    None,
-                    0,
-                }
-            ):
-
+            if current_session not in {
+                None,
+                0,
+            }:
                 return None
 
-            return (
-                self.latest_environment
-            )
+            return self.latest_environment
 
         # ==============================================================
         # SESSION FILTER
         # ==============================================================
 
-        if (
-            current_session
-            not in {
-                None,
-                0,
-            }
-        ):
-
+        if current_session not in {
+            None,
+            0,
+        }:
             candidates = tuple(
                 item
-                for item
-                in self.environment_history
-                if (
-                    item.session_id
-                    == current_session
-                )
+                for item in self.environment_history
+                if (item.session_id == current_session)
             )
 
         else:
-
-            candidates = tuple(
-                self.environment_history
-            )
+            candidates = tuple(self.environment_history)
 
         if not candidates:
-
             return None
 
         # ==============================================================
@@ -1293,18 +928,10 @@ class NodeState:
 
         best = min(
             candidates,
-            key=lambda item:
-                abs(
-                    int(
-                        item.sample_index
-                    )
-                    - sample_index
-                ),
+            key=lambda item: abs(int(item.sample_index) - sample_index),
         )
 
-        return (
-            best.value
-        )
+        return best.value
 
     # ==================================================================
     # SNAPSHOT
@@ -1318,68 +945,27 @@ class NodeState:
         """
 
         return NodeSnapshot(
-            node_id=
-                self.node_id,
-
-            connected=
-                self.connected,
-
-            peer=
-                self.peer,
-
-            hello=
-                self.hello,
-
-            session_id=
-                self.session_id,
-
-            last_sequence=
-                self.last_sequence,
-
-            last_sample_index=
-                self.last_sample_index,
-
-            packets_received=
-                self.packets_received,
-
-            audio_packets_received=
-                self.audio_packets_received,
-
-            crc_errors=
-                self.crc_errors,
-
-            protocol_errors=
-                self.protocol_errors,
-
-            sequence_gaps=
-                self.sequence_gaps,
-
-            sequence_resets=
-                self.sequence_resets,
-
-            sample_gaps=
-                self.sample_gaps,
-
-            duplicate_or_old_packets=
-                self.duplicate_or_old_packets,
-
-            clipped_packets=
-                self.clipped_packets,
-
-            clock_fault_packets=
-                self.clock_fault_packets,
-
-            congested_packets=
-                self.congested_packets,
-
-            latest_environment=
-                self.latest_environment,
-
-            latest_heartbeat=
-                self.latest_heartbeat,
-
-            latest_sync=
-                self.latest_sync,
+            node_id=self.node_id,
+            connected=self.connected,
+            peer=self.peer,
+            hello=self.hello,
+            session_id=self.session_id,
+            last_sequence=self.last_sequence,
+            last_sample_index=self.last_sample_index,
+            packets_received=self.packets_received,
+            audio_packets_received=self.audio_packets_received,
+            crc_errors=self.crc_errors,
+            protocol_errors=self.protocol_errors,
+            sequence_gaps=self.sequence_gaps,
+            sequence_resets=self.sequence_resets,
+            sample_gaps=self.sample_gaps,
+            duplicate_or_old_packets=self.duplicate_or_old_packets,
+            clipped_packets=self.clipped_packets,
+            clock_fault_packets=self.clock_fault_packets,
+            congested_packets=self.congested_packets,
+            latest_environment=self.latest_environment,
+            latest_heartbeat=self.latest_heartbeat,
+            latest_sync=self.latest_sync,
         )
 
 
@@ -1412,29 +998,15 @@ class NodeConnection:
             state,
             NodeState,
         ):
+            raise TypeError(("state must be a NodeState instance."))
 
-            raise TypeError(
-                (
-                    "state must be "
-                    "a NodeState instance."
-                )
-            )
+        self.state = state
 
-        self.state = (
-            state
-        )
+        self.reader = reader
 
-        self.reader = (
-            reader
-        )
+        self.writer = writer
 
-        self.writer = (
-            writer
-        )
-
-        self._write_lock = (
-            asyncio.Lock()
-        )
+        self._write_lock = asyncio.Lock()
 
     # ==================================================================
     # NODE ID
@@ -1448,9 +1020,7 @@ class NodeConnection:
         ESP32 node ID associated with this TCP connection.
         """
 
-        return int(
-            self.state.node_id
-        )
+        return int(self.state.node_id)
 
     # ==================================================================
     # CONTROL COMMAND
@@ -1466,56 +1036,28 @@ class NodeConnection:
         Send one fixed 8-byte laptop -> ESP32 control frame.
         """
 
-        session_id = (
-            _validate_uint32(
-                session_id,
-                name=
-                    "session_id",
+        session_id = _validate_uint32(
+            session_id,
+            name="session_id",
+        )
+
+        if self.writer.is_closing():
+            raise ConnectionError((f"node {self.node_id} connection is closing"))
+
+        frame = pack_control(
+            ControlFrame(
+                command=command,
+                session_id=session_id,
             )
         )
 
-        if (
-            self.writer.is_closing()
-        ):
-
-            raise ConnectionError(
-                (
-                    f"node {self.node_id} "
-                    "connection is closing"
-                )
-            )
-
-        frame = (
-            pack_control(
-                ControlFrame(
-                    command=
-                        command,
-
-                    session_id=
-                        session_id,
-                )
-            )
-        )
-
-        async with (
-            self._write_lock
-        ):
-
-            if (
-                self.writer.is_closing()
-            ):
-
+        async with self._write_lock:
+            if self.writer.is_closing():
                 raise ConnectionError(
-                    (
-                        f"node {self.node_id} "
-                        "connection closed "
-                        "before write"
-                    )
+                    (f"node {self.node_id} connection closed before write")
                 )
 
-            self.writer.write(
-                frame
-            )
+            self.writer.write(frame)
 
             await self.writer.drain()
 
@@ -1535,21 +1077,16 @@ class NodeConnection:
         Cancellation remains observable by the caller.
         """
 
-        if not (
-            self.writer.is_closing()
-        ):
-
+        if not (self.writer.is_closing()):
             self.writer.close()
 
         try:
-
             await asyncio.wait_for(
                 self.writer.wait_closed(),
                 timeout=2.0,
             )
 
         except asyncio.CancelledError:
-
             raise
 
         except (
@@ -1557,7 +1094,6 @@ class NodeConnection:
             ConnectionError,
             OSError,
         ):
-
             # Windows transports and disconnected ESP32 sockets may not
             # complete wait_closed() promptly. The close request has already
             # been issued, so shutdown must not block indefinitely here.

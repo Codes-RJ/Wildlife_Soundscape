@@ -43,17 +43,13 @@ def _require_int(
         value,
         (bool, np.bool_),
     ):
-        raise TypeError(
-            f"{name} must be an integer"
-        )
+        raise TypeError(f"{name} must be an integer")
 
     if not isinstance(
         value,
         (int, np.integer),
     ):
-        raise TypeError(
-            f"{name} must be an integer"
-        )
+        raise TypeError(f"{name} must be an integer")
 
     return int(value)
 
@@ -72,14 +68,8 @@ def _require_uint8(
         name=name,
     )
 
-    if not (
-        0
-        <= value
-        <= UINT8_MAX
-    ):
-        raise ValueError(
-            f"{name} must fit uint8"
-        )
+    if not (0 <= value <= UINT8_MAX):
+        raise ValueError(f"{name} must fit uint8")
 
     return value
 
@@ -98,14 +88,8 @@ def _require_uint32(
         name=name,
     )
 
-    if not (
-        0
-        <= value
-        <= UINT32_MAX
-    ):
-        raise ValueError(
-            f"{name} must fit uint32"
-        )
+    if not (0 <= value <= UINT32_MAX):
+        raise ValueError(f"{name} must fit uint32")
 
     return value
 
@@ -124,14 +108,8 @@ def _require_uint64(
         name=name,
     )
 
-    if not (
-        0
-        <= value
-        <= UINT64_MAX
-    ):
-        raise ValueError(
-            f"{name} must fit uint64"
-        )
+    if not (0 <= value <= UINT64_MAX):
+        raise ValueError(f"{name} must fit uint64")
 
     return value
 
@@ -151,9 +129,7 @@ def _require_node_id(
     )
 
     if value == 0:
-        raise ValueError(
-            "node_id cannot be zero"
-        )
+        raise ValueError("node_id cannot be zero")
 
     return value
 
@@ -173,9 +149,7 @@ def _require_non_negative_counter(
     )
 
     if value < 0:
-        raise ValueError(
-            f"{name} cannot be negative"
-        )
+        raise ValueError(f"{name} cannot be negative")
 
     return value
 
@@ -240,9 +214,7 @@ class AudioBlock:
         PCM copies.
         """
 
-        _require_node_id(
-            self.node_id
-        )
+        _require_node_id(self.node_id)
 
         _require_uint32(
             self.sequence,
@@ -282,38 +254,21 @@ class AudioBlock:
             self.samples,
             np.ndarray,
         ):
-            raise TypeError(
-                "samples must be a NumPy ndarray"
-            )
+            raise TypeError("samples must be a NumPy ndarray")
 
         if self.samples.ndim != 1:
-            raise ValueError(
-                (
-                    "AudioBlock samples must be "
-                    "a mono 1-D array"
-                )
-            )
+            raise ValueError(("AudioBlock samples must be a mono 1-D array"))
 
         if self.samples.size == 0:
-            raise ValueError(
-                "AudioBlock samples cannot be empty"
-            )
+            raise ValueError("AudioBlock samples cannot be empty")
 
         if self.samples.dtype.kind != "i":
             raise TypeError(
-                (
-                    "AudioBlock samples must contain "
-                    "signed integer PCM values"
-                )
+                ("AudioBlock samples must contain signed integer PCM values")
             )
 
         if self.samples.dtype.itemsize != 2:
-            raise TypeError(
-                (
-                    "AudioBlock samples must be "
-                    "16-bit PCM"
-                )
-            )
+            raise TypeError(("AudioBlock samples must be 16-bit PCM"))
 
     # ==================================================================
     # SAMPLE COUNT
@@ -327,9 +282,7 @@ class AudioBlock:
         Number of PCM samples in this packet.
         """
 
-        return int(
-            self.samples.size
-        )
+        return int(self.samples.size)
 
     # ==================================================================
     # END SAMPLE
@@ -350,10 +303,7 @@ class AudioBlock:
         end_sample = 3072
         """
 
-        return (
-            int(self.sample_index)
-            + self.sample_count
-        )
+        return int(self.sample_index) + self.sample_count
 
 
 # ======================================================================
@@ -390,9 +340,7 @@ class EnvironmentSample:
         self,
     ) -> None:
 
-        _require_node_id(
-            self.node_id
-        )
+        _require_node_id(self.node_id)
 
         _require_uint32(
             self.session_id,
@@ -408,12 +356,7 @@ class EnvironmentSample:
             self.value,
             EnvironmentPayload,
         ):
-            raise TypeError(
-                (
-                    "value must be an "
-                    "EnvironmentPayload"
-                )
-            )
+            raise TypeError(("value must be an EnvironmentPayload"))
 
 
 # ======================================================================
@@ -511,39 +454,25 @@ class NodeSnapshot:
         self,
     ) -> None:
 
-        _require_node_id(
-            self.node_id
-        )
+        _require_node_id(self.node_id)
 
         if not isinstance(
             self.connected,
             bool,
         ):
-            raise TypeError(
-                "connected must be bool"
-            )
+            raise TypeError("connected must be bool")
 
-        if (
-            self.peer is not None
-            and not isinstance(
-                self.peer,
-                str,
-            )
+        if self.peer is not None and not isinstance(
+            self.peer,
+            str,
         ):
-            raise TypeError(
-                "peer must be str or None"
-            )
+            raise TypeError("peer must be str or None")
 
-        if (
-            self.hello is not None
-            and not isinstance(
-                self.hello,
-                HelloPayload,
-            )
+        if self.hello is not None and not isinstance(
+            self.hello,
+            HelloPayload,
         ):
-            raise TypeError(
-                "hello must be HelloPayload or None"
-            )
+            raise TypeError("hello must be HelloPayload or None")
 
         # --------------------------------------------------------------
         # OPTIONAL PROTOCOL COUNTERS
@@ -631,47 +560,23 @@ class NodeSnapshot:
         # TELEMETRY TYPES
         # --------------------------------------------------------------
 
-        if (
-            self.latest_environment is not None
-            and not isinstance(
-                self.latest_environment,
-                EnvironmentPayload,
-            )
+        if self.latest_environment is not None and not isinstance(
+            self.latest_environment,
+            EnvironmentPayload,
         ):
-            raise TypeError(
-                (
-                    "latest_environment must be "
-                    "EnvironmentPayload or None"
-                )
-            )
+            raise TypeError(("latest_environment must be EnvironmentPayload or None"))
 
-        if (
-            self.latest_heartbeat is not None
-            and not isinstance(
-                self.latest_heartbeat,
-                HeartbeatPayload,
-            )
+        if self.latest_heartbeat is not None and not isinstance(
+            self.latest_heartbeat,
+            HeartbeatPayload,
         ):
-            raise TypeError(
-                (
-                    "latest_heartbeat must be "
-                    "HeartbeatPayload or None"
-                )
-            )
+            raise TypeError(("latest_heartbeat must be HeartbeatPayload or None"))
 
-        if (
-            self.latest_sync is not None
-            and not isinstance(
-                self.latest_sync,
-                SyncPayload,
-            )
+        if self.latest_sync is not None and not isinstance(
+            self.latest_sync,
+            SyncPayload,
         ):
-            raise TypeError(
-                (
-                    "latest_sync must be "
-                    "SyncPayload or None"
-                )
-            )
+            raise TypeError(("latest_sync must be SyncPayload or None"))
 
     # ==================================================================
     # HEALTH SUMMARY
@@ -685,10 +590,7 @@ class NodeSnapshot:
         Whether at least one CLOCK_FAULT packet has been observed.
         """
 
-        return (
-            self.clock_fault_packets
-            > 0
-        )
+        return self.clock_fault_packets > 0
 
     @property
     def has_congestion(
@@ -698,10 +600,7 @@ class NodeSnapshot:
         Whether at least one QUEUE_CONGESTED packet has been observed.
         """
 
-        return (
-            self.congested_packets
-            > 0
-        )
+        return self.congested_packets > 0
 
     @property
     def has_clipping(
@@ -711,7 +610,4 @@ class NodeSnapshot:
         Whether at least one clipped packet has been observed.
         """
 
-        return (
-            self.clipped_packets
-            > 0
-        )
+        return self.clipped_packets > 0

@@ -1,0 +1,30 @@
+{
+  "network": {
+    "host": "0.0.0.0",
+    "port": 5001
+  },
+  "localization": {
+    "node_positions": {
+      "1": [0.0, 0.0],
+      "2": [0.5, 0.8660254038],
+      "3": [1.0, 0.0]
+    },
+    "constrain_to_array_bounds": false,
+    "bounds_margin_m": 0.5,
+    "use_environmental_speed": true,
+    "min_peak_ratio": 1.1
+  },
+  "detection": {
+    "trigger_margin_db": 8.0,
+    "release_margin_db": 4.0,
+    "min_spectral_flux": 0.06,
+    "min_nodes": 2
+  },
+  "classification": {
+    "backend": "heuristic",
+    "latitude": null,
+    "longitude": null,
+    "week": null,
+    "use_geo_filter": false
+  }
+}

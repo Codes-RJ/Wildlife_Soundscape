@@ -76,7 +76,6 @@ For a credible experiment:
 Removing failed trials would artificially inflate reported performance.
 """
 
-
 from __future__ import annotations
 
 
@@ -139,36 +138,21 @@ def _finite_float(
     Require a finite real value.
     """
 
-    if (
-        isinstance(
-            value,
-            bool,
-        )
-        or not isinstance(
-            value,
-            Real,
-        )
+    if isinstance(
+        value,
+        bool,
+    ) or not isinstance(
+        value,
+        Real,
     ):
+        raise TypeError(f"{name} must be a real number.")
 
-        raise TypeError(
-            f"{name} must be a real number."
-        )
+    result = float(value)
 
-    result = float(
-        value
-    )
+    if not isfinite(result):
+        raise ValueError(f"{name} must be finite.")
 
-    if not isfinite(
-        result
-    ):
-
-        raise ValueError(
-            f"{name} must be finite."
-        )
-
-    return (
-        result
-    )
+    return result
 
 
 def _non_negative_float(
@@ -180,25 +164,15 @@ def _non_negative_float(
     Require a finite non-negative real value.
     """
 
-    result = (
-        _finite_float(
-            value,
-            name=name,
-        )
+    result = _finite_float(
+        value,
+        name=name,
     )
 
-    if (
-        result
-        < 0.0
-    ):
+    if result < 0.0:
+        raise ValueError(f"{name} must be >= 0.")
 
-        raise ValueError(
-            f"{name} must be >= 0."
-        )
-
-    return (
-        result
-    )
+    return result
 
 
 def _non_negative_int(
@@ -210,37 +184,21 @@ def _non_negative_int(
     Require a non-negative integer.
     """
 
-    if (
-        isinstance(
-            value,
-            bool,
-        )
-        or not isinstance(
-            value,
-            Integral,
-        )
+    if isinstance(
+        value,
+        bool,
+    ) or not isinstance(
+        value,
+        Integral,
     ):
+        raise TypeError(f"{name} must be an integer.")
 
-        raise TypeError(
-            f"{name} must be an integer."
-        )
+    result = int(value)
 
-    result = int(
-        value
-    )
+    if result < 0:
+        raise ValueError(f"{name} must be >= 0.")
 
-    if (
-        result
-        < 0
-    ):
-
-        raise ValueError(
-            f"{name} must be >= 0."
-        )
-
-    return (
-        result
-    )
+    return result
 
 
 def _normalize_position_2d(
@@ -253,39 +211,21 @@ def _normalize_position_2d(
     """
 
     try:
-
-        coordinates = tuple(
-            value
-        )
+        coordinates = tuple(value)
 
     except TypeError as exc:
+        raise TypeError(f"{name} must be iterable.") from exc
 
-        raise TypeError(
-            f"{name} must be iterable."
-        ) from exc
-
-    if (
-        len(
-            coordinates
-        )
-        != 2
-    ):
-
-        raise ValueError(
-            f"{name} must contain exactly two coordinates."
-        )
+    if len(coordinates) != 2:
+        raise ValueError(f"{name} must contain exactly two coordinates.")
 
     return (
         _finite_float(
-            coordinates[
-                0
-            ],
+            coordinates[0],
             name=f"{name}[0]",
         ),
         _finite_float(
-            coordinates[
-                1
-            ],
+            coordinates[1],
             name=f"{name}[1]",
         ),
     )
@@ -304,49 +244,21 @@ def position_error_m(
     Calculate Euclidean localization error in metres.
     """
 
-    reference = (
-        _normalize_position_2d(
-            reference_position_m,
-            name="reference_position_m",
-        )
+    reference = _normalize_position_2d(
+        reference_position_m,
+        name="reference_position_m",
     )
 
-    estimated = (
-        _normalize_position_2d(
-            estimated_position_m,
-            name="estimated_position_m",
-        )
+    estimated = _normalize_position_2d(
+        estimated_position_m,
+        name="estimated_position_m",
     )
 
-    dx = (
-        estimated[
-            0
-        ]
-        - reference[
-            0
-        ]
-    )
+    dx = estimated[0] - reference[0]
 
-    dy = (
-        estimated[
-            1
-        ]
-        - reference[
-            1
-        ]
-    )
+    dy = estimated[1] - reference[1]
 
-    return sqrt(
-        (
-            dx
-            * dx
-        )
-        +
-        (
-            dy
-            * dy
-        )
-    )
+    return sqrt((dx * dx) + (dy * dy))
 
 
 # ======================================================================
@@ -397,30 +309,25 @@ class LocalizationBenchmarkSample:
 
     success: bool
 
-    label: str | None = (
-        None
-    )
+    label: str | None = None
 
-    trial_index: int | None = (
-        None
-    )
+    trial_index: int | None = None
 
-    metadata: Mapping[
-        str,
-        object,
-    ] | None = (
-        None
-    )
+    metadata: (
+        Mapping[
+            str,
+            object,
+        ]
+        | None
+    ) = None
 
     def __post_init__(
         self,
     ) -> None:
 
-        reference = (
-            _normalize_position_2d(
-                self.reference_position_m,
-                name="reference_position_m",
-            )
+        reference = _normalize_position_2d(
+            self.reference_position_m,
+            name="reference_position_m",
         )
 
         object.__setattr__(
@@ -433,36 +340,21 @@ class LocalizationBenchmarkSample:
             self.success,
             bool,
         ):
-
-            raise TypeError(
-                "success must be bool."
-            )
+            raise TypeError("success must be bool.")
 
         # ==============================================================
         # SUCCESSFUL SAMPLE
         # ==============================================================
 
-        if (
-            self.success
-        ):
-
-            if (
-                self.estimated_position_m
-                is None
-            ):
-
+        if self.success:
+            if self.estimated_position_m is None:
                 raise ValueError(
-                    (
-                        "Successful benchmark sample "
-                        "requires estimated_position_m."
-                    )
+                    ("Successful benchmark sample requires estimated_position_m.")
                 )
 
-            estimated = (
-                _normalize_position_2d(
-                    self.estimated_position_m,
-                    name="estimated_position_m",
-                )
+            estimated = _normalize_position_2d(
+                self.estimated_position_m,
+                name="estimated_position_m",
             )
 
             object.__setattr__(
@@ -476,59 +368,33 @@ class LocalizationBenchmarkSample:
         # ==============================================================
 
         else:
-
-            if (
-                self.estimated_position_m
-                is not None
-            ):
-
+            if self.estimated_position_m is not None:
                 raise ValueError(
-                    (
-                        "Failed benchmark sample must "
-                        "use estimated_position_m=None."
-                    )
+                    ("Failed benchmark sample must use estimated_position_m=None.")
                 )
 
         # ==============================================================
         # LABEL
         # ==============================================================
 
-        if (
-            self.label
-            is not None
-        ):
-
+        if self.label is not None:
             if not isinstance(
                 self.label,
                 str,
             ):
+                raise TypeError("label must be a string or None.")
 
-                raise TypeError(
-                    "label must be a string or None."
-                )
-
-            if not (
-                self.label.strip()
-            ):
-
-                raise ValueError(
-                    "label cannot be empty when supplied."
-                )
+            if not (self.label.strip()):
+                raise ValueError("label cannot be empty when supplied.")
 
         # ==============================================================
         # TRIAL INDEX
         # ==============================================================
 
-        if (
-            self.trial_index
-            is not None
-        ):
-
-            trial_index = (
-                _non_negative_int(
-                    self.trial_index,
-                    name="trial_index",
-                )
+        if self.trial_index is not None:
+            trial_index = _non_negative_int(
+                self.trial_index,
+                name="trial_index",
             )
 
             object.__setattr__(
@@ -541,18 +407,11 @@ class LocalizationBenchmarkSample:
         # METADATA
         # ==============================================================
 
-        if (
-            self.metadata
-            is not None
-            and not isinstance(
-                self.metadata,
-                Mapping,
-            )
+        if self.metadata is not None and not isinstance(
+            self.metadata,
+            Mapping,
         ):
-
-            raise TypeError(
-                "metadata must be a mapping or None."
-            )
+            raise TypeError("metadata must be a mapping or None.")
 
     # ==================================================================
     # ERROR
@@ -568,15 +427,8 @@ class LocalizationBenchmarkSample:
         Failed localizations return None.
         """
 
-        if (
-            not self.success
-            or self.estimated_position_m
-            is None
-        ):
-
-            return (
-                None
-            )
+        if not self.success or self.estimated_position_m is None:
+            return None
 
         return position_error_m(
             self.reference_position_m,
@@ -597,24 +449,10 @@ class LocalizationBenchmarkSample:
             estimated_x - reference_x
         """
 
-        if (
-            not self.success
-            or self.estimated_position_m
-            is None
-        ):
+        if not self.success or self.estimated_position_m is None:
+            return None
 
-            return (
-                None
-            )
-
-        return (
-            self.estimated_position_m[
-                0
-            ]
-            - self.reference_position_m[
-                0
-            ]
-        )
+        return self.estimated_position_m[0] - self.reference_position_m[0]
 
     @property
     def y_error_m(
@@ -626,24 +464,10 @@ class LocalizationBenchmarkSample:
             estimated_y - reference_y
         """
 
-        if (
-            not self.success
-            or self.estimated_position_m
-            is None
-        ):
+        if not self.success or self.estimated_position_m is None:
+            return None
 
-            return (
-                None
-            )
-
-        return (
-            self.estimated_position_m[
-                1
-            ]
-            - self.reference_position_m[
-                1
-            ]
-        )
+        return self.estimated_position_m[1] - self.reference_position_m[1]
 
     # ==================================================================
     # SERIALIZATION
@@ -659,69 +483,30 @@ class LocalizationBenchmarkSample:
         Serialize benchmark sample.
         """
 
-        estimated: list[
-            float
-        ] | None
+        estimated: list[float] | None
 
-        if (
-            self.estimated_position_m
-            is None
-        ):
-
-            estimated = (
-                None
-            )
+        if self.estimated_position_m is None:
+            estimated = None
 
         else:
-
             estimated = [
-                self.estimated_position_m[
-                    0
-                ],
-                self.estimated_position_m[
-                    1
-                ],
+                self.estimated_position_m[0],
+                self.estimated_position_m[1],
             ]
 
         return {
             "reference_position_m": [
-                self.reference_position_m[
-                    0
-                ],
-                self.reference_position_m[
-                    1
-                ],
+                self.reference_position_m[0],
+                self.reference_position_m[1],
             ],
-
-            "estimated_position_m":
-                estimated,
-
-            "success":
-                self.success,
-
-            "label":
-                self.label,
-
-            "trial_index":
-                self.trial_index,
-
-            "error_m":
-                self.error_m,
-
-            "x_error_m":
-                self.x_error_m,
-
-            "y_error_m":
-                self.y_error_m,
-
-            "metadata":
-                (
-                    dict(
-                        self.metadata
-                    )
-                    if self.metadata is not None
-                    else None
-                ),
+            "estimated_position_m": estimated,
+            "success": self.success,
+            "label": self.label,
+            "trial_index": self.trial_index,
+            "error_m": self.error_m,
+            "x_error_m": self.x_error_m,
+            "y_error_m": self.y_error_m,
+            "metadata": (dict(self.metadata) if self.metadata is not None else None),
         }
 
 
@@ -771,11 +556,9 @@ class PositionBenchmarkSummary:
         self,
     ) -> None:
 
-        reference = (
-            _normalize_position_2d(
-                self.reference_position_m,
-                name="reference_position_m",
-            )
+        reference = _normalize_position_2d(
+            self.reference_position_m,
+            name="reference_position_m",
         )
 
         object.__setattr__(
@@ -784,56 +567,33 @@ class PositionBenchmarkSummary:
             reference,
         )
 
-        attempt_count = (
-            _non_negative_int(
-                self.attempt_count,
-                name="attempt_count",
-            )
+        attempt_count = _non_negative_int(
+            self.attempt_count,
+            name="attempt_count",
         )
 
-        success_count = (
-            _non_negative_int(
-                self.success_count,
-                name="success_count",
-            )
+        success_count = _non_negative_int(
+            self.success_count,
+            name="success_count",
         )
 
-        failure_count = (
-            _non_negative_int(
-                self.failure_count,
-                name="failure_count",
-            )
+        failure_count = _non_negative_int(
+            self.failure_count,
+            name="failure_count",
         )
 
-        if (
-            success_count
-            + failure_count
-            != attempt_count
-        ):
-
+        if success_count + failure_count != attempt_count:
             raise ValueError(
-                (
-                    "success_count + failure_count "
-                    "must equal attempt_count."
-                )
+                ("success_count + failure_count must equal attempt_count.")
             )
 
-        success_rate = (
-            _finite_float(
-                self.success_rate,
-                name="success_rate",
-            )
+        success_rate = _finite_float(
+            self.success_rate,
+            name="success_rate",
         )
 
-        if not (
-            0.0
-            <= success_rate
-            <= 1.0
-        ):
-
-            raise ValueError(
-                "success_rate must lie in [0, 1]."
-            )
+        if not (0.0 <= success_rate <= 1.0):
+            raise ValueError("success_rate must lie in [0, 1].")
 
         object.__setattr__(
             self,
@@ -870,58 +630,26 @@ class PositionBenchmarkSummary:
         """
 
         mean_position = (
-            list(
-                self.mean_estimated_position_m
-            )
-            if self.mean_estimated_position_m
-            is not None
+            list(self.mean_estimated_position_m)
+            if self.mean_estimated_position_m is not None
             else None
         )
 
         return {
-            "label":
-                self.label,
-
-            "reference_position_m":
-                list(
-                    self.reference_position_m
-                ),
-
-            "attempt_count":
-                self.attempt_count,
-
-            "success_count":
-                self.success_count,
-
-            "failure_count":
-                self.failure_count,
-
-            "success_rate":
-                self.success_rate,
-
-            "mean_error_m":
-                self.mean_error_m,
-
-            "rmse_m":
-                self.rmse_m,
-
-            "median_error_m":
-                self.median_error_m,
-
-            "std_error_m":
-                self.std_error_m,
-
-            "p90_error_m":
-                self.p90_error_m,
-
-            "maximum_error_m":
-                self.maximum_error_m,
-
-            "mean_estimated_position_m":
-                mean_position,
-
-            "repeatability_std_m":
-                self.repeatability_std_m,
+            "label": self.label,
+            "reference_position_m": list(self.reference_position_m),
+            "attempt_count": self.attempt_count,
+            "success_count": self.success_count,
+            "failure_count": self.failure_count,
+            "success_rate": self.success_rate,
+            "mean_error_m": self.mean_error_m,
+            "rmse_m": self.rmse_m,
+            "median_error_m": self.median_error_m,
+            "std_error_m": self.std_error_m,
+            "p90_error_m": self.p90_error_m,
+            "maximum_error_m": self.maximum_error_m,
+            "mean_estimated_position_m": mean_position,
+            "repeatability_std_m": self.repeatability_std_m,
         }
 
 
@@ -981,56 +709,33 @@ class LocalizationBenchmarkResult:
         self,
     ) -> None:
 
-        attempt_count = (
-            _non_negative_int(
-                self.attempt_count,
-                name="attempt_count",
-            )
+        attempt_count = _non_negative_int(
+            self.attempt_count,
+            name="attempt_count",
         )
 
-        success_count = (
-            _non_negative_int(
-                self.success_count,
-                name="success_count",
-            )
+        success_count = _non_negative_int(
+            self.success_count,
+            name="success_count",
         )
 
-        failure_count = (
-            _non_negative_int(
-                self.failure_count,
-                name="failure_count",
-            )
+        failure_count = _non_negative_int(
+            self.failure_count,
+            name="failure_count",
         )
 
-        if (
-            success_count
-            + failure_count
-            != attempt_count
-        ):
-
+        if success_count + failure_count != attempt_count:
             raise ValueError(
-                (
-                    "success_count + failure_count "
-                    "must equal attempt_count."
-                )
+                ("success_count + failure_count must equal attempt_count.")
             )
 
-        success_rate = (
-            _finite_float(
-                self.success_rate,
-                name="success_rate",
-            )
+        success_rate = _finite_float(
+            self.success_rate,
+            name="success_rate",
         )
 
-        if not (
-            0.0
-            <= success_rate
-            <= 1.0
-        ):
-
-            raise ValueError(
-                "success_rate must lie in [0, 1]."
-            )
+        if not (0.0 <= success_rate <= 1.0):
+            raise ValueError("success_rate must lie in [0, 1].")
 
         object.__setattr__(
             self,
@@ -1059,21 +764,13 @@ class LocalizationBenchmarkResult:
         object.__setattr__(
             self,
             "per_position",
-            tuple(
-                self.per_position
-            ),
+            tuple(self.per_position),
         )
 
         object.__setattr__(
             self,
             "warnings",
-            tuple(
-                str(
-                    warning
-                )
-                for warning
-                in self.warnings
-            ),
+            tuple(str(warning) for warning in self.warnings),
         )
 
     # ==================================================================
@@ -1091,58 +788,22 @@ class LocalizationBenchmarkResult:
         """
 
         return {
-            "attempt_count":
-                self.attempt_count,
-
-            "success_count":
-                self.success_count,
-
-            "failure_count":
-                self.failure_count,
-
-            "success_rate":
-                self.success_rate,
-
-            "mean_error_m":
-                self.mean_error_m,
-
-            "rmse_m":
-                self.rmse_m,
-
-            "median_error_m":
-                self.median_error_m,
-
-            "std_error_m":
-                self.std_error_m,
-
-            "p90_error_m":
-                self.p90_error_m,
-
-            "p95_error_m":
-                self.p95_error_m,
-
-            "maximum_error_m":
-                self.maximum_error_m,
-
-            "x_bias_m":
-                self.x_bias_m,
-
-            "y_bias_m":
-                self.y_bias_m,
-
-            "radial_bias_m":
-                self.radial_bias_m,
-
-            "per_position": [
-                summary.to_dict()
-                for summary
-                in self.per_position
-            ],
-
-            "warnings":
-                list(
-                    self.warnings
-                ),
+            "attempt_count": self.attempt_count,
+            "success_count": self.success_count,
+            "failure_count": self.failure_count,
+            "success_rate": self.success_rate,
+            "mean_error_m": self.mean_error_m,
+            "rmse_m": self.rmse_m,
+            "median_error_m": self.median_error_m,
+            "std_error_m": self.std_error_m,
+            "p90_error_m": self.p90_error_m,
+            "p95_error_m": self.p95_error_m,
+            "maximum_error_m": self.maximum_error_m,
+            "x_bias_m": self.x_bias_m,
+            "y_bias_m": self.y_bias_m,
+            "radial_bias_m": self.radial_bias_m,
+            "per_position": [summary.to_dict() for summary in self.per_position],
+            "warnings": list(self.warnings),
         }
 
 
@@ -1160,26 +821,13 @@ def _empty_error_metrics() -> dict[
     """
 
     return {
-        "mean_error_m":
-            None,
-
-        "rmse_m":
-            None,
-
-        "median_error_m":
-            None,
-
-        "std_error_m":
-            None,
-
-        "p90_error_m":
-            None,
-
-        "p95_error_m":
-            None,
-
-        "maximum_error_m":
-            None,
+        "mean_error_m": None,
+        "rmse_m": None,
+        "median_error_m": None,
+        "std_error_m": None,
+        "p90_error_m": None,
+        "p95_error_m": None,
+        "maximum_error_m": None,
     }
 
 
@@ -1199,99 +847,45 @@ def _error_statistics(
     """
 
     if not errors:
-
-        return (
-            _empty_error_metrics()
-        )
+        return _empty_error_metrics()
 
     values = np.asarray(
         errors,
         dtype=np.float64,
     )
 
-    if (
-        values.ndim
-        != 1
-    ):
+    if values.ndim != 1:
+        raise ValueError("errors must form a one-dimensional sequence.")
 
-        raise ValueError(
-            "errors must form a one-dimensional sequence."
-        )
+    if not np.all(np.isfinite(values)):
+        raise ValueError("errors contain non-finite values.")
 
-    if not np.all(
-        np.isfinite(
-            values
-        )
-    ):
-
-        raise ValueError(
-            "errors contain non-finite values."
-        )
-
-    if np.any(
-        values
-        < 0.0
-    ):
-
-        raise ValueError(
-            "position errors cannot be negative."
-        )
+    if np.any(values < 0.0):
+        raise ValueError("position errors cannot be negative.")
 
     return {
-        "mean_error_m":
-            float(
-                np.mean(
-                    values
-                )
-            ),
-
-        "rmse_m":
-            float(
-                np.sqrt(
-                    np.mean(
-                        values
-                        ** 2
-                    )
-                )
-            ),
-
-        "median_error_m":
-            float(
-                np.median(
-                    values
-                )
-            ),
-
-        "std_error_m":
-            float(
-                np.std(
-                    values,
-                    ddof=0,
-                )
-            ),
-
-        "p90_error_m":
-            float(
-                np.percentile(
-                    values,
-                    90.0,
-                )
-            ),
-
-        "p95_error_m":
-            float(
-                np.percentile(
-                    values,
-                    95.0,
-                )
-            ),
-
-        "maximum_error_m":
-            float(
-                np.max(
-                    values
-                )
-            ),
+        "mean_error_m": float(np.mean(values)),
+        "rmse_m": float(np.sqrt(np.mean(values**2))),
+        "median_error_m": float(np.median(values)),
+        "std_error_m": float(
+            np.std(
+                values,
+                ddof=0,
+            )
+        ),
+        "p90_error_m": float(
+            np.percentile(
+                values,
+                90.0,
+            )
+        ),
+        "p95_error_m": float(
+            np.percentile(
+                values,
+                95.0,
+            )
+        ),
+        "maximum_error_m": float(np.max(values)),
     }
 
 
@@ -1315,24 +909,13 @@ def _sample_group_key(
     coordinates.
     """
 
-    if (
-        sample.label
-        is not None
-    ):
-
-        label = (
-            sample.label
-        )
+    if sample.label is not None:
+        label = sample.label
 
     else:
+        x, y = sample.reference_position_m
 
-        x, y = (
-            sample.reference_position_m
-        )
-
-        label = (
-            f"({x:.6f}, {y:.6f})"
-        )
+        label = f"({x:.6f}, {y:.6f})"
 
     return (
         label,
@@ -1346,9 +929,7 @@ def _sample_group_key(
 
 
 def _repeatability_std_m(
-    estimated_positions: Sequence[
-        Position2D
-    ],
+    estimated_positions: Sequence[Position2D],
 ) -> float | None:
     """
     Estimate localization repeatability.
@@ -1369,16 +950,8 @@ def _repeatability_std_m(
     if it repeatedly estimates the same biased location.
     """
 
-    if (
-        len(
-            estimated_positions
-        )
-        < 2
-    ):
-
-        return (
-            None
-        )
+    if len(estimated_positions) < 2:
+        return None
 
     positions = np.asarray(
         estimated_positions,
@@ -1390,24 +963,14 @@ def _repeatability_std_m(
         axis=0,
     )
 
-    deltas = (
-        positions
-        - centroid
-    )
+    deltas = positions - centroid
 
     radial_squared = np.sum(
-        deltas
-        ** 2,
+        deltas**2,
         axis=1,
     )
 
-    return float(
-        np.sqrt(
-            np.mean(
-                radial_squared
-            )
-        )
-    )
+    return float(np.sqrt(np.mean(radial_squared)))
 
 
 # ======================================================================
@@ -1418,159 +981,65 @@ def _repeatability_std_m(
 def _summarize_position_group(
     label: str,
     reference_position_m: Position2D,
-    samples: Sequence[
-        LocalizationBenchmarkSample
-    ],
+    samples: Sequence[LocalizationBenchmarkSample],
 ) -> PositionBenchmarkSummary:
     """
     Summarize repeated trials at one known source position.
     """
 
-    attempt_count = len(
-        samples
-    )
+    attempt_count = len(samples)
 
-    successful = [
-        sample
-        for sample
-        in samples
-        if sample.success
-    ]
+    successful = [sample for sample in samples if sample.success]
 
-    success_count = len(
-        successful
-    )
+    success_count = len(successful)
 
-    failure_count = (
-        attempt_count
-        - success_count
-    )
+    failure_count = attempt_count - success_count
 
-    success_rate = (
-        success_count
-        / attempt_count
-        if attempt_count
-        else 0.0
-    )
+    success_rate = success_count / attempt_count if attempt_count else 0.0
 
     errors = [
-        float(
-            sample.error_m
-        )
-        for sample
-        in successful
-        if sample.error_m
-        is not None
+        float(sample.error_m) for sample in successful if sample.error_m is not None
     ]
 
-    metrics = (
-        _error_statistics(
-            errors
-        )
-    )
+    metrics = _error_statistics(errors)
 
     estimated_positions = [
         sample.estimated_position_m
-        for sample
-        in successful
-        if sample.estimated_position_m
-        is not None
+        for sample in successful
+        if sample.estimated_position_m is not None
     ]
 
-    if (
-        estimated_positions
-    ):
-
+    if estimated_positions:
         estimated_array = np.asarray(
             estimated_positions,
             dtype=np.float64,
         )
 
         mean_estimated = (
-            float(
-                np.mean(
-                    estimated_array[
-                        :,
-                        0
-                    ]
-                )
-            ),
-            float(
-                np.mean(
-                    estimated_array[
-                        :,
-                        1
-                    ]
-                )
-            ),
+            float(np.mean(estimated_array[:, 0])),
+            float(np.mean(estimated_array[:, 1])),
         )
 
     else:
+        mean_estimated = None
 
-        mean_estimated = (
-            None
-        )
-
-    repeatability = (
-        _repeatability_std_m(
-            estimated_positions
-        )
-    )
+    repeatability = _repeatability_std_m(estimated_positions)
 
     return PositionBenchmarkSummary(
-        label=
-            label,
-
-        reference_position_m=
-            reference_position_m,
-
-        attempt_count=
-            attempt_count,
-
-        success_count=
-            success_count,
-
-        failure_count=
-            failure_count,
-
-        success_rate=
-            success_rate,
-
-        mean_error_m=
-            metrics[
-                "mean_error_m"
-            ],
-
-        rmse_m=
-            metrics[
-                "rmse_m"
-            ],
-
-        median_error_m=
-            metrics[
-                "median_error_m"
-            ],
-
-        std_error_m=
-            metrics[
-                "std_error_m"
-            ],
-
-        p90_error_m=
-            metrics[
-                "p90_error_m"
-            ],
-
-        maximum_error_m=
-            metrics[
-                "maximum_error_m"
-            ],
-
-        mean_estimated_position_m=
-            mean_estimated,
-
-        repeatability_std_m=
-            repeatability,
+        label=label,
+        reference_position_m=reference_position_m,
+        attempt_count=attempt_count,
+        success_count=success_count,
+        failure_count=failure_count,
+        success_rate=success_rate,
+        mean_error_m=metrics["mean_error_m"],
+        rmse_m=metrics["rmse_m"],
+        median_error_m=metrics["median_error_m"],
+        std_error_m=metrics["std_error_m"],
+        p90_error_m=metrics["p90_error_m"],
+        maximum_error_m=metrics["maximum_error_m"],
+        mean_estimated_position_m=mean_estimated,
+        repeatability_std_m=repeatability,
     )
 
 
@@ -1580,9 +1049,7 @@ def _summarize_position_group(
 
 
 def benchmark_localization(
-    samples: Iterable[
-        LocalizationBenchmarkSample
-    ],
+    samples: Iterable[LocalizationBenchmarkSample],
 ) -> LocalizationBenchmarkResult:
     """
     Evaluate localization performance.
@@ -1599,112 +1066,57 @@ def benchmark_localization(
         silently removing failed trials from the experiment
     """
 
-    normalized_samples = tuple(
-        samples
-    )
+    normalized_samples = tuple(samples)
 
-    if not (
-        normalized_samples
-    ):
+    if not (normalized_samples):
+        raise ValueError("At least one localization benchmark sample is required.")
 
-        raise ValueError(
-            "At least one localization benchmark sample is required."
-        )
-
-    for sample in (
-        normalized_samples
-    ):
-
+    for sample in normalized_samples:
         if not isinstance(
             sample,
             LocalizationBenchmarkSample,
         ):
-
             raise TypeError(
-                (
-                    "All benchmark samples must be "
-                    "LocalizationBenchmarkSample instances."
-                )
+                ("All benchmark samples must be LocalizationBenchmarkSample instances.")
             )
 
     # ==================================================================
     # SUCCESS / FAILURE
     # ==================================================================
 
-    attempt_count = len(
-        normalized_samples
-    )
+    attempt_count = len(normalized_samples)
 
-    successful = [
-        sample
-        for sample
-        in normalized_samples
-        if sample.success
-    ]
+    successful = [sample for sample in normalized_samples if sample.success]
 
-    success_count = len(
-        successful
-    )
+    success_count = len(successful)
 
-    failure_count = (
-        attempt_count
-        - success_count
-    )
+    failure_count = attempt_count - success_count
 
-    success_rate = (
-        success_count
-        / attempt_count
-    )
+    success_rate = success_count / attempt_count
 
     # ==================================================================
     # RADIAL ERROR
     # ==================================================================
 
     errors = [
-        float(
-            sample.error_m
-        )
-        for sample
-        in successful
-        if sample.error_m
-        is not None
+        float(sample.error_m) for sample in successful if sample.error_m is not None
     ]
 
-    metrics = (
-        _error_statistics(
-            errors
-        )
-    )
+    metrics = _error_statistics(errors)
 
     # ==================================================================
     # SIGNED X/Y ERROR
     # ==================================================================
 
     x_errors = [
-        float(
-            sample.x_error_m
-        )
-        for sample
-        in successful
-        if sample.x_error_m
-        is not None
+        float(sample.x_error_m) for sample in successful if sample.x_error_m is not None
     ]
 
     y_errors = [
-        float(
-            sample.y_error_m
-        )
-        for sample
-        in successful
-        if sample.y_error_m
-        is not None
+        float(sample.y_error_m) for sample in successful if sample.y_error_m is not None
     ]
 
-    if (
-        x_errors
-        and y_errors
-    ):
-
+    if x_errors and y_errors:
         x_bias = float(
             np.mean(
                 np.asarray(
@@ -1723,31 +1135,14 @@ def benchmark_localization(
             )
         )
 
-        radial_bias = sqrt(
-            (
-                x_bias
-                * x_bias
-            )
-            +
-            (
-                y_bias
-                * y_bias
-            )
-        )
+        radial_bias = sqrt((x_bias * x_bias) + (y_bias * y_bias))
 
     else:
+        x_bias = None
 
-        x_bias = (
-            None
-        )
+        y_bias = None
 
-        y_bias = (
-            None
-        )
-
-        radial_bias = (
-            None
-        )
+        radial_bias = None
 
     # ==================================================================
     # GROUP BY REFERENCE POSITION
@@ -1758,27 +1153,16 @@ def benchmark_localization(
             str,
             Position2D,
         ],
-        list[
-            LocalizationBenchmarkSample
-        ],
+        list[LocalizationBenchmarkSample],
     ] = {}
 
-    for sample in (
-        normalized_samples
-    ):
-
-        key = (
-            _sample_group_key(
-                sample
-            )
-        )
+    for sample in normalized_samples:
+        key = _sample_group_key(sample)
 
         grouped.setdefault(
             key,
             [],
-        ).append(
-            sample
-        )
+        ).append(sample)
 
     per_position = tuple(
         _summarize_position_group(
@@ -1794,23 +1178,12 @@ def benchmark_localization(
         for (
             label,
             reference_position,
-        )
-        in sorted(
+        ) in sorted(
             grouped,
             key=lambda item: (
-                item[
-                    0
-                ],
-                item[
-                    1
-                ][
-                    0
-                ],
-                item[
-                    1
-                ][
-                    1
-                ],
+                item[0],
+                item[1][0],
+                item[1][1],
             ),
         )
     )
@@ -1819,15 +1192,9 @@ def benchmark_localization(
     # WARNINGS
     # ==================================================================
 
-    warnings: list[
-        str
-    ] = []
+    warnings: list[str] = []
 
-    if (
-        success_count
-        == 0
-    ):
-
+    if success_count == 0:
         warnings.append(
             (
                 "No localization attempt succeeded; "
@@ -1835,11 +1202,7 @@ def benchmark_localization(
             )
         )
 
-    elif (
-        success_count
-        < 3
-    ):
-
+    elif success_count < 3:
         warnings.append(
             (
                 "Fewer than three successful localizations "
@@ -1848,11 +1211,7 @@ def benchmark_localization(
             )
         )
 
-    if (
-        success_rate
-        < 0.80
-    ):
-
+    if success_rate < 0.80:
         warnings.append(
             (
                 "Localization success rate is below 80%. "
@@ -1861,13 +1220,7 @@ def benchmark_localization(
             )
         )
 
-    if (
-        len(
-            per_position
-        )
-        < 3
-    ):
-
+    if len(per_position) < 3:
         warnings.append(
             (
                 "Benchmark uses fewer than three distinct reference "
@@ -1876,69 +1229,22 @@ def benchmark_localization(
         )
 
     return LocalizationBenchmarkResult(
-        attempt_count=
-            attempt_count,
-
-        success_count=
-            success_count,
-
-        failure_count=
-            failure_count,
-
-        success_rate=
-            success_rate,
-
-        mean_error_m=
-            metrics[
-                "mean_error_m"
-            ],
-
-        rmse_m=
-            metrics[
-                "rmse_m"
-            ],
-
-        median_error_m=
-            metrics[
-                "median_error_m"
-            ],
-
-        std_error_m=
-            metrics[
-                "std_error_m"
-            ],
-
-        p90_error_m=
-            metrics[
-                "p90_error_m"
-            ],
-
-        p95_error_m=
-            metrics[
-                "p95_error_m"
-            ],
-
-        maximum_error_m=
-            metrics[
-                "maximum_error_m"
-            ],
-
-        x_bias_m=
-            x_bias,
-
-        y_bias_m=
-            y_bias,
-
-        radial_bias_m=
-            radial_bias,
-
-        per_position=
-            per_position,
-
-        warnings=
-            tuple(
-                warnings
-            ),
+        attempt_count=attempt_count,
+        success_count=success_count,
+        failure_count=failure_count,
+        success_rate=success_rate,
+        mean_error_m=metrics["mean_error_m"],
+        rmse_m=metrics["rmse_m"],
+        median_error_m=metrics["median_error_m"],
+        std_error_m=metrics["std_error_m"],
+        p90_error_m=metrics["p90_error_m"],
+        p95_error_m=metrics["p95_error_m"],
+        maximum_error_m=metrics["maximum_error_m"],
+        x_bias_m=x_bias,
+        y_bias_m=y_bias,
+        radial_bias_m=radial_bias,
+        per_position=per_position,
+        warnings=tuple(warnings),
     )
 
 
@@ -1985,32 +1291,15 @@ class CalibrationBenchmarkComparison:
         """
 
         return {
-            "before":
-                self.before.to_dict(),
-
-            "after":
-                self.after.to_dict(),
-
-            "mean_error_improvement_m":
-                self.mean_error_improvement_m,
-
-            "mean_error_improvement_percent":
-                self.mean_error_improvement_percent,
-
-            "rmse_improvement_m":
-                self.rmse_improvement_m,
-
-            "rmse_improvement_percent":
-                self.rmse_improvement_percent,
-
-            "success_rate_change":
-                self.success_rate_change,
-
-            "calibration_improved_mean_error":
-                self.calibration_improved_mean_error,
-
-            "calibration_improved_rmse":
-                self.calibration_improved_rmse,
+            "before": self.before.to_dict(),
+            "after": self.after.to_dict(),
+            "mean_error_improvement_m": self.mean_error_improvement_m,
+            "mean_error_improvement_percent": self.mean_error_improvement_percent,
+            "rmse_improvement_m": self.rmse_improvement_m,
+            "rmse_improvement_percent": self.rmse_improvement_percent,
+            "success_rate_change": self.success_rate_change,
+            "calibration_improved_mean_error": self.calibration_improved_mean_error,
+            "calibration_improved_rmse": self.calibration_improved_rmse,
         }
 
 
@@ -2033,63 +1322,34 @@ def _metric_improvement(
     Positive improvement means the calibrated result has LOWER error.
     """
 
-    if (
-        before
-        is None
-        or after
-        is None
-    ):
-
+    if before is None or after is None:
         return (
             None,
             None,
             None,
         )
 
-    before_value = (
-        _non_negative_float(
-            before,
-            name="before",
-        )
+    before_value = _non_negative_float(
+        before,
+        name="before",
     )
 
-    after_value = (
-        _non_negative_float(
-            after,
-            name="after",
-        )
+    after_value = _non_negative_float(
+        after,
+        name="after",
     )
 
-    improvement = (
-        before_value
-        - after_value
-    )
+    improvement = before_value - after_value
 
     percentage: float | None
 
-    if (
-        before_value
-        > 0.0
-    ):
-
-        percentage = (
-            improvement
-            / before_value
-            * 100.0
-        )
+    if before_value > 0.0:
+        percentage = improvement / before_value * 100.0
 
     else:
+        percentage = 0.0 if after_value == 0.0 else None
 
-        percentage = (
-            0.0
-            if after_value == 0.0
-            else None
-        )
-
-    improved = (
-        after_value
-        < before_value
-    )
+    improved = after_value < before_value
 
     return (
         improvement,
@@ -2127,78 +1387,42 @@ def compare_calibration_benchmarks(
         before,
         LocalizationBenchmarkResult,
     ):
-
-        raise TypeError(
-            (
-                "before must be a "
-                "LocalizationBenchmarkResult."
-            )
-        )
+        raise TypeError(("before must be a LocalizationBenchmarkResult."))
 
     if not isinstance(
         after,
         LocalizationBenchmarkResult,
     ):
-
-        raise TypeError(
-            (
-                "after must be a "
-                "LocalizationBenchmarkResult."
-            )
-        )
+        raise TypeError(("after must be a LocalizationBenchmarkResult."))
 
     (
         mean_improvement,
         mean_improvement_percent,
         mean_improved,
-    ) = (
-        _metric_improvement(
-            before.mean_error_m,
-            after.mean_error_m,
-        )
+    ) = _metric_improvement(
+        before.mean_error_m,
+        after.mean_error_m,
     )
 
     (
         rmse_improvement,
         rmse_improvement_percent,
         rmse_improved,
-    ) = (
-        _metric_improvement(
-            before.rmse_m,
-            after.rmse_m,
-        )
+    ) = _metric_improvement(
+        before.rmse_m,
+        after.rmse_m,
     )
 
     return CalibrationBenchmarkComparison(
-        before=
-            before,
-
-        after=
-            after,
-
-        mean_error_improvement_m=
-            mean_improvement,
-
-        mean_error_improvement_percent=
-            mean_improvement_percent,
-
-        rmse_improvement_m=
-            rmse_improvement,
-
-        rmse_improvement_percent=
-            rmse_improvement_percent,
-
-        success_rate_change=
-            (
-                after.success_rate
-                - before.success_rate
-            ),
-
-        calibration_improved_mean_error=
-            mean_improved,
-
-        calibration_improved_rmse=
-            rmse_improved,
+        before=before,
+        after=after,
+        mean_error_improvement_m=mean_improvement,
+        mean_error_improvement_percent=mean_improvement_percent,
+        rmse_improvement_m=rmse_improvement,
+        rmse_improvement_percent=rmse_improvement_percent,
+        success_rate_change=(after.success_rate - before.success_rate),
+        calibration_improved_mean_error=mean_improved,
+        calibration_improved_rmse=rmse_improved,
     )
 
 
@@ -2208,9 +1432,7 @@ def compare_calibration_benchmarks(
 
 
 def benchmark_sample_rows(
-    samples: Iterable[
-        LocalizationBenchmarkSample
-    ],
+    samples: Iterable[LocalizationBenchmarkSample],
 ) -> list[
     dict[
         str,
@@ -2228,79 +1450,38 @@ def benchmark_sample_rows(
         ]
     ] = []
 
-    for sample in (
-        samples
-    ):
-
+    for sample in samples:
         if not isinstance(
             sample,
             LocalizationBenchmarkSample,
         ):
-
             raise TypeError(
-                (
-                    "All samples must be "
-                    "LocalizationBenchmarkSample instances."
-                )
+                ("All samples must be LocalizationBenchmarkSample instances.")
             )
 
-        reference_x, reference_y = (
-            sample.reference_position_m
-        )
+        reference_x, reference_y = sample.reference_position_m
 
-        if (
-            sample.estimated_position_m
-            is None
-        ):
+        if sample.estimated_position_m is None:
+            estimated_x = None
 
-            estimated_x = (
-                None
-            )
-
-            estimated_y = (
-                None
-            )
+            estimated_y = None
 
         else:
-
-            estimated_x, estimated_y = (
-                sample.estimated_position_m
-            )
+            estimated_x, estimated_y = sample.estimated_position_m
 
         rows.append(
             {
-                "label":
-                    sample.label,
-
-                "trial_index":
-                    sample.trial_index,
-
-                "reference_x_m":
-                    reference_x,
-
-                "reference_y_m":
-                    reference_y,
-
-                "estimated_x_m":
-                    estimated_x,
-
-                "estimated_y_m":
-                    estimated_y,
-
-                "success":
-                    sample.success,
-
-                "error_m":
-                    sample.error_m,
-
-                "x_error_m":
-                    sample.x_error_m,
-
-                "y_error_m":
-                    sample.y_error_m,
+                "label": sample.label,
+                "trial_index": sample.trial_index,
+                "reference_x_m": reference_x,
+                "reference_y_m": reference_y,
+                "estimated_x_m": estimated_x,
+                "estimated_y_m": estimated_y,
+                "success": sample.success,
+                "error_m": sample.error_m,
+                "x_error_m": sample.x_error_m,
+                "y_error_m": sample.y_error_m,
             }
         )
 
-    return (
-        rows
-    )
+    return rows

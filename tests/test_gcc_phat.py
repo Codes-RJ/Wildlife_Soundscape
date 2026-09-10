@@ -60,7 +60,6 @@ which is directly compatible with:
     )
 """
 
-
 from __future__ import annotations
 
 
@@ -89,19 +88,13 @@ from wildlife_soundscape.localization.gcc_phat import (
 # ======================================================================
 
 
-SAMPLE_RATE = (
-    48_000.0
-)
+SAMPLE_RATE = 48_000.0
 
 
-WINDOW_SAMPLES = (
-    8192
-)
+WINDOW_SAMPLES = 8192
 
 
-DEFAULT_INTERPOLATION = (
-    8
-)
+DEFAULT_INTERPOLATION = 8
 
 
 # ======================================================================
@@ -123,33 +116,21 @@ def make_broadband_reference(
     The signal is tapered near both edges to reduce edge discontinuities.
     """
 
-    rng = np.random.default_rng(
-        seed
-    )
+    rng = np.random.default_rng(seed)
 
     signal = rng.normal(
-        loc=
-            0.0,
-
-        scale=
-            1.0,
-
-        size=
-            length,
+        loc=0.0,
+        scale=1.0,
+        size=length,
     )
 
     # --------------------------------------------------------------
     # EDGE TAPER
     # --------------------------------------------------------------
 
-    window = np.hanning(
-        length
-    )
+    window = np.hanning(length)
 
-    signal = (
-        signal
-        * window
-    )
+    signal = signal * window
 
     return np.ascontiguousarray(
         signal,
@@ -183,100 +164,46 @@ def shift_with_zeros(
             [C D E ... 0 0]
     """
 
-    if (
-        signal.ndim
-        != 1
-    ):
+    if signal.ndim != 1:
+        raise ValueError("test helper requires mono 1-D signal")
 
-        raise ValueError(
-            "test helper requires mono 1-D signal"
-        )
+    output = np.zeros_like(signal)
 
-    output = np.zeros_like(
-        signal
-    )
-
-    delay_samples = int(
-        delay_samples
-    )
+    delay_samples = int(delay_samples)
 
     # ==============================================================
     # ZERO DELAY
     # ==============================================================
 
-    if (
-        delay_samples
-        == 0
-    ):
+    if delay_samples == 0:
+        output[:] = signal
 
-        output[
-            :
-        ] = (
-            signal
-        )
-
-        return (
-            output
-        )
+        return output
 
     # ==============================================================
     # POSITIVE DELAY
     # ==============================================================
 
-    if (
-        delay_samples
-        > 0
-    ):
+    if delay_samples > 0:
+        if delay_samples >= signal.size:
+            return output
 
-        if (
-            delay_samples
-            >= signal.size
-        ):
+        output[delay_samples:] = signal[:-delay_samples]
 
-            return (
-                output
-            )
-
-        output[
-            delay_samples:
-        ] = (
-            signal[
-                :-delay_samples
-            ]
-        )
-
-        return (
-            output
-        )
+        return output
 
     # ==============================================================
     # NEGATIVE DELAY
     # ==============================================================
 
-    advance = (
-        -delay_samples
-    )
+    advance = -delay_samples
 
-    if (
-        advance
-        >= signal.size
-    ):
+    if advance >= signal.size:
+        return output
 
-        return (
-            output
-        )
+    output[:-advance] = signal[advance:]
 
-    output[
-        :-advance
-    ] = (
-        signal[
-            advance:
-        ]
-    )
-
-    return (
-        output
-    )
+    return output
 
 
 def fractional_delay(
@@ -307,115 +234,60 @@ def fractional_delay(
         dtype=np.float64,
     )
 
-    if (
-        signal.ndim
-        != 1
-    ):
+    if signal.ndim != 1:
+        raise ValueError("fractional_delay requires mono 1-D input")
 
-        raise ValueError(
-            "fractional_delay requires mono 1-D input"
-        )
+    if signal.size == 0:
+        raise ValueError("fractional_delay requires non-empty input")
 
-    if (
-        signal.size
-        == 0
-    ):
+    if not np.all(np.isfinite(signal)):
+        raise ValueError("fractional_delay requires finite input")
 
-        raise ValueError(
-            "fractional_delay requires non-empty input"
-        )
+    delay_samples = float(delay_samples)
 
-    if not np.all(
-        np.isfinite(
-            signal
-        )
-    ):
-
-        raise ValueError(
-            "fractional_delay requires finite input"
-        )
-
-    delay_samples = float(
-        delay_samples
-    )
-
-    if not np.isfinite(
-        delay_samples
-    ):
-
-        raise ValueError(
-            "delay_samples must be finite"
-        )
+    if not np.isfinite(delay_samples):
+        raise ValueError("delay_samples must be finite")
 
     # ==============================================================
     # LARGE ZERO-PADDED WORK BUFFER
     # ==============================================================
 
-    input_length = int(
-        signal.size
-    )
+    input_length = int(signal.size)
 
-    padded_length = int(
-        input_length
-        * 4
-    )
+    padded_length = int(input_length * 4)
 
-    insertion_start = (
-        input_length
-    )
+    insertion_start = input_length
 
     padded = np.zeros(
         padded_length,
         dtype=np.float64,
     )
 
-    padded[
-        insertion_start:
-        insertion_start
-        + input_length
-    ] = (
-        signal
-    )
+    padded[insertion_start : insertion_start + input_length] = signal
 
     # ==============================================================
     # FOURIER SHIFT
     # ==============================================================
 
-    spectrum = np.fft.rfft(
-        padded
-    )
+    spectrum = np.fft.rfft(padded)
 
     frequencies = np.fft.rfftfreq(
         padded_length,
-        d=
-            1.0,
+        d=1.0,
     )
 
-    phase = np.exp(
-        (
-            -2j
-            * np.pi
-            * frequencies
-            * delay_samples
-        )
-    )
+    phase = np.exp((-2j * np.pi * frequencies * delay_samples))
 
     shifted = np.fft.irfft(
-        spectrum
-        * phase,
-        n=
-            padded_length,
+        spectrum * phase,
+        n=padded_length,
     )
 
     # ==============================================================
     # EXTRACT ORIGINAL-LENGTH REGION
     # ==============================================================
 
-    result = shifted[
-        insertion_start:
-        insertion_start
-        + input_length
-    ]
+    result = shifted[insertion_start : insertion_start + input_length]
 
     return np.ascontiguousarray(
         result,
@@ -430,19 +302,12 @@ def fractional_delay(
 
 def test_gcc_phat_returns_result_object() -> None:
 
-    reference = (
-        make_broadband_reference()
-    )
+    reference = make_broadband_reference()
 
     result = gcc_phat(
-        signal=
-            reference.copy(),
-
-        reference=
-            reference,
-
-        sample_rate=
-            SAMPLE_RATE,
+        signal=reference.copy(),
+        reference=reference,
+        sample_rate=SAMPLE_RATE,
     )
 
     assert isinstance(
@@ -458,52 +323,26 @@ def test_gcc_phat_returns_result_object() -> None:
 
 def test_identical_signals_have_zero_delay() -> None:
 
-    reference = (
-        make_broadband_reference()
-    )
+    reference = make_broadband_reference()
 
     result = gcc_phat(
-        signal=
-            reference.copy(),
-
-        reference=
-            reference,
-
-        sample_rate=
-            SAMPLE_RATE,
-
-        interpolation=
-            DEFAULT_INTERPOLATION,
-
-        min_peak_ratio=
-            1.10,
+        signal=reference.copy(),
+        reference=reference,
+        sample_rate=SAMPLE_RATE,
+        interpolation=DEFAULT_INTERPOLATION,
+        min_peak_ratio=1.10,
     )
 
-    assert (
-        result.valid
+    assert result.valid
+
+    assert result.delay_samples == pytest.approx(
+        0.0,
+        abs=1.0 / DEFAULT_INTERPOLATION,
     )
 
-    assert (
-        result.delay_samples
-        == pytest.approx(
-            0.0,
-            abs=
-                1.0
-                / DEFAULT_INTERPOLATION,
-        )
-    )
-
-    assert (
-        result.delay_seconds
-        == pytest.approx(
-            0.0,
-            abs=
-                (
-                    1.0
-                    / DEFAULT_INTERPOLATION
-                    / SAMPLE_RATE
-                ),
-        )
+    assert result.delay_seconds == pytest.approx(
+        0.0,
+        abs=(1.0 / DEFAULT_INTERPOLATION / SAMPLE_RATE),
     )
 
 
@@ -529,13 +368,7 @@ def test_positive_integer_delay(
     Positive delay means SIGNAL is later than REFERENCE.
     """
 
-    reference = (
-        make_broadband_reference(
-            seed=
-                1000
-                + expected_delay_samples
-        )
-    )
+    reference = make_broadband_reference(seed=1000 + expected_delay_samples)
 
     signal = shift_with_zeros(
         reference,
@@ -543,33 +376,18 @@ def test_positive_integer_delay(
     )
 
     result = gcc_phat(
-        signal=
-            signal,
-
-        reference=
-            reference,
-
-        sample_rate=
-            SAMPLE_RATE,
-
-        interpolation=
-            DEFAULT_INTERPOLATION,
-
-        min_peak_ratio=
-            1.05,
+        signal=signal,
+        reference=reference,
+        sample_rate=SAMPLE_RATE,
+        interpolation=DEFAULT_INTERPOLATION,
+        min_peak_ratio=1.05,
     )
 
-    assert (
-        result.valid
-    )
+    assert result.valid
 
-    assert (
-        result.delay_samples
-        == pytest.approx(
-            expected_delay_samples,
-            abs=
-                0.5,
-        )
+    assert result.delay_samples == pytest.approx(
+        expected_delay_samples,
+        abs=0.5,
     )
 
 
@@ -595,15 +413,7 @@ def test_negative_integer_delay(
     Negative delay means SIGNAL is earlier than REFERENCE.
     """
 
-    reference = (
-        make_broadband_reference(
-            seed=
-                2000
-                + abs(
-                    expected_delay_samples
-                )
-        )
-    )
+    reference = make_broadband_reference(seed=2000 + abs(expected_delay_samples))
 
     signal = shift_with_zeros(
         reference,
@@ -611,33 +421,18 @@ def test_negative_integer_delay(
     )
 
     result = gcc_phat(
-        signal=
-            signal,
-
-        reference=
-            reference,
-
-        sample_rate=
-            SAMPLE_RATE,
-
-        interpolation=
-            DEFAULT_INTERPOLATION,
-
-        min_peak_ratio=
-            1.05,
+        signal=signal,
+        reference=reference,
+        sample_rate=SAMPLE_RATE,
+        interpolation=DEFAULT_INTERPOLATION,
+        min_peak_ratio=1.05,
     )
 
-    assert (
-        result.valid
-    )
+    assert result.valid
 
-    assert (
-        result.delay_samples
-        == pytest.approx(
-            expected_delay_samples,
-            abs=
-                0.5,
-        )
+    assert result.delay_samples == pytest.approx(
+        expected_delay_samples,
+        abs=0.5,
     )
 
 
@@ -665,18 +460,11 @@ def test_gcc_phat_recovers_known_fractional_delay() -> None:
     reference waveform.
     """
 
-    expected_delay_samples = (
-        7.25
-    )
+    expected_delay_samples = 7.25
 
-    reference = (
-        make_broadband_reference(
-            length=
-                4096,
-
-            seed=
-                42,
-        )
+    reference = make_broadband_reference(
+        length=4096,
+        seed=42,
     )
 
     signal = fractional_delay(
@@ -684,56 +472,27 @@ def test_gcc_phat_recovers_known_fractional_delay() -> None:
         expected_delay_samples,
     )
 
-    interpolation = (
-        16
-    )
+    interpolation = 16
 
     result = gcc_phat(
-        signal=
-            signal,
-
-        reference=
-            reference,
-
-        sample_rate=
-            SAMPLE_RATE,
-
-        max_delay_seconds=
-            0.001,
-
-        interpolation=
-            interpolation,
-
-        min_peak_ratio=
-            1.05,
+        signal=signal,
+        reference=reference,
+        sample_rate=SAMPLE_RATE,
+        max_delay_seconds=0.001,
+        interpolation=interpolation,
+        min_peak_ratio=1.05,
     )
 
-    assert (
-        result.valid
+    assert result.valid
+
+    assert result.delay_samples == pytest.approx(
+        expected_delay_samples,
+        abs=0.20,
     )
 
-    assert (
-        result.delay_samples
-        == pytest.approx(
-            expected_delay_samples,
-            abs=
-                0.20,
-        )
-    )
-
-    assert (
-        result.delay_seconds
-        == pytest.approx(
-            (
-                expected_delay_samples
-                / SAMPLE_RATE
-            ),
-            abs=
-                (
-                    0.20
-                    / SAMPLE_RATE
-                ),
-        )
+    assert result.delay_seconds == pytest.approx(
+        (expected_delay_samples / SAMPLE_RATE),
+        abs=(0.20 / SAMPLE_RATE),
     )
 
 
@@ -744,18 +503,11 @@ def test_gcc_phat_recovers_known_fractional_delay() -> None:
 
 def test_fractional_delay_sign_reverses_when_inputs_are_swapped() -> None:
 
-    expected_delay_samples = (
-        5.50
-    )
+    expected_delay_samples = 5.50
 
-    reference = (
-        make_broadband_reference(
-            length=
-                4096,
-
-            seed=
-                43,
-        )
+    reference = make_broadband_reference(
+        length=4096,
+        seed=43,
     )
 
     delayed = fractional_delay(
@@ -764,69 +516,35 @@ def test_fractional_delay_sign_reverses_when_inputs_are_swapped() -> None:
     )
 
     forward = gcc_phat(
-        signal=
-            delayed,
-
-        reference=
-            reference,
-
-        sample_rate=
-            SAMPLE_RATE,
-
-        max_delay_seconds=
-            0.001,
-
-        interpolation=
-            16,
-
-        min_peak_ratio=
-            1.05,
+        signal=delayed,
+        reference=reference,
+        sample_rate=SAMPLE_RATE,
+        max_delay_seconds=0.001,
+        interpolation=16,
+        min_peak_ratio=1.05,
     )
 
     reverse = gcc_phat(
-        signal=
-            reference,
-
-        reference=
-            delayed,
-
-        sample_rate=
-            SAMPLE_RATE,
-
-        max_delay_seconds=
-            0.001,
-
-        interpolation=
-            16,
-
-        min_peak_ratio=
-            1.05,
+        signal=reference,
+        reference=delayed,
+        sample_rate=SAMPLE_RATE,
+        max_delay_seconds=0.001,
+        interpolation=16,
+        min_peak_ratio=1.05,
     )
 
-    assert (
-        forward.valid
+    assert forward.valid
+
+    assert reverse.valid
+
+    assert forward.delay_samples == pytest.approx(
+        expected_delay_samples,
+        abs=0.20,
     )
 
-    assert (
-        reverse.valid
-    )
-
-    assert (
-        forward.delay_samples
-        == pytest.approx(
-            expected_delay_samples,
-            abs=
-                0.20,
-        )
-    )
-
-    assert (
-        reverse.delay_samples
-        == pytest.approx(
-            -expected_delay_samples,
-            abs=
-                0.20,
-        )
+    assert reverse.delay_samples == pytest.approx(
+        -expected_delay_samples,
+        abs=0.20,
     )
 
 
@@ -837,12 +555,7 @@ def test_fractional_delay_sign_reverses_when_inputs_are_swapped() -> None:
 
 def test_swapping_signal_and_reference_reverses_delay_sign() -> None:
 
-    reference = (
-        make_broadband_reference(
-            seed=
-                3001
-        )
-    )
+    reference = make_broadband_reference(seed=3001)
 
     signal = shift_with_zeros(
         reference,
@@ -850,72 +563,38 @@ def test_swapping_signal_and_reference_reverses_delay_sign() -> None:
     )
 
     forward = gcc_phat(
-        signal=
-            signal,
-
-        reference=
-            reference,
-
-        sample_rate=
-            SAMPLE_RATE,
-
-        interpolation=
-            DEFAULT_INTERPOLATION,
-
-        min_peak_ratio=
-            1.05,
+        signal=signal,
+        reference=reference,
+        sample_rate=SAMPLE_RATE,
+        interpolation=DEFAULT_INTERPOLATION,
+        min_peak_ratio=1.05,
     )
 
     reverse = gcc_phat(
-        signal=
-            reference,
-
-        reference=
-            signal,
-
-        sample_rate=
-            SAMPLE_RATE,
-
-        interpolation=
-            DEFAULT_INTERPOLATION,
-
-        min_peak_ratio=
-            1.05,
+        signal=reference,
+        reference=signal,
+        sample_rate=SAMPLE_RATE,
+        interpolation=DEFAULT_INTERPOLATION,
+        min_peak_ratio=1.05,
     )
 
-    assert (
-        forward.valid
+    assert forward.valid
+
+    assert reverse.valid
+
+    assert forward.delay_samples == pytest.approx(
+        14.0,
+        abs=0.5,
     )
 
-    assert (
-        reverse.valid
+    assert reverse.delay_samples == pytest.approx(
+        -14.0,
+        abs=0.5,
     )
 
-    assert (
-        forward.delay_samples
-        == pytest.approx(
-            14.0,
-            abs=
-                0.5,
-        )
-    )
-
-    assert (
-        reverse.delay_samples
-        == pytest.approx(
-            -14.0,
-            abs=
-                0.5,
-        )
-    )
-
-    assert (
-        forward.delay_samples
-        == pytest.approx(
-            -reverse.delay_samples,
-            abs=
-                0.5,
-        )
+    assert forward.delay_samples == pytest.approx(
+        -reverse.delay_samples,
+        abs=0.5,
     )
 
 
@@ -926,12 +605,7 @@ def test_swapping_signal_and_reference_reverses_delay_sign() -> None:
 
 def test_delay_seconds_matches_delay_samples() -> None:
 
-    reference = (
-        make_broadband_reference(
-            seed=
-                4001
-        )
-    )
+    reference = make_broadband_reference(seed=4001)
 
     signal = shift_with_zeros(
         reference,
@@ -939,32 +613,17 @@ def test_delay_seconds_matches_delay_samples() -> None:
     )
 
     result = gcc_phat(
-        signal=
-            signal,
-
-        reference=
-            reference,
-
-        sample_rate=
-            SAMPLE_RATE,
-
-        interpolation=
-            DEFAULT_INTERPOLATION,
-
-        min_peak_ratio=
-            1.05,
+        signal=signal,
+        reference=reference,
+        sample_rate=SAMPLE_RATE,
+        interpolation=DEFAULT_INTERPOLATION,
+        min_peak_ratio=1.05,
     )
 
-    assert (
-        result.delay_seconds
-        == pytest.approx(
-            result.delay_samples
-            / SAMPLE_RATE,
-            rel=
-                1e-12,
-            abs=
-                1e-15,
-        )
+    assert result.delay_seconds == pytest.approx(
+        result.delay_samples / SAMPLE_RATE,
+        rel=1e-12,
+        abs=1e-15,
     )
 
 
@@ -987,16 +646,9 @@ def test_integer_delay_is_stable_across_interpolation_factors(
     interpolation: int,
 ) -> None:
 
-    expected_delay = (
-        6
-    )
+    expected_delay = 6
 
-    reference = (
-        make_broadband_reference(
-            seed=
-                5001
-        )
-    )
+    reference = make_broadband_reference(seed=5001)
 
     signal = shift_with_zeros(
         reference,
@@ -1004,37 +656,21 @@ def test_integer_delay_is_stable_across_interpolation_factors(
     )
 
     result = gcc_phat(
-        signal=
-            signal,
-
-        reference=
-            reference,
-
-        sample_rate=
-            SAMPLE_RATE,
-
-        interpolation=
-            interpolation,
-
-        min_peak_ratio=
-            1.05,
+        signal=signal,
+        reference=reference,
+        sample_rate=SAMPLE_RATE,
+        interpolation=interpolation,
+        min_peak_ratio=1.05,
     )
 
-    assert (
-        result.valid
-    )
+    assert result.valid
 
-    assert (
-        result.delay_samples
-        == pytest.approx(
-            expected_delay,
-            abs=
-                max(
-                    0.5,
-                    1.0
-                    / interpolation,
-                ),
-        )
+    assert result.delay_samples == pytest.approx(
+        expected_delay,
+        abs=max(
+            0.5,
+            1.0 / interpolation,
+        ),
     )
 
 
@@ -1052,79 +688,36 @@ def test_max_delay_limits_search_region() -> None:
     interval.
     """
 
-    reference = (
-        make_broadband_reference(
-            seed=
-                6001
-        )
-    )
+    reference = make_broadband_reference(seed=6001)
 
     signal = shift_with_zeros(
         reference,
         30,
     )
 
-    maximum_samples = (
-        10
-    )
+    maximum_samples = 10
 
-    maximum_seconds = (
-        maximum_samples
-        / SAMPLE_RATE
-    )
+    maximum_seconds = maximum_samples / SAMPLE_RATE
 
     result = gcc_phat(
-        signal=
-            signal,
-
-        reference=
-            reference,
-
-        sample_rate=
-            SAMPLE_RATE,
-
-        max_delay_seconds=
-            maximum_seconds,
-
-        interpolation=
-            DEFAULT_INTERPOLATION,
-
-        min_peak_ratio=
-            1.05,
+        signal=signal,
+        reference=reference,
+        sample_rate=SAMPLE_RATE,
+        max_delay_seconds=maximum_seconds,
+        interpolation=DEFAULT_INTERPOLATION,
+        min_peak_ratio=1.05,
     )
 
-    assert (
-        abs(
-            result.delay_seconds
-        )
-        <= maximum_seconds
-        + 1e-12
-    )
+    assert abs(result.delay_seconds) <= maximum_seconds + 1e-12
 
-    assert (
-        abs(
-            result.delay_samples
-        )
-        <= maximum_samples
-        + (
-            1.0
-            / DEFAULT_INTERPOLATION
-        )
-    )
+    assert abs(result.delay_samples) <= maximum_samples + (1.0 / DEFAULT_INTERPOLATION)
 
 
 def test_delay_inside_physical_limit_is_recovered() -> None:
 
-    reference = (
-        make_broadband_reference(
-            seed=
-                6002
-        )
-    )
+    reference = make_broadband_reference(seed=6002)
 
-    expected_delay = (
-        8
-    )
+    expected_delay = 8
 
     signal = shift_with_zeros(
         reference,
@@ -1132,37 +725,19 @@ def test_delay_inside_physical_limit_is_recovered() -> None:
     )
 
     result = gcc_phat(
-        signal=
-            signal,
-
-        reference=
-            reference,
-
-        sample_rate=
-            SAMPLE_RATE,
-
-        max_delay_seconds=
-            12.0
-            / SAMPLE_RATE,
-
-        interpolation=
-            DEFAULT_INTERPOLATION,
-
-        min_peak_ratio=
-            1.05,
+        signal=signal,
+        reference=reference,
+        sample_rate=SAMPLE_RATE,
+        max_delay_seconds=12.0 / SAMPLE_RATE,
+        interpolation=DEFAULT_INTERPOLATION,
+        min_peak_ratio=1.05,
     )
 
-    assert (
-        result.valid
-    )
+    assert result.valid
 
-    assert (
-        result.delay_samples
-        == pytest.approx(
-            expected_delay,
-            abs=
-                0.5,
-        )
+    assert result.delay_samples == pytest.approx(
+        expected_delay,
+        abs=0.5,
     )
 
 
@@ -1173,12 +748,7 @@ def test_delay_inside_physical_limit_is_recovered() -> None:
 
 def test_clear_broadband_delay_has_good_peak_ratio() -> None:
 
-    reference = (
-        make_broadband_reference(
-            seed=
-                7001
-        )
-    )
+    reference = make_broadband_reference(seed=7001)
 
     signal = shift_with_zeros(
         reference,
@@ -1186,40 +756,21 @@ def test_clear_broadband_delay_has_good_peak_ratio() -> None:
     )
 
     result = gcc_phat(
-        signal=
-            signal,
-
-        reference=
-            reference,
-
-        sample_rate=
-            SAMPLE_RATE,
-
-        interpolation=
-            DEFAULT_INTERPOLATION,
-
-        min_peak_ratio=
-            1.05,
+        signal=signal,
+        reference=reference,
+        sample_rate=SAMPLE_RATE,
+        interpolation=DEFAULT_INTERPOLATION,
+        min_peak_ratio=1.05,
     )
 
-    assert (
-        result.valid
-    )
+    assert result.valid
 
-    assert (
-        result.peak_ratio
-        >= 1.05
-    )
+    assert result.peak_ratio >= 1.05
 
 
 def test_peak_ratio_is_nonnegative() -> None:
 
-    reference = (
-        make_broadband_reference(
-            seed=
-                7002
-        )
-    )
+    reference = make_broadband_reference(seed=7002)
 
     signal = shift_with_zeros(
         reference,
@@ -1227,26 +778,14 @@ def test_peak_ratio_is_nonnegative() -> None:
     )
 
     result = gcc_phat(
-        signal=
-            signal,
-
-        reference=
-            reference,
-
-        sample_rate=
-            SAMPLE_RATE,
-
-        interpolation=
-            DEFAULT_INTERPOLATION,
-
-        min_peak_ratio=
-            1.0,
+        signal=signal,
+        reference=reference,
+        sample_rate=SAMPLE_RATE,
+        interpolation=DEFAULT_INTERPOLATION,
+        min_peak_ratio=1.0,
     )
 
-    assert (
-        result.peak_ratio
-        >= 0.0
-    )
+    assert result.peak_ratio >= 0.0
 
 
 # ======================================================================
@@ -1268,20 +807,11 @@ def test_silence_is_not_valid_localization_measurement() -> None:
     )
 
     result = gcc_phat(
-        signal=
-            signal,
-
-        reference=
-            signal.copy(),
-
-        sample_rate=
-            SAMPLE_RATE,
-
-        interpolation=
-            DEFAULT_INTERPOLATION,
-
-        min_peak_ratio=
-            1.10,
+        signal=signal,
+        reference=signal.copy(),
+        sample_rate=SAMPLE_RATE,
+        interpolation=DEFAULT_INTERPOLATION,
+        min_peak_ratio=1.10,
     )
 
     assert isinstance(
@@ -1289,9 +819,7 @@ def test_silence_is_not_valid_localization_measurement() -> None:
         GCCPHATResult,
     )
 
-    assert not (
-        result.valid
-    )
+    assert not (result.valid)
 
 
 # ======================================================================
@@ -1317,19 +845,11 @@ def test_rejects_unequal_signal_lengths() -> None:
         dtype=np.float64,
     )
 
-    with pytest.raises(
-        ValueError
-    ):
-
+    with pytest.raises(ValueError):
         gcc_phat(
-            signal=
-                signal,
-
-            reference=
-                reference,
-
-            sample_rate=
-                SAMPLE_RATE,
+            signal=signal,
+            reference=reference,
+            sample_rate=SAMPLE_RATE,
         )
 
 
@@ -1353,19 +873,11 @@ def test_rejects_multidimensional_signal() -> None:
         dtype=np.float64,
     )
 
-    with pytest.raises(
-        ValueError
-    ):
-
+    with pytest.raises(ValueError):
         gcc_phat(
-            signal=
-                signal,
-
-            reference=
-                reference,
-
-            sample_rate=
-                SAMPLE_RATE,
+            signal=signal,
+            reference=reference,
+            sample_rate=SAMPLE_RATE,
         )
 
 
@@ -1384,19 +896,11 @@ def test_rejects_multidimensional_reference() -> None:
         dtype=np.float64,
     )
 
-    with pytest.raises(
-        ValueError
-    ):
-
+    with pytest.raises(ValueError):
         gcc_phat(
-            signal=
-                signal,
-
-            reference=
-                reference,
-
-            sample_rate=
-                SAMPLE_RATE,
+            signal=signal,
+            reference=reference,
+            sample_rate=SAMPLE_RATE,
         )
 
 
@@ -1427,25 +931,13 @@ def test_rejects_non_finite_signal(
         dtype=np.float64,
     )
 
-    signal[
-        100
-    ] = (
-        bad_value
-    )
+    signal[100] = bad_value
 
-    with pytest.raises(
-        ValueError
-    ):
-
+    with pytest.raises(ValueError):
         gcc_phat(
-            signal=
-                signal,
-
-            reference=
-                reference,
-
-            sample_rate=
-                SAMPLE_RATE,
+            signal=signal,
+            reference=reference,
+            sample_rate=SAMPLE_RATE,
         )
 
 
@@ -1471,25 +963,13 @@ def test_rejects_non_finite_reference(
         dtype=np.float64,
     )
 
-    reference[
-        100
-    ] = (
-        bad_value
-    )
+    reference[100] = bad_value
 
-    with pytest.raises(
-        ValueError
-    ):
-
+    with pytest.raises(ValueError):
         gcc_phat(
-            signal=
-                signal,
-
-            reference=
-                reference,
-
-            sample_rate=
-                SAMPLE_RATE,
+            signal=signal,
+            reference=reference,
+            sample_rate=SAMPLE_RATE,
         )
 
 
@@ -1511,26 +991,13 @@ def test_rejects_invalid_sample_rate(
     sample_rate: float,
 ) -> None:
 
-    reference = (
-        make_broadband_reference(
-            length=
-                2048
-        )
-    )
+    reference = make_broadband_reference(length=2048)
 
-    with pytest.raises(
-        ValueError
-    ):
-
+    with pytest.raises(ValueError):
         gcc_phat(
-            signal=
-                reference.copy(),
-
-            reference=
-                reference,
-
-            sample_rate=
-                sample_rate,
+            signal=reference.copy(),
+            reference=reference,
+            sample_rate=sample_rate,
         )
 
 
@@ -1551,29 +1018,14 @@ def test_rejects_nonpositive_interpolation(
     interpolation: int,
 ) -> None:
 
-    reference = (
-        make_broadband_reference(
-            length=
-                2048
-        )
-    )
+    reference = make_broadband_reference(length=2048)
 
-    with pytest.raises(
-        ValueError
-    ):
-
+    with pytest.raises(ValueError):
         gcc_phat(
-            signal=
-                reference.copy(),
-
-            reference=
-                reference,
-
-            sample_rate=
-                SAMPLE_RATE,
-
-            interpolation=
-                interpolation,
+            signal=reference.copy(),
+            reference=reference,
+            sample_rate=SAMPLE_RATE,
+            interpolation=interpolation,
         )
 
 
@@ -1594,29 +1046,14 @@ def test_rejects_invalid_minimum_peak_ratio(
     minimum_peak_ratio: float,
 ) -> None:
 
-    reference = (
-        make_broadband_reference(
-            length=
-                2048
-        )
-    )
+    reference = make_broadband_reference(length=2048)
 
-    with pytest.raises(
-        ValueError
-    ):
-
+    with pytest.raises(ValueError):
         gcc_phat(
-            signal=
-                reference.copy(),
-
-            reference=
-                reference,
-
-            sample_rate=
-                SAMPLE_RATE,
-
-            min_peak_ratio=
-                minimum_peak_ratio,
+            signal=reference.copy(),
+            reference=reference,
+            sample_rate=SAMPLE_RATE,
+            min_peak_ratio=minimum_peak_ratio,
         )
 
 
@@ -1638,29 +1075,14 @@ def test_rejects_invalid_epsilon(
     epsilon: float,
 ) -> None:
 
-    reference = (
-        make_broadband_reference(
-            length=
-                2048
-        )
-    )
+    reference = make_broadband_reference(length=2048)
 
-    with pytest.raises(
-        ValueError
-    ):
-
+    with pytest.raises(ValueError):
         gcc_phat(
-            signal=
-                reference.copy(),
-
-            reference=
-                reference,
-
-            sample_rate=
-                SAMPLE_RATE,
-
-            epsilon=
-                epsilon,
+            signal=reference.copy(),
+            reference=reference,
+            sample_rate=SAMPLE_RATE,
+            epsilon=epsilon,
         )
 
 
@@ -1681,43 +1103,20 @@ def test_rejects_invalid_maximum_delay(
     max_delay_seconds: float,
 ) -> None:
 
-    reference = (
-        make_broadband_reference(
-            length=
-                2048
-        )
-    )
+    reference = make_broadband_reference(length=2048)
 
-    with pytest.raises(
-        ValueError
-    ):
-
+    with pytest.raises(ValueError):
         gcc_phat(
-            signal=
-                reference.copy(),
-
-            reference=
-                reference,
-
-            sample_rate=
-                SAMPLE_RATE,
-
-            max_delay_seconds=
-                max_delay_seconds,
+            signal=reference.copy(),
+            reference=reference,
+            sample_rate=SAMPLE_RATE,
+            max_delay_seconds=max_delay_seconds,
         )
 
 
 def test_zero_maximum_delay_allows_only_zero_lag() -> None:
 
-    reference = (
-        make_broadband_reference(
-            length=
-                2048,
-
-            seed=
-                8001
-        )
-    )
+    reference = make_broadband_reference(length=2048, seed=8001)
 
     signal = shift_with_zeros(
         reference,
@@ -1725,41 +1124,22 @@ def test_zero_maximum_delay_allows_only_zero_lag() -> None:
     )
 
     result = gcc_phat(
-        signal=
-            signal,
-
-        reference=
-            reference,
-
-        sample_rate=
-            SAMPLE_RATE,
-
-        max_delay_seconds=
-            0.0,
-
-        interpolation=
-            DEFAULT_INTERPOLATION,
-
-        min_peak_ratio=
-            1.0,
+        signal=signal,
+        reference=reference,
+        sample_rate=SAMPLE_RATE,
+        max_delay_seconds=0.0,
+        interpolation=DEFAULT_INTERPOLATION,
+        min_peak_ratio=1.0,
     )
 
-    assert (
-        result.delay_samples
-        == pytest.approx(
-            0.0,
-            abs=
-                1e-12,
-        )
+    assert result.delay_samples == pytest.approx(
+        0.0,
+        abs=1e-12,
     )
 
-    assert (
-        result.delay_seconds
-        == pytest.approx(
-            0.0,
-            abs=
-                1e-15,
-        )
+    assert result.delay_seconds == pytest.approx(
+        0.0,
+        abs=1e-15,
     )
 
 
@@ -1770,41 +1150,23 @@ def test_zero_maximum_delay_allows_only_zero_lag() -> None:
 
 def test_gcc_phat_does_not_modify_input_arrays() -> None:
 
-    reference = (
-        make_broadband_reference(
-            seed=
-                9001
-        )
-    )
+    reference = make_broadband_reference(seed=9001)
 
     signal = shift_with_zeros(
         reference,
         8,
     )
 
-    original_reference = (
-        reference.copy()
-    )
+    original_reference = reference.copy()
 
-    original_signal = (
-        signal.copy()
-    )
+    original_signal = signal.copy()
 
     gcc_phat(
-        signal=
-            signal,
-
-        reference=
-            reference,
-
-        sample_rate=
-            SAMPLE_RATE,
-
-        interpolation=
-            DEFAULT_INTERPOLATION,
-
-        min_peak_ratio=
-            1.05,
+        signal=signal,
+        reference=reference,
+        sample_rate=SAMPLE_RATE,
+        interpolation=DEFAULT_INTERPOLATION,
+        min_peak_ratio=1.05,
     )
 
     np.testing.assert_array_equal(
@@ -1825,12 +1187,7 @@ def test_gcc_phat_does_not_modify_input_arrays() -> None:
 
 def test_gcc_phat_is_deterministic() -> None:
 
-    reference = (
-        make_broadband_reference(
-            seed=
-                10001
-        )
-    )
+    reference = make_broadband_reference(seed=10001)
 
     signal = shift_with_zeros(
         reference,
@@ -1838,40 +1195,19 @@ def test_gcc_phat_is_deterministic() -> None:
     )
 
     first = gcc_phat(
-        signal=
-            signal,
-
-        reference=
-            reference,
-
-        sample_rate=
-            SAMPLE_RATE,
-
-        interpolation=
-            DEFAULT_INTERPOLATION,
-
-        min_peak_ratio=
-            1.05,
+        signal=signal,
+        reference=reference,
+        sample_rate=SAMPLE_RATE,
+        interpolation=DEFAULT_INTERPOLATION,
+        min_peak_ratio=1.05,
     )
 
     second = gcc_phat(
-        signal=
-            signal,
-
-        reference=
-            reference,
-
-        sample_rate=
-            SAMPLE_RATE,
-
-        interpolation=
-            DEFAULT_INTERPOLATION,
-
-        min_peak_ratio=
-            1.05,
+        signal=signal,
+        reference=reference,
+        sample_rate=SAMPLE_RATE,
+        interpolation=DEFAULT_INTERPOLATION,
+        min_peak_ratio=1.05,
     )
 
-    assert (
-        first
-        == second
-    )
+    assert first == second

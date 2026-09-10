@@ -84,7 +84,6 @@ statistics but are excluded from spatial occupancy calculations.
 No database access is performed in this module.
 """
 
-
 from __future__ import annotations
 
 
@@ -131,49 +130,31 @@ from .models import (
 # ======================================================================
 
 
-DEFAULT_CELL_SIZE_M = (
-    0.25
-)
+DEFAULT_CELL_SIZE_M = 0.25
 
 
-DEFAULT_TIMESTAMP_KEY = (
-    "event_time"
-)
+DEFAULT_TIMESTAMP_KEY = "event_time"
 
 
-DEFAULT_X_KEY = (
-    "x_m"
-)
+DEFAULT_X_KEY = "x_m"
 
 
-DEFAULT_Y_KEY = (
-    "y_m"
-)
+DEFAULT_Y_KEY = "y_m"
 
 
-DEFAULT_CONFIDENCE_KEY = (
-    "classification_confidence"
-)
+DEFAULT_CONFIDENCE_KEY = "classification_confidence"
 
 
-DEFAULT_CLASS_KEY = (
-    "classification_label"
-)
+DEFAULT_CLASS_KEY = "classification_label"
 
 
-DEFAULT_MAX_GRID_CELLS = (
-    10_000
-)
+DEFAULT_MAX_GRID_CELLS = 10_000
 
 
-DEFAULT_MAX_TRANSITION_GAP_S = (
-    300.0
-)
+DEFAULT_MAX_TRANSITION_GAP_S = 300.0
 
 
-UTC_SUFFIX = (
-    "Z"
-)
+UTC_SUFFIX = "Z"
 
 
 # ======================================================================
@@ -223,12 +204,8 @@ def _row_value(
         None,
     )
 
-    if callable(
-        getter
-    ):
-
+    if callable(getter):
         try:
-
             return getter(
                 key,
                 default,
@@ -238,24 +215,17 @@ def _row_value(
             KeyError,
             TypeError,
         ):
-
             pass
 
     try:
-
-        return row[
-            key
-        ]
+        return row[key]
 
     except (
         KeyError,
         IndexError,
         TypeError,
     ):
-
-        return (
-            default
-        )
+        return default
 
 
 # ======================================================================
@@ -270,41 +240,22 @@ def _finite_float_or_none(
     Convert a value to finite float or return None.
     """
 
-    if (
-        value
-        is None
-    ):
-
-        return (
-            None
-        )
+    if value is None:
+        return None
 
     try:
-
-        result = float(
-            value
-        )
+        result = float(value)
 
     except (
         TypeError,
         ValueError,
     ):
+        return None
 
-        return (
-            None
-        )
+    if not math.isfinite(result):
+        return None
 
-    if not math.isfinite(
-        result
-    ):
-
-        return (
-            None
-        )
-
-    return (
-        result
-    )
+    return result
 
 
 def _positive_finite(
@@ -317,35 +268,18 @@ def _positive_finite(
     """
 
     try:
-
-        result = float(
-            value
-        )
+        result = float(value)
 
     except (
         TypeError,
         ValueError,
     ) as exc:
+        raise TypeError(f"{name} must be numeric.") from exc
 
-        raise TypeError(
-            f"{name} must be numeric."
-        ) from exc
+    if not math.isfinite(result) or result <= 0.0:
+        raise ValueError(f"{name} must be finite and greater than 0.")
 
-    if (
-        not math.isfinite(
-            result
-        )
-        or result
-        <= 0.0
-    ):
-
-        raise ValueError(
-            f"{name} must be finite and greater than 0."
-        )
-
-    return (
-        result
-    )
+    return result
 
 
 def _nonnegative_finite_or_none(
@@ -355,26 +289,12 @@ def _nonnegative_finite_or_none(
     Convert optional numeric value to finite value >= 0.
     """
 
-    result = (
-        _finite_float_or_none(
-            value
-        )
-    )
+    result = _finite_float_or_none(value)
 
-    if (
-        result
-        is None
-        or result
-        < 0.0
-    ):
+    if result is None or result < 0.0:
+        return None
 
-        return (
-            None
-        )
-
-    return (
-        result
-    )
+    return result
 
 
 def _confidence_or_none(
@@ -384,26 +304,12 @@ def _confidence_or_none(
     Normalize classification confidence into [0, 1].
     """
 
-    result = (
-        _nonnegative_finite_or_none(
-            value
-        )
-    )
+    result = _nonnegative_finite_or_none(value)
 
-    if (
-        result
-        is None
-        or result
-        > 1.0
-    ):
+    if result is None or result > 1.0:
+        return None
 
-        return (
-            None
-        )
-
-    return (
-        result
-    )
+    return result
 
 
 # ======================================================================
@@ -420,35 +326,19 @@ def _positive_int(
     Require a positive Python integer.
     """
 
-    if (
-        isinstance(
-            value,
-            bool,
-        )
-        or not isinstance(
-            value,
-            int,
-        )
+    if isinstance(
+        value,
+        bool,
+    ) or not isinstance(
+        value,
+        int,
     ):
+        raise TypeError(f"{name} must be an integer.")
 
-        raise TypeError(
-            f"{name} must be an integer."
-        )
+    if value <= 0:
+        raise ValueError(f"{name} must be greater than 0.")
 
-    if (
-        value
-        <= 0
-    ):
-
-        raise ValueError(
-            f"{name} must be greater than 0."
-        )
-
-    return (
-        int(
-            value
-        )
-    )
+    return int(value)
 
 
 # ======================================================================
@@ -468,67 +358,34 @@ def _parse_optional_datetime(
     Transition analysis can later exclude events without timestamps.
     """
 
-    if (
-        value
-        is None
-    ):
-
-        return (
-            None
-        )
+    if value is None:
+        return None
 
     if isinstance(
         value,
         datetime,
     ):
-
-        return (
-            value
-        )
+        return value
 
     if not isinstance(
         value,
         str,
     ):
+        return None
 
-        return (
-            None
-        )
+    text = value.strip()
 
-    text = (
-        value.strip()
-    )
+    if not (text):
+        return None
 
-    if not (
-        text
-    ):
-
-        return (
-            None
-        )
-
-    if text.endswith(
-        UTC_SUFFIX
-    ):
-
-        text = (
-            text[
-                :-1
-            ]
-            + "+00:00"
-        )
+    if text.endswith(UTC_SUFFIX):
+        text = text[:-1] + "+00:00"
 
     try:
-
-        return datetime.fromisoformat(
-            text
-        )
+        return datetime.fromisoformat(text)
 
     except ValueError:
-
-        return (
-            None
-        )
+        return None
 
 
 # ======================================================================
@@ -543,42 +400,22 @@ def _normalize_event_id(
     Normalize optional positive database event identifier.
     """
 
-    if (
-        value
-        is None
-    ):
-
-        return (
-            None
-        )
+    if value is None:
+        return None
 
     try:
-
-        result = int(
-            value
-        )
+        result = int(value)
 
     except (
         TypeError,
         ValueError,
     ):
+        return None
 
-        return (
-            None
-        )
+    if result <= 0:
+        return None
 
-    if (
-        result
-        <= 0
-    ):
-
-        return (
-            None
-        )
-
-    return (
-        result
-    )
+    return result
 
 
 # ======================================================================
@@ -593,30 +430,15 @@ def _normalize_class_label(
     Normalize optional classification label.
     """
 
-    if (
-        value
-        is None
-    ):
+    if value is None:
+        return None
 
-        return (
-            None
-        )
+    result = str(value).strip()
 
-    result = str(
-        value
-    ).strip()
+    if not (result):
+        return None
 
-    if not (
-        result
-    ):
-
-        return (
-            None
-        )
-
-    return (
-        result
-    )
+    return result
 
 
 # ======================================================================
@@ -625,9 +447,7 @@ def _normalize_class_label(
 
 
 def normalize_spatial_events(
-    rows: Iterable[
-        Any
-    ],
+    rows: Iterable[Any],
     *,
     x_key: str = DEFAULT_X_KEY,
     y_key: str = DEFAULT_Y_KEY,
@@ -672,104 +492,67 @@ def normalize_spatial_events(
             class_key,
         ),
     ):
-
         if not isinstance(
             value,
             str,
         ):
+            raise TypeError(f"{name} must be a string.")
 
-            raise TypeError(
-                f"{name} must be a string."
-            )
+        if not (value.strip()):
+            raise ValueError(f"{name} cannot be empty.")
 
-        if not (
-            value.strip()
-        ):
+    normalized: list[_SpatialEvent] = []
 
-            raise ValueError(
-                f"{name} cannot be empty."
-            )
-
-    normalized: list[
-        _SpatialEvent
-    ] = []
-
-    for row in (
-        rows
-    ):
-
-        x_m = (
-            _finite_float_or_none(
-                _row_value(
-                    row,
-                    x_key,
-                )
+    for row in rows:
+        x_m = _finite_float_or_none(
+            _row_value(
+                row,
+                x_key,
             )
         )
 
-        y_m = (
-            _finite_float_or_none(
-                _row_value(
-                    row,
-                    y_key,
-                )
+        y_m = _finite_float_or_none(
+            _row_value(
+                row,
+                y_key,
             )
         )
 
-        if (
-            x_m
-            is None
-            or y_m
-            is None
-        ):
-
+        if x_m is None or y_m is None:
             continue
 
         normalized.append(
             _SpatialEvent(
-                event_id=
-                    _normalize_event_id(
-                        _row_value(
-                            row,
-                            "id",
-                        )
-                    ),
-
-                timestamp=
-                    _parse_optional_datetime(
-                        _row_value(
-                            row,
-                            timestamp_key,
-                        )
-                    ),
-
-                x_m=
-                    x_m,
-
-                y_m=
-                    y_m,
-
-                class_label=
-                    _normalize_class_label(
-                        _row_value(
-                            row,
-                            class_key,
-                        )
-                    ),
-
-                confidence=
-                    _confidence_or_none(
-                        _row_value(
-                            row,
-                            confidence_key,
-                        )
-                    ),
+                event_id=_normalize_event_id(
+                    _row_value(
+                        row,
+                        "id",
+                    )
+                ),
+                timestamp=_parse_optional_datetime(
+                    _row_value(
+                        row,
+                        timestamp_key,
+                    )
+                ),
+                x_m=x_m,
+                y_m=y_m,
+                class_label=_normalize_class_label(
+                    _row_value(
+                        row,
+                        class_key,
+                    )
+                ),
+                confidence=_confidence_or_none(
+                    _row_value(
+                        row,
+                        confidence_key,
+                    )
+                ),
             )
         )
 
-    return tuple(
-        normalized
-    )
+    return tuple(normalized)
 
 
 # ======================================================================
@@ -805,31 +588,13 @@ def _validate_bounds(
             bounds,
             tuple,
         )
-        or len(
-            bounds
-        )
-        != 2
+        or len(bounds) != 2
     ):
+        raise TypeError(("bounds must be ((x_min, y_min), (x_max, y_max))."))
 
-        raise TypeError(
-            (
-                "bounds must be "
-                "((x_min, y_min), "
-                "(x_max, y_max))."
-            )
-        )
+    lower = bounds[0]
 
-    lower = (
-        bounds[
-            0
-        ]
-    )
-
-    upper = (
-        bounds[
-            1
-        ]
-    )
+    upper = bounds[1]
 
     if (
         not isinstance(
@@ -840,87 +605,27 @@ def _validate_bounds(
             upper,
             tuple,
         )
-        or len(
-            lower
-        )
-        != 2
-        or len(
-            upper
-        )
-        != 2
+        or len(lower) != 2
+        or len(upper) != 2
     ):
+        raise TypeError(("bounds must contain two 2-D coordinate tuples."))
 
-        raise TypeError(
-            (
-                "bounds must contain two "
-                "2-D coordinate tuples."
-            )
-        )
+    x_min = _finite_float_or_none(lower[0])
 
-    x_min = (
-        _finite_float_or_none(
-            lower[
-                0
-            ]
-        )
-    )
+    y_min = _finite_float_or_none(lower[1])
 
-    y_min = (
-        _finite_float_or_none(
-            lower[
-                1
-            ]
-        )
-    )
+    x_max = _finite_float_or_none(upper[0])
 
-    x_max = (
-        _finite_float_or_none(
-            upper[
-                0
-            ]
-        )
-    )
+    y_max = _finite_float_or_none(upper[1])
 
-    y_max = (
-        _finite_float_or_none(
-            upper[
-                1
-            ]
-        )
-    )
+    if x_min is None or y_min is None or x_max is None or y_max is None:
+        raise ValueError("bounds must contain finite numbers.")
 
-    if (
-        x_min
-        is None
-        or y_min
-        is None
-        or x_max
-        is None
-        or y_max
-        is None
-    ):
+    if x_max <= x_min:
+        raise ValueError("x_max must exceed x_min.")
 
-        raise ValueError(
-            "bounds must contain finite numbers."
-        )
-
-    if (
-        x_max
-        <= x_min
-    ):
-
-        raise ValueError(
-            "x_max must exceed x_min."
-        )
-
-    if (
-        y_max
-        <= y_min
-    ):
-
-        raise ValueError(
-            "y_max must exceed y_min."
-        )
+    if y_max <= y_min:
+        raise ValueError("y_max must exceed y_min.")
 
     return (
         x_min,
@@ -942,137 +647,60 @@ def _derive_grid_bounds(
     ],
     *,
     cell_size_m: float,
-) -> tuple[
-    float,
-    float,
-    float,
-    float,
-] | None:
+) -> (
+    tuple[
+        float,
+        float,
+        float,
+        float,
+    ]
+    | None
+):
     """
     Derive grid-aligned bounds covering all localized events.
     """
 
-    if not (
-        events
-    ):
+    if not (events):
+        return None
 
-        return (
-            None
-        )
+    min_x = min(event.x_m for event in events)
 
-    min_x = min(
-        event.x_m
+    max_x = max(event.x_m for event in events)
 
-        for event
-        in events
-    )
+    min_y = min(event.y_m for event in events)
 
-    max_x = max(
-        event.x_m
+    max_y = max(event.y_m for event in events)
 
-        for event
-        in events
-    )
+    x_min = math.floor(min_x / cell_size_m) * cell_size_m
 
-    min_y = min(
-        event.y_m
+    y_min = math.floor(min_y / cell_size_m) * cell_size_m
 
-        for event
-        in events
-    )
+    x_max = math.ceil(max_x / cell_size_m) * cell_size_m
 
-    max_y = max(
-        event.y_m
-
-        for event
-        in events
-    )
-
-    x_min = (
-        math.floor(
-            min_x
-            / cell_size_m
-        )
-        * cell_size_m
-    )
-
-    y_min = (
-        math.floor(
-            min_y
-            / cell_size_m
-        )
-        * cell_size_m
-    )
-
-    x_max = (
-        math.ceil(
-            max_x
-            / cell_size_m
-        )
-        * cell_size_m
-    )
-
-    y_max = (
-        math.ceil(
-            max_y
-            / cell_size_m
-        )
-        * cell_size_m
-    )
+    y_max = math.ceil(max_y / cell_size_m) * cell_size_m
 
     # ------------------------------------------------------------------
     # A point exactly on the upper grid line would otherwise belong to
     # the next cell under the standard floor-index rule.
     # ------------------------------------------------------------------
 
-    tolerance = (
-        cell_size_m
-        * 1e-12
-    )
+    tolerance = cell_size_m * 1e-12
 
-    if (
-        x_max
-        <= max_x
-        + tolerance
-    ):
+    if x_max <= max_x + tolerance:
+        x_max += cell_size_m
 
-        x_max += (
-            cell_size_m
-        )
-
-    if (
-        y_max
-        <= max_y
-        + tolerance
-    ):
-
-        y_max += (
-            cell_size_m
-        )
+    if y_max <= max_y + tolerance:
+        y_max += cell_size_m
 
     # ------------------------------------------------------------------
     # Degenerate single-position dimensions still require one cell.
     # ------------------------------------------------------------------
 
-    if (
-        x_max
-        <= x_min
-    ):
+    if x_max <= x_min:
+        x_max = x_min + cell_size_m
 
-        x_max = (
-            x_min
-            + cell_size_m
-        )
-
-    if (
-        y_max
-        <= y_min
-    ):
-
-        y_max = (
-            y_min
-            + cell_size_m
-        )
+    if y_max <= y_min:
+        y_max = y_min + cell_size_m
 
     return (
         x_min,
@@ -1102,25 +730,9 @@ def _grid_dimensions(
     Calculate number of rectangular cells along each axis.
     """
 
-    nx = int(
-        math.ceil(
-            (
-                x_max
-                - x_min
-            )
-            / cell_size_m
-        )
-    )
+    nx = int(math.ceil((x_max - x_min) / cell_size_m))
 
-    ny = int(
-        math.ceil(
-            (
-                y_max
-                - y_min
-            )
-            / cell_size_m
-        )
-    )
+    ny = int(math.ceil((y_max - y_min) / cell_size_m))
 
     return (
         max(
@@ -1156,13 +768,9 @@ def make_cell_id(
             x_index,
             int,
         )
-        or x_index
-        < 0
+        or x_index < 0
     ):
-
-        raise ValueError(
-            "x_index must be a non-negative integer."
-        )
+        raise ValueError("x_index must be a non-negative integer.")
 
     if (
         isinstance(
@@ -1173,17 +781,11 @@ def make_cell_id(
             y_index,
             int,
         )
-        or y_index
-        < 0
+        or y_index < 0
     ):
+        raise ValueError("y_index must be a non-negative integer.")
 
-        raise ValueError(
-            "y_index must be a non-negative integer."
-        )
-
-    return (
-        f"x{x_index}_y{y_index}"
-    )
+    return f"x{x_index}_y{y_index}"
 
 
 # ======================================================================
@@ -1208,25 +810,9 @@ def _position_to_cell_index(
     Map one position into a bounded grid cell.
     """
 
-    x_index = int(
-        math.floor(
-            (
-                x_m
-                - x_min
-            )
-            / cell_size_m
-        )
-    )
+    x_index = int(math.floor((x_m - x_min) / cell_size_m))
 
-    y_index = int(
-        math.floor(
-            (
-                y_m
-                - y_min
-            )
-            / cell_size_m
-        )
-    )
+    y_index = int(math.floor((y_m - y_min) / cell_size_m))
 
     # ------------------------------------------------------------------
     # Clamp very small floating-point edge excursions.
@@ -1237,8 +823,7 @@ def _position_to_cell_index(
             x_index,
             0,
         ),
-        nx
-        - 1,
+        nx - 1,
     )
 
     y_index = min(
@@ -1246,8 +831,7 @@ def _position_to_cell_index(
             y_index,
             0,
         ),
-        ny
-        - 1,
+        ny - 1,
     )
 
     return (
@@ -1262,9 +846,7 @@ def _position_to_cell_index(
 
 
 def build_spatial_cells(
-    rows: Iterable[
-        Any
-    ],
+    rows: Iterable[Any],
     *,
     cell_size_m: float = DEFAULT_CELL_SIZE_M,
     bounds: (
@@ -1299,67 +881,45 @@ def build_spatial_cells(
 
     cell_size_m = _positive_finite(
         cell_size_m,
-        name=
-            "cell_size_m",
+        name="cell_size_m",
     )
 
     max_grid_cells = _positive_int(
         max_grid_cells,
-        name=
-            "max_grid_cells",
+        name="max_grid_cells",
     )
 
-    materialized_rows = tuple(
-        rows
-    )
+    materialized_rows = tuple(rows)
 
-    events = normalize_spatial_events(
-        materialized_rows
-    )
+    events = normalize_spatial_events(materialized_rows)
 
     # ==============================================================
     # RESOLVE BOUNDS
     # ==============================================================
 
-    if (
-        bounds
-        is None
-    ):
-
+    if bounds is None:
         derived = _derive_grid_bounds(
             events,
-            cell_size_m=
-                cell_size_m,
+            cell_size_m=cell_size_m,
         )
 
-        if (
-            derived
-            is None
-        ):
-
-            return (
-                ()
-            )
+        if derived is None:
+            return ()
 
         (
             x_min,
             y_min,
             x_max,
             y_max,
-        ) = (
-            derived
-        )
+        ) = derived
 
     else:
-
         (
             x_min,
             y_min,
             x_max,
             y_max,
-        ) = _validate_bounds(
-            bounds
-        )
+        ) = _validate_bounds(bounds)
 
     # ==============================================================
     # GRID SIZE
@@ -1369,32 +929,16 @@ def build_spatial_cells(
         nx,
         ny,
     ) = _grid_dimensions(
-        x_min=
-            x_min,
-
-        y_min=
-            y_min,
-
-        x_max=
-            x_max,
-
-        y_max=
-            y_max,
-
-        cell_size_m=
-            cell_size_m,
+        x_min=x_min,
+        y_min=y_min,
+        x_max=x_max,
+        y_max=y_max,
+        cell_size_m=cell_size_m,
     )
 
-    total_cells = (
-        nx
-        * ny
-    )
+    total_cells = nx * ny
 
-    if (
-        total_cells
-        > max_grid_cells
-    ):
-
+    if total_cells > max_grid_cells:
         raise ValueError(
             (
                 "Requested spatial grid contains "
@@ -1420,17 +964,10 @@ def build_spatial_cells(
             int,
             int,
         ],
-        list[
-            float
-        ],
-    ] = defaultdict(
-        list
-    )
+        list[float],
+    ] = defaultdict(list)
 
-    for event in (
-        events
-    ):
-
+    for event in events:
         # ----------------------------------------------------------
         # Explicit half-open spatial bounds:
         #
@@ -1438,92 +975,44 @@ def build_spatial_cells(
         #     y_min <= y < y_max
         # ----------------------------------------------------------
 
-        if not (
-            x_min
-            <= event.x_m
-            < x_max
-            and y_min
-            <= event.y_m
-            < y_max
-        ):
-
+        if not (x_min <= event.x_m < x_max and y_min <= event.y_m < y_max):
             continue
 
         index = _position_to_cell_index(
             event.x_m,
             event.y_m,
-
-            x_min=
-                x_min,
-
-            y_min=
-                y_min,
-
-            nx=
-                nx,
-
-            ny=
-                ny,
-
-            cell_size_m=
-                cell_size_m,
+            x_min=x_min,
+            y_min=y_min,
+            nx=nx,
+            ny=ny,
+            cell_size_m=cell_size_m,
         )
 
-        counts[
-            index
-        ] += (
-            1
-        )
+        counts[index] += 1
 
-        if (
-            event.confidence
-            is not None
-        ):
-
-            confidence_values[
-                index
-            ].append(
-                event.confidence
-            )
+        if event.confidence is not None:
+            confidence_values[index].append(event.confidence)
 
     # ==============================================================
     # BUILD COMPLETE GRID
     # ==============================================================
 
-    cells: list[
-        SpatialCell
-    ] = []
+    cells: list[SpatialCell] = []
 
-    for y_index in range(
-        ny
-    ):
+    for y_index in range(ny):
+        for x_index in range(nx):
+            cell_x_min = x_min + x_index * cell_size_m
 
-        for x_index in range(
-            nx
-        ):
-
-            cell_x_min = (
-                x_min
-                + x_index
-                * cell_size_m
-            )
-
-            cell_y_min = (
-                y_min
-                + y_index
-                * cell_size_m
-            )
+            cell_y_min = y_min + y_index * cell_size_m
 
             cell_x_max = min(
                 x_max,
-                cell_x_min
-                + cell_size_m,
+                cell_x_min + cell_size_m,
             )
 
             cell_y_max = min(
                 y_max,
-                cell_y_min
-                + cell_size_m,
+                cell_y_min + cell_size_m,
             )
 
             index = (
@@ -1531,64 +1020,38 @@ def build_spatial_cells(
                 y_index,
             )
 
-            confidences = (
-                confidence_values.get(
-                    index,
-                    [],
-                )
+            confidences = confidence_values.get(
+                index,
+                [],
             )
 
             mean_confidence = (
                 None
-
                 if not confidences
-
-                else float(
-                    math.fsum(
-                        confidences
-                    )
-                    / len(
-                        confidences
-                    )
-                )
+                else float(math.fsum(confidences) / len(confidences))
             )
 
             cells.append(
                 SpatialCell(
-                    cell_id=
-                        make_cell_id(
-                            x_index,
-                            y_index,
-                        ),
-
-                    x_min_m=
-                        cell_x_min,
-
-                    x_max_m=
-                        cell_x_max,
-
-                    y_min_m=
-                        cell_y_min,
-
-                    y_max_m=
-                        cell_y_max,
-
-                    event_count=
-                        int(
-                            counts.get(
-                                index,
-                                0,
-                            )
-                        ),
-
-                    mean_confidence=
-                        mean_confidence,
+                    cell_id=make_cell_id(
+                        x_index,
+                        y_index,
+                    ),
+                    x_min_m=cell_x_min,
+                    x_max_m=cell_x_max,
+                    y_min_m=cell_y_min,
+                    y_max_m=cell_y_max,
+                    event_count=int(
+                        counts.get(
+                            index,
+                            0,
+                        )
+                    ),
+                    mean_confidence=mean_confidence,
                 )
             )
 
-    return tuple(
-        cells
-    )
+    return tuple(cells)
 
 
 # ======================================================================
@@ -1597,9 +1060,7 @@ def build_spatial_cells(
 
 
 def find_hotspot_cell(
-    cells: Iterable[
-        SpatialCell
-    ],
+    cells: Iterable[SpatialCell],
 ) -> str | None:
     """
     Return the cell with the highest acoustic-event count.
@@ -1612,61 +1073,23 @@ def find_hotspot_cell(
     results.
     """
 
-    materialized = tuple(
-        cells
-    )
+    materialized = tuple(cells)
 
-    for cell in (
-        materialized
-    ):
-
+    for cell in materialized:
         if not isinstance(
             cell,
             SpatialCell,
         ):
+            raise TypeError("cells must contain SpatialCell objects.")
 
-            raise TypeError(
-                "cells must contain SpatialCell objects."
-            )
+    occupied = [cell for cell in materialized if (cell.event_count > 0)]
 
-    occupied = [
-        cell
+    if not (occupied):
+        return None
 
-        for cell
-        in materialized
+    maximum_count = max(cell.event_count for cell in occupied)
 
-        if (
-            cell.event_count
-            > 0
-        )
-    ]
-
-    if not (
-        occupied
-    ):
-
-        return (
-            None
-        )
-
-    maximum_count = max(
-        cell.event_count
-
-        for cell
-        in occupied
-    )
-
-    return min(
-        cell.cell_id
-
-        for cell
-        in occupied
-
-        if (
-            cell.event_count
-            == maximum_count
-        )
-    )
+    return min(cell.cell_id for cell in occupied if (cell.event_count == maximum_count))
 
 
 # ======================================================================
@@ -1683,51 +1106,22 @@ def _validate_max_transition_gap_s(
     None disables temporal-gap filtering.
     """
 
-    if (
-        value
-        is None
-    ):
-
-        return (
-            None
-        )
+    if value is None:
+        return None
 
     try:
-
-        result = float(
-            value
-        )
+        result = float(value)
 
     except (
         TypeError,
         ValueError,
     ) as exc:
+        raise TypeError(("max_transition_gap_s must be numeric or None.")) from exc
 
-        raise TypeError(
-            (
-                "max_transition_gap_s "
-                "must be numeric or None."
-            )
-        ) from exc
+    if not math.isfinite(result) or result <= 0.0:
+        raise ValueError(("max_transition_gap_s must be finite and greater than 0."))
 
-    if (
-        not math.isfinite(
-            result
-        )
-        or result
-        <= 0.0
-    ):
-
-        raise ValueError(
-            (
-                "max_transition_gap_s must "
-                "be finite and greater than 0."
-            )
-        )
-
-    return (
-        result
-    )
+    return result
 
 
 # ======================================================================
@@ -1736,9 +1130,7 @@ def _validate_max_transition_gap_s(
 
 
 def build_spatial_transitions(
-    rows: Iterable[
-        Any
-    ],
+    rows: Iterable[Any],
     *,
     cell_size_m: float = DEFAULT_CELL_SIZE_M,
     bounds: (
@@ -1794,88 +1186,41 @@ def build_spatial_transitions(
 
     cell_size_m = _positive_finite(
         cell_size_m,
-        name=
-            "cell_size_m",
+        name="cell_size_m",
     )
 
-    max_transition_gap_s = (
-        _validate_max_transition_gap_s(
-            max_transition_gap_s
-        )
-    )
+    max_transition_gap_s = _validate_max_transition_gap_s(max_transition_gap_s)
 
     if not isinstance(
         same_class_only,
         bool,
     ):
+        raise TypeError("same_class_only must be bool.")
 
-        raise TypeError(
-            "same_class_only must be bool."
-        )
+    materialized_rows = tuple(rows)
 
-    materialized_rows = tuple(
-        rows
-    )
-
-    events = normalize_spatial_events(
-        materialized_rows
-    )
+    events = normalize_spatial_events(materialized_rows)
 
     # ==============================================================
     # REQUIRE TIMESTAMPS
     # ==============================================================
 
-    events = tuple(
-        event
+    events = tuple(event for event in events if (event.timestamp is not None))
 
-        for event
-        in events
-
-        if (
-            event.timestamp
-            is not None
-        )
-    )
-
-    if (
-        len(
-            events
-        )
-        < 2
-    ):
-
-        return (
-            ()
-        )
+    if len(events) < 2:
+        return ()
 
     # ==============================================================
     # TIMEZONE MODE CONSISTENCY
     # ==============================================================
 
     awareness = {
-        (
-            event.timestamp.tzinfo
-            is not None
-            and event.timestamp.utcoffset()
-            is not None
-        )
-
-        for event
-        in events
-
-        if (
-            event.timestamp
-            is not None
-        )
+        (event.timestamp.tzinfo is not None and event.timestamp.utcoffset() is not None)
+        for event in events
+        if (event.timestamp is not None)
     }
 
-    if (
-        len(
-            awareness
-        )
-        > 1
-    ):
-
+    if len(awareness) > 1:
         raise ValueError(
             (
                 "Spatial transition timestamps "
@@ -1891,17 +1236,10 @@ def build_spatial_transitions(
     events = tuple(
         sorted(
             events,
-            key=
-                lambda event:
-                    (
-                        event.timestamp,
-                        (
-                            event.event_id
-                            if event.event_id
-                            is not None
-                            else 0
-                        ),
-                    ),
+            key=lambda event: (
+                event.timestamp,
+                (event.event_id if event.event_id is not None else 0),
+            ),
         )
     )
 
@@ -1909,64 +1247,39 @@ def build_spatial_transitions(
     # RESOLVE BOUNDS
     # ==============================================================
 
-    if (
-        bounds
-        is None
-    ):
-
+    if bounds is None:
         derived = _derive_grid_bounds(
             events,
-            cell_size_m=
-                cell_size_m,
+            cell_size_m=cell_size_m,
         )
 
-        if (
-            derived
-            is None
-        ):
-
-            return (
-                ()
-            )
+        if derived is None:
+            return ()
 
         (
             x_min,
             y_min,
             x_max,
             y_max,
-        ) = (
-            derived
-        )
+        ) = derived
 
     else:
-
         (
             x_min,
             y_min,
             x_max,
             y_max,
-        ) = _validate_bounds(
-            bounds
-        )
+        ) = _validate_bounds(bounds)
 
     (
         nx,
         ny,
     ) = _grid_dimensions(
-        x_min=
-            x_min,
-
-        y_min=
-            y_min,
-
-        x_max=
-            x_max,
-
-        y_max=
-            y_max,
-
-        cell_size_m=
-            cell_size_m,
+        x_min=x_min,
+        y_min=y_min,
+        x_max=x_max,
+        y_max=y_max,
+        cell_size_m=cell_size_m,
     )
 
     # ==============================================================
@@ -1980,19 +1293,8 @@ def build_spatial_transitions(
         ]
     ] = []
 
-    for event in (
-        events
-    ):
-
-        if not (
-            x_min
-            <= event.x_m
-            < x_max
-            and y_min
-            <= event.y_m
-            < y_max
-        ):
-
+    for event in events:
+        if not (x_min <= event.x_m < x_max and y_min <= event.y_m < y_max):
             continue
 
         (
@@ -2001,27 +1303,16 @@ def build_spatial_transitions(
         ) = _position_to_cell_index(
             event.x_m,
             event.y_m,
-
-            x_min=
-                x_min,
-
-            y_min=
-                y_min,
-
-            nx=
-                nx,
-
-            ny=
-                ny,
-
-            cell_size_m=
-                cell_size_m,
+            x_min=x_min,
+            y_min=y_min,
+            nx=nx,
+            ny=ny,
+            cell_size_m=cell_size_m,
         )
 
         indexed_events.append(
             (
                 event,
-
                 make_cell_id(
                     x_index,
                     y_index,
@@ -2029,16 +1320,8 @@ def build_spatial_transitions(
             )
         )
 
-    if (
-        len(
-            indexed_events
-        )
-        < 2
-    ):
-
-        return (
-            ()
-        )
+    if len(indexed_events) < 2:
+        return ()
 
     # ==============================================================
     # TRANSITION COUNTS
@@ -2051,89 +1334,46 @@ def build_spatial_transitions(
         ]
     ] = Counter()
 
-    outgoing_counts: Counter[
-        str
-    ] = Counter()
+    outgoing_counts: Counter[str] = Counter()
 
-    for index in range(
-        len(
-            indexed_events
-        )
-        - 1
-    ):
-
+    for index in range(len(indexed_events) - 1):
         (
             current_event,
             source_cell,
-        ) = (
-            indexed_events[
-                index
-            ]
-        )
+        ) = indexed_events[index]
 
         (
             next_event,
             destination_cell,
-        ) = (
-            indexed_events[
-                index
-                + 1
-            ]
-        )
+        ) = indexed_events[index + 1]
 
         # ----------------------------------------------------------
         # TEMPORAL GAP
         # ----------------------------------------------------------
 
-        if (
-            current_event.timestamp
-            is None
-            or next_event.timestamp
-            is None
-        ):
-
+        if current_event.timestamp is None or next_event.timestamp is None:
             continue
 
         time_gap_s = float(
-            (
-                next_event.timestamp
-                - current_event.timestamp
-            ).total_seconds()
+            (next_event.timestamp - current_event.timestamp).total_seconds()
         )
 
-        if (
-            time_gap_s
-            < 0.0
-        ):
-
+        if time_gap_s < 0.0:
             continue
 
-        if (
-            max_transition_gap_s
-            is not None
-            and time_gap_s
-            > max_transition_gap_s
-        ):
-
+        if max_transition_gap_s is not None and time_gap_s > max_transition_gap_s:
             continue
 
         # ----------------------------------------------------------
         # OPTIONAL CLASS CONSISTENCY
         # ----------------------------------------------------------
 
-        if (
-            same_class_only
-        ):
-
+        if same_class_only:
             if (
-                current_event.class_label
-                is None
-                or next_event.class_label
-                is None
-                or current_event.class_label
-                != next_event.class_label
+                current_event.class_label is None
+                or next_event.class_label is None
+                or current_event.class_label != next_event.class_label
             ):
-
                 continue
 
         transition_counts[
@@ -2141,31 +1381,20 @@ def build_spatial_transitions(
                 source_cell,
                 destination_cell,
             )
-        ] += (
-            1
-        )
+        ] += 1
 
-        outgoing_counts[
-            source_cell
-        ] += (
-            1
-        )
+        outgoing_counts[source_cell] += 1
 
     # ==============================================================
     # BUILD RESULT MODELS
     # ==============================================================
 
-    transitions: list[
-        SpatialTransition
-    ] = []
+    transitions: list[SpatialTransition] = []
 
     for (
         source_cell,
         destination_cell,
-    ) in sorted(
-        transition_counts
-    ):
-
+    ) in sorted(transition_counts):
         count = int(
             transition_counts[
                 (
@@ -2175,36 +1404,20 @@ def build_spatial_transitions(
             ]
         )
 
-        outgoing = int(
-            outgoing_counts[
-                source_cell
-            ]
-        )
+        outgoing = int(outgoing_counts[source_cell])
 
-        probability = (
-            count
-            / outgoing
-        )
+        probability = count / outgoing
 
         transitions.append(
             SpatialTransition(
-                source_cell_id=
-                    source_cell,
-
-                destination_cell_id=
-                    destination_cell,
-
-                transition_count=
-                    count,
-
-                probability=
-                    probability,
+                source_cell_id=source_cell,
+                destination_cell_id=destination_cell,
+                transition_count=count,
+                probability=probability,
             )
         )
 
-    return tuple(
-        transitions
-    )
+    return tuple(transitions)
 
 
 # ======================================================================
@@ -2213,9 +1426,7 @@ def build_spatial_transitions(
 
 
 def calculate_localization_coverage(
-    rows: Iterable[
-        Any
-    ],
+    rows: Iterable[Any],
 ) -> tuple[
     int,
     int,
@@ -2236,68 +1447,38 @@ def calculate_localization_coverage(
             localized events / all events
     """
 
-    materialized = tuple(
-        rows
-    )
+    materialized = tuple(rows)
 
-    total_event_count = (
-        len(
-            materialized
-        )
-    )
+    total_event_count = len(materialized)
 
-    if (
-        total_event_count
-        == 0
-    ):
-
+    if total_event_count == 0:
         return (
             0,
             0,
             0.0,
         )
 
-    localized_event_count = (
-        0
-    )
+    localized_event_count = 0
 
-    for row in (
-        materialized
-    ):
-
-        x_m = (
-            _finite_float_or_none(
-                _row_value(
-                    row,
-                    DEFAULT_X_KEY,
-                )
+    for row in materialized:
+        x_m = _finite_float_or_none(
+            _row_value(
+                row,
+                DEFAULT_X_KEY,
             )
         )
 
-        y_m = (
-            _finite_float_or_none(
-                _row_value(
-                    row,
-                    DEFAULT_Y_KEY,
-                )
+        y_m = _finite_float_or_none(
+            _row_value(
+                row,
+                DEFAULT_Y_KEY,
             )
         )
 
-        if (
-            x_m
-            is not None
-            and y_m
-            is not None
-        ):
+        if x_m is not None and y_m is not None:
+            localized_event_count += 1
 
-            localized_event_count += (
-                1
-            )
-
-    localization_coverage = (
-        localized_event_count
-        / total_event_count
-    )
+    localization_coverage = localized_event_count / total_event_count
 
     return (
         localized_event_count,
@@ -2312,43 +1493,25 @@ def calculate_localization_coverage(
 
 
 def occupied_cell_count(
-    cells: Iterable[
-        SpatialCell
-    ],
+    cells: Iterable[SpatialCell],
 ) -> int:
     """
     Count cells containing at least one localized acoustic event.
     """
 
-    count = (
-        0
-    )
+    count = 0
 
-    for cell in (
-        cells
-    ):
-
+    for cell in cells:
         if not isinstance(
             cell,
             SpatialCell,
         ):
+            raise TypeError("cells must contain SpatialCell objects.")
 
-            raise TypeError(
-                "cells must contain SpatialCell objects."
-            )
+        if cell.event_count > 0:
+            count += 1
 
-        if (
-            cell.event_count
-            > 0
-        ):
-
-            count += (
-                1
-            )
-
-    return (
-        count
-    )
+    return count
 
 
 # ======================================================================
@@ -2357,9 +1520,7 @@ def occupied_cell_count(
 
 
 def spatial_occupancy_entropy(
-    cells: Iterable[
-        SpatialCell
-    ],
+    cells: Iterable[SpatialCell],
     *,
     normalized: bool = True,
 ) -> float:
@@ -2386,105 +1547,46 @@ def spatial_occupancy_entropy(
         normalized,
         bool,
     ):
+        raise TypeError("normalized must be bool.")
 
-        raise TypeError(
-            "normalized must be bool."
-        )
+    materialized = tuple(cells)
 
-    materialized = tuple(
-        cells
-    )
+    counts: list[int] = []
 
-    counts: list[
-        int
-    ] = []
-
-    for cell in (
-        materialized
-    ):
-
+    for cell in materialized:
         if not isinstance(
             cell,
             SpatialCell,
         ):
+            raise TypeError("cells must contain SpatialCell objects.")
 
-            raise TypeError(
-                "cells must contain SpatialCell objects."
-            )
+        if cell.event_count > 0:
+            counts.append(cell.event_count)
 
-        if (
-            cell.event_count
-            > 0
-        ):
+    if len(counts) <= 1:
+        return 0.0
 
-            counts.append(
-                cell.event_count
-            )
+    total = float(sum(counts))
 
-    if (
-        len(
-            counts
-        )
-        <= 1
-    ):
-
-        return (
-            0.0
-        )
-
-    total = float(
-        sum(
-            counts
-        )
-    )
-
-    probabilities = [
-        count
-        / total
-
-        for count
-        in counts
-    ]
+    probabilities = [count / total for count in counts]
 
     entropy = -math.fsum(
-        probability
-        * math.log(
-            probability
-        )
-
-        for probability
-        in probabilities
+        probability * math.log(probability) for probability in probabilities
     )
 
-    if not (
-        normalized
-    ):
+    if not (normalized):
+        return entropy
 
-        return (
-            entropy
-        )
+    maximum_entropy = math.log(len(probabilities))
 
-    maximum_entropy = math.log(
-        len(
-            probabilities
-        )
-    )
-
-    if (
-        maximum_entropy
-        <= 0.0
-    ):
-
-        return (
-            0.0
-        )
+    if maximum_entropy <= 0.0:
+        return 0.0
 
     return min(
         1.0,
         max(
             0.0,
-            entropy
-            / maximum_entropy,
+            entropy / maximum_entropy,
         ),
     )
 
@@ -2495,9 +1597,7 @@ def spatial_occupancy_entropy(
 
 
 def build_spatial_summary(
-    rows: Iterable[
-        Any
-    ],
+    rows: Iterable[Any],
     *,
     cell_size_m: float = DEFAULT_CELL_SIZE_M,
     bounds: (
@@ -2537,9 +1637,7 @@ def build_spatial_summary(
     SpatialSummary
     """
 
-    materialized_rows = tuple(
-        rows
-    )
+    materialized_rows = tuple(rows)
 
     # ==============================================================
     # COVERAGE
@@ -2549,37 +1647,20 @@ def build_spatial_summary(
         localized_event_count,
         total_event_count,
         localization_coverage,
-    ) = calculate_localization_coverage(
-        materialized_rows
-    )
+    ) = calculate_localization_coverage(materialized_rows)
 
     # ==============================================================
     # NO LOCALIZED EVENTS
     # ==============================================================
 
-    if (
-        localized_event_count
-        == 0
-    ):
-
+    if localized_event_count == 0:
         return SpatialSummary(
-            localized_event_count=
-                0,
-
-            total_event_count=
-                total_event_count,
-
-            localization_coverage=
-                localization_coverage,
-
-            cells=
-                (),
-
-            transitions=
-                (),
-
-            hotspot_cell_id=
-                None,
+            localized_event_count=0,
+            total_event_count=total_event_count,
+            localization_coverage=localization_coverage,
+            cells=(),
+            transitions=(),
+            hotspot_cell_id=None,
         )
 
     # ==============================================================
@@ -2588,47 +1669,27 @@ def build_spatial_summary(
 
     cells = build_spatial_cells(
         materialized_rows,
-
-        cell_size_m=
-            cell_size_m,
-
-        bounds=
-            bounds,
-
-        max_grid_cells=
-            max_grid_cells,
+        cell_size_m=cell_size_m,
+        bounds=bounds,
+        max_grid_cells=max_grid_cells,
     )
 
     # ==============================================================
     # HOTSPOT
     # ==============================================================
 
-    hotspot_cell_id = (
-        find_hotspot_cell(
-            cells
-        )
-    )
+    hotspot_cell_id = find_hotspot_cell(cells)
 
     # ==============================================================
     # TRANSITIONS
     # ==============================================================
 
-    transitions = (
-        build_spatial_transitions(
-            materialized_rows,
-
-            cell_size_m=
-                cell_size_m,
-
-            bounds=
-                bounds,
-
-            max_transition_gap_s=
-                max_transition_gap_s,
-
-            same_class_only=
-                same_class_transitions_only,
-        )
+    transitions = build_spatial_transitions(
+        materialized_rows,
+        cell_size_m=cell_size_m,
+        bounds=bounds,
+        max_transition_gap_s=max_transition_gap_s,
+        same_class_only=same_class_transitions_only,
     )
 
     # ==============================================================
@@ -2636,21 +1697,10 @@ def build_spatial_summary(
     # ==============================================================
 
     return SpatialSummary(
-        localized_event_count=
-            localized_event_count,
-
-        total_event_count=
-            total_event_count,
-
-        localization_coverage=
-            localization_coverage,
-
-        cells=
-            cells,
-
-        transitions=
-            transitions,
-
-        hotspot_cell_id=
-            hotspot_cell_id,
+        localized_event_count=localized_event_count,
+        total_event_count=total_event_count,
+        localization_coverage=localization_coverage,
+        cells=cells,
+        transitions=transitions,
+        hotspot_cell_id=hotspot_cell_id,
     )

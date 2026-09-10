@@ -360,6 +360,10 @@ data/datasets/*
 datasets/
 dataset/
 
+# This is source code, not a directory containing recorded datasets.
+!src/wildlife_soundscape/datasets/
+!src/wildlife_soundscape/datasets/*.py
+
 
 # ======================================================================
 # 23. AUDIO FILES OUTSIDE MANAGED DATA DIRECTORIES
@@ -735,3 +739,4 @@ wifi.local.json
 # ======================================================================
 # END
 # ======================================================================
+.tools/

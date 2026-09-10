@@ -1,4 +1,9 @@
-# Wildlife Soundscape — Current Codebase Report
+# Wildlife Soundscape — Historical V1 Codebase Report
+
+> Archived reference: this report describes the V1 codebase inspected on
+> 2 September 2026. V2 has since been promoted into the repository root. Use
+> `README.md`, `docs/OPERATIONS.md`, and `docs/DEVELOPMENT_DATA.md` for the
+> current implementation and release procedures.
 
 **Audit date:** 2 September 2026  
 **Repository version inspected:** `6ec70a8` — *Minor Updates* (31 August 2026)  

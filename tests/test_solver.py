@@ -60,7 +60,6 @@ Current solver API
     )
 """
 
-
 from __future__ import annotations
 
 
@@ -105,14 +104,10 @@ from wildlife_soundscape.localization.tdoa import (
 # ======================================================================
 
 
-SPEED_OF_SOUND_MPS = (
-    343.0
-)
+SPEED_OF_SOUND_MPS = 343.0
 
 
-SAMPLE_RATE = (
-    48_000.0
-)
+SAMPLE_RATE = 48_000.0
 
 
 # ======================================================================
@@ -125,12 +120,10 @@ NODE_POSITIONS = {
         0.0,
         0.0,
     ),
-
     2: (
         1.0,
         0.0,
     ),
-
     3: (
         0.5,
         0.8660254037844386,
@@ -157,31 +150,9 @@ def distance(
     Euclidean distance in meters.
     """
 
-    dx = (
-        float(
-            point_a[
-                0
-            ]
-        )
-        - float(
-            point_b[
-                0
-            ]
-        )
-    )
+    dx = float(point_a[0]) - float(point_b[0])
 
-    dy = (
-        float(
-            point_a[
-                1
-            ]
-        )
-        - float(
-            point_b[
-                1
-            ]
-        )
-    )
+    dy = float(point_a[1]) - float(point_b[1])
 
     return math.hypot(
         dx,
@@ -212,24 +183,15 @@ def exact_tdoa(
 
     distance_a = distance(
         source_xy,
-        NODE_POSITIONS[
-            node_a
-        ],
+        NODE_POSITIONS[node_a],
     )
 
     distance_b = distance(
         source_xy,
-        NODE_POSITIONS[
-            node_b
-        ],
+        NODE_POSITIONS[node_b],
     )
 
-    return (
-        distance_b
-        - distance_a
-    ) / float(
-        speed_of_sound_mps
-    )
+    return (distance_b - distance_a) / float(speed_of_sound_mps)
 
 
 def make_measurement(
@@ -250,59 +212,30 @@ def make_measurement(
     Construct one synthetic physically valid TDOA measurement.
     """
 
-    delay_seconds = (
-        exact_tdoa(
-            source_xy,
-            node_a,
-            node_b,
-            speed_of_sound_mps=
-                speed_of_sound_mps,
-        )
-        + float(
-            delay_offset_seconds
-        )
-    )
+    delay_seconds = exact_tdoa(
+        source_xy,
+        node_a,
+        node_b,
+        speed_of_sound_mps=speed_of_sound_mps,
+    ) + float(delay_offset_seconds)
 
-    delay_samples = (
-        delay_seconds
-        * SAMPLE_RATE
-    )
+    delay_samples = delay_seconds * SAMPLE_RATE
 
     maximum_delay = physical_max_delay(
-        NODE_POSITIONS[
-            node_a
-        ],
-        NODE_POSITIONS[
-            node_b
-        ],
-        speed_of_sound_mps=
-            speed_of_sound_mps,
+        NODE_POSITIONS[node_a],
+        NODE_POSITIONS[node_b],
+        speed_of_sound_mps=speed_of_sound_mps,
     )
 
     return TDOAMeasurement(
-        node_a=
-            node_a,
-
-        node_b=
-            node_b,
-
-        delay_seconds=
-            delay_seconds,
-
-        delay_samples=
-            delay_samples,
-
-        peak_ratio=
-            peak_ratio,
-
-        max_delay_seconds=
-            maximum_delay,
-
-        valid=
-            valid,
-
-        reason=
-            reason,
+        node_a=node_a,
+        node_b=node_b,
+        delay_seconds=delay_seconds,
+        delay_samples=delay_samples,
+        peak_ratio=peak_ratio,
+        max_delay_seconds=maximum_delay,
+        valid=valid,
+        reason=reason,
     )
 
 
@@ -326,18 +259,13 @@ def make_all_pair_measurements(
             source_xy,
             node_a,
             node_b,
-            speed_of_sound_mps=
-                speed_of_sound_mps,
+            speed_of_sound_mps=speed_of_sound_mps,
         )
-
         for (
             node_a,
             node_b,
-        )
-        in combinations(
-            sorted(
-                NODE_POSITIONS
-            ),
+        ) in combinations(
+            sorted(NODE_POSITIONS),
             2,
         )
     )
@@ -355,17 +283,12 @@ def test_solver_returns_position_result() -> None:
         0.35,
     )
 
-    measurements = (
-        make_all_pair_measurements(
-            source
-        )
-    )
+    measurements = make_all_pair_measurements(source)
 
     result = solve_position(
         NODE_POSITIONS,
         measurements,
-        speed_of_sound_mps=
-            SPEED_OF_SOUND_MPS,
+        speed_of_sound_mps=SPEED_OF_SOUND_MPS,
     )
 
     assert isinstance(
@@ -383,41 +306,23 @@ def test_successful_result_contains_finite_diagnostics() -> None:
 
     result = solve_position(
         NODE_POSITIONS,
-        make_all_pair_measurements(
-            source
-        ),
-        speed_of_sound_mps=
-            SPEED_OF_SOUND_MPS,
+        make_all_pair_measurements(source),
+        speed_of_sound_mps=SPEED_OF_SOUND_MPS,
     )
 
-    assert (
-        result.success
-    )
+    assert result.success
 
-    assert math.isfinite(
-        result.x
-    )
+    assert math.isfinite(result.x)
 
-    assert math.isfinite(
-        result.y
-    )
+    assert math.isfinite(result.y)
 
-    assert math.isfinite(
-        result.residual_rms_seconds
-    )
+    assert math.isfinite(result.residual_rms_seconds)
 
-    assert math.isfinite(
-        result.residual_rms_meters
-    )
+    assert math.isfinite(result.residual_rms_meters)
 
-    assert math.isfinite(
-        result.cost
-    )
+    assert math.isfinite(result.cost)
 
-    assert (
-        result.nfev
-        > 0
-    )
+    assert result.nfev > 0
 
     assert isinstance(
         result.message,
@@ -437,17 +342,14 @@ def test_successful_result_contains_finite_diagnostics() -> None:
             0.45,
             0.35,
         ),
-
         (
             0.25,
             0.20,
         ),
-
         (
             0.70,
             0.22,
         ),
-
         (
             0.50,
             0.55,
@@ -461,54 +363,29 @@ def test_solver_recovers_known_source_from_exact_tdoa(
     ],
 ) -> None:
 
-    measurements = (
-        make_all_pair_measurements(
-            source_xy
-        )
-    )
+    measurements = make_all_pair_measurements(source_xy)
 
     result = solve_position(
         NODE_POSITIONS,
         measurements,
-        speed_of_sound_mps=
-            SPEED_OF_SOUND_MPS,
+        speed_of_sound_mps=SPEED_OF_SOUND_MPS,
     )
 
-    assert (
-        result.success
+    assert result.success
+
+    assert result.x == pytest.approx(
+        source_xy[0],
+        abs=1e-4,
     )
 
-    assert (
-        result.x
-        == pytest.approx(
-            source_xy[
-                0
-            ],
-            abs=
-                1e-4,
-        )
+    assert result.y == pytest.approx(
+        source_xy[1],
+        abs=1e-4,
     )
 
-    assert (
-        result.y
-        == pytest.approx(
-            source_xy[
-                1
-            ],
-            abs=
-                1e-4,
-        )
-    )
+    assert result.residual_rms_seconds < 1e-7
 
-    assert (
-        result.residual_rms_seconds
-        < 1e-7
-    )
-
-    assert (
-        result.residual_rms_meters
-        < 1e-4
-    )
+    assert result.residual_rms_meters < 1e-4
 
 
 # ======================================================================
@@ -531,29 +408,19 @@ def test_exact_tdoa_sign_matches_distance_difference() -> None:
 
     distance_1 = distance(
         source,
-        NODE_POSITIONS[
-            1
-        ],
+        NODE_POSITIONS[1],
     )
 
     distance_2 = distance(
         source,
-        NODE_POSITIONS[
-            2
-        ],
+        NODE_POSITIONS[2],
     )
 
     # Source is closer to Node 1 than Node 2.
-    assert (
-        distance_2
-        > distance_1
-    )
+    assert distance_2 > distance_1
 
     # Therefore Node 2 receives the waveform later.
-    assert (
-        delay_12
-        > 0.0
-    )
+    assert delay_12 > 0.0
 
 
 def test_reversing_pair_reverses_tdoa_sign() -> None:
@@ -575,15 +442,10 @@ def test_reversing_pair_reverses_tdoa_sign() -> None:
         1,
     )
 
-    assert (
-        delay_ab
-        == pytest.approx(
-            -delay_ba,
-            rel=
-                1e-12,
-            abs=
-                1e-15,
-        )
+    assert delay_ab == pytest.approx(
+        -delay_ba,
+        rel=1e-12,
+        abs=1e-15,
     )
 
 
@@ -605,13 +467,11 @@ def test_solver_accepts_reversed_pair_when_delay_sign_is_also_reversed() -> None
             2,
             1,
         ),
-
         make_measurement(
             source,
             3,
             1,
         ),
-
         make_measurement(
             source,
             3,
@@ -622,34 +482,19 @@ def test_solver_accepts_reversed_pair_when_delay_sign_is_also_reversed() -> None
     result = solve_position(
         NODE_POSITIONS,
         measurements,
-        speed_of_sound_mps=
-            SPEED_OF_SOUND_MPS,
+        speed_of_sound_mps=SPEED_OF_SOUND_MPS,
     )
 
-    assert (
-        result.success
+    assert result.success
+
+    assert result.x == pytest.approx(
+        source[0],
+        abs=1e-4,
     )
 
-    assert (
-        result.x
-        == pytest.approx(
-            source[
-                0
-            ],
-            abs=
-                1e-4,
-        )
-    )
-
-    assert (
-        result.y
-        == pytest.approx(
-            source[
-                1
-            ],
-            abs=
-                1e-4,
-        )
+    assert result.y == pytest.approx(
+        source[1],
+        abs=1e-4,
     )
 
 
@@ -665,56 +510,32 @@ def test_measurement_order_does_not_change_solution() -> None:
         0.42,
     )
 
-    measurements = list(
-        make_all_pair_measurements(
-            source
-        )
-    )
+    measurements = list(make_all_pair_measurements(source))
 
     forward = solve_position(
         NODE_POSITIONS,
-        tuple(
-            measurements
-        ),
-        speed_of_sound_mps=
-            SPEED_OF_SOUND_MPS,
+        tuple(measurements),
+        speed_of_sound_mps=SPEED_OF_SOUND_MPS,
     )
 
     reverse = solve_position(
         NODE_POSITIONS,
-        tuple(
-            reversed(
-                measurements
-            )
-        ),
-        speed_of_sound_mps=
-            SPEED_OF_SOUND_MPS,
+        tuple(reversed(measurements)),
+        speed_of_sound_mps=SPEED_OF_SOUND_MPS,
     )
 
-    assert (
-        forward.success
+    assert forward.success
+
+    assert reverse.success
+
+    assert forward.x == pytest.approx(
+        reverse.x,
+        abs=1e-8,
     )
 
-    assert (
-        reverse.success
-    )
-
-    assert (
-        forward.x
-        == pytest.approx(
-            reverse.x,
-            abs=
-                1e-8,
-        )
-    )
-
-    assert (
-        forward.y
-        == pytest.approx(
-            reverse.y,
-            abs=
-                1e-8,
-        )
+    assert forward.y == pytest.approx(
+        reverse.y,
+        abs=1e-8,
     )
 
 
@@ -730,85 +551,41 @@ def test_solver_ignores_invalid_measurement() -> None:
         0.35,
     )
 
-    valid_measurements = list(
-        make_all_pair_measurements(
-            source
-        )
-    )
+    valid_measurements = list(make_all_pair_measurements(source))
 
     invalid_extra = TDOAMeasurement(
-        node_a=
-            1,
-
-        node_b=
-            2,
-
-        delay_seconds=
-            0.002,
-
-        delay_samples=
-            96.0,
-
-        peak_ratio=
-            0.5,
-
-        max_delay_seconds=
-            physical_max_delay(
-                NODE_POSITIONS[
-                    1
-                ],
-                NODE_POSITIONS[
-                    2
-                ],
-                speed_of_sound_mps=
-                    SPEED_OF_SOUND_MPS,
-            ),
-
-        valid=
-            False,
-
-        reason=
-            "synthetic rejected correlation",
+        node_a=1,
+        node_b=2,
+        delay_seconds=0.002,
+        delay_samples=96.0,
+        peak_ratio=0.5,
+        max_delay_seconds=physical_max_delay(
+            NODE_POSITIONS[1],
+            NODE_POSITIONS[2],
+            speed_of_sound_mps=SPEED_OF_SOUND_MPS,
+        ),
+        valid=False,
+        reason="synthetic rejected correlation",
     )
 
-    measurements = tuple(
-        valid_measurements
-        + [
-            invalid_extra
-        ]
-    )
+    measurements = tuple(valid_measurements + [invalid_extra])
 
     result = solve_position(
         NODE_POSITIONS,
         measurements,
-        speed_of_sound_mps=
-            SPEED_OF_SOUND_MPS,
+        speed_of_sound_mps=SPEED_OF_SOUND_MPS,
     )
 
-    assert (
-        result.success
+    assert result.success
+
+    assert result.x == pytest.approx(
+        source[0],
+        abs=1e-4,
     )
 
-    assert (
-        result.x
-        == pytest.approx(
-            source[
-                0
-            ],
-            abs=
-                1e-4,
-        )
-    )
-
-    assert (
-        result.y
-        == pytest.approx(
-            source[
-                1
-            ],
-            abs=
-                1e-4,
-        )
+    assert result.y == pytest.approx(
+        source[1],
+        abs=1e-4,
     )
 
 
@@ -822,13 +599,10 @@ def test_solver_fails_with_no_measurements() -> None:
     result = solve_position(
         NODE_POSITIONS,
         (),
-        speed_of_sound_mps=
-            SPEED_OF_SOUND_MPS,
+        speed_of_sound_mps=SPEED_OF_SOUND_MPS,
     )
 
-    assert not (
-        result.success
-    )
+    assert not (result.success)
 
     assert isinstance(
         result,
@@ -854,13 +628,10 @@ def test_solver_fails_with_only_one_valid_measurement() -> None:
     result = solve_position(
         NODE_POSITIONS,
         measurements,
-        speed_of_sound_mps=
-            SPEED_OF_SOUND_MPS,
+        speed_of_sound_mps=SPEED_OF_SOUND_MPS,
     )
 
-    assert not (
-        result.success
-    )
+    assert not (result.success)
 
 
 def test_solver_requires_at_least_three_unique_nodes() -> None:
@@ -881,29 +652,14 @@ def test_solver_requires_at_least_three_unique_nodes() -> None:
     )
 
     second = TDOAMeasurement(
-        node_a=
-            2,
-
-        node_b=
-            1,
-
-        delay_seconds=
-            -first.delay_seconds,
-
-        delay_samples=
-            -first.delay_samples,
-
-        peak_ratio=
-            first.peak_ratio,
-
-        max_delay_seconds=
-            first.max_delay_seconds,
-
-        valid=
-            True,
-
-        reason=
-            "",
+        node_a=2,
+        node_b=1,
+        delay_seconds=-first.delay_seconds,
+        delay_samples=-first.delay_samples,
+        peak_ratio=first.peak_ratio,
+        max_delay_seconds=first.max_delay_seconds,
+        valid=True,
+        reason="",
     )
 
     result = solve_position(
@@ -912,13 +668,10 @@ def test_solver_requires_at_least_three_unique_nodes() -> None:
             first,
             second,
         ),
-        speed_of_sound_mps=
-            SPEED_OF_SOUND_MPS,
+        speed_of_sound_mps=SPEED_OF_SOUND_MPS,
     )
 
-    assert not (
-        result.success
-    )
+    assert not (result.success)
 
 
 # ======================================================================
@@ -931,8 +684,7 @@ def test_failed_solver_still_returns_position_result() -> None:
     result = solve_position(
         NODE_POSITIONS,
         (),
-        speed_of_sound_mps=
-            SPEED_OF_SOUND_MPS,
+        speed_of_sound_mps=SPEED_OF_SOUND_MPS,
     )
 
     assert isinstance(
@@ -940,21 +692,14 @@ def test_failed_solver_still_returns_position_result() -> None:
         PositionResult,
     )
 
-    assert not (
-        result.success
-    )
+    assert not (result.success)
 
     assert isinstance(
         result.message,
         str,
     )
 
-    assert (
-        len(
-            result.message
-        )
-        > 0
-    )
+    assert len(result.message) > 0
 
 
 # ======================================================================
@@ -969,82 +714,39 @@ def test_residual_meter_conversion_matches_speed_of_sound() -> None:
         0.28,
     )
 
-    measurements = list(
-        make_all_pair_measurements(
-            source
-        )
-    )
+    measurements = list(make_all_pair_measurements(source))
 
     # --------------------------------------------------------------
     # DELIBERATELY ADD SMALL TIMING ERROR
     # --------------------------------------------------------------
 
-    original = (
-        measurements[
-            0
-        ]
-    )
+    original = measurements[0]
 
-    timing_error = (
-        5e-6
-    )
+    timing_error = 5e-6
 
-    measurements[
-        0
-    ] = TDOAMeasurement(
-        node_a=
-            original.node_a,
-
-        node_b=
-            original.node_b,
-
-        delay_seconds=
-            original.delay_seconds
-            + timing_error,
-
-        delay_samples=
-            (
-                original.delay_seconds
-                + timing_error
-            )
-            * SAMPLE_RATE,
-
-        peak_ratio=
-            original.peak_ratio,
-
-        max_delay_seconds=
-            original.max_delay_seconds,
-
-        valid=
-            True,
-
-        reason=
-            "",
+    measurements[0] = TDOAMeasurement(
+        node_a=original.node_a,
+        node_b=original.node_b,
+        delay_seconds=original.delay_seconds + timing_error,
+        delay_samples=(original.delay_seconds + timing_error) * SAMPLE_RATE,
+        peak_ratio=original.peak_ratio,
+        max_delay_seconds=original.max_delay_seconds,
+        valid=True,
+        reason="",
     )
 
     result = solve_position(
         NODE_POSITIONS,
-        tuple(
-            measurements
-        ),
-        speed_of_sound_mps=
-            SPEED_OF_SOUND_MPS,
+        tuple(measurements),
+        speed_of_sound_mps=SPEED_OF_SOUND_MPS,
     )
 
-    assert (
-        result.success
-    )
+    assert result.success
 
-    assert (
-        result.residual_rms_meters
-        == pytest.approx(
-            result.residual_rms_seconds
-            * SPEED_OF_SOUND_MPS,
-            rel=
-                1e-9,
-            abs=
-                1e-12,
-        )
+    assert result.residual_rms_meters == pytest.approx(
+        result.residual_rms_seconds * SPEED_OF_SOUND_MPS,
+        rel=1e-9,
+        abs=1e-12,
     )
 
 
@@ -1069,20 +771,15 @@ def test_small_tdoa_error_produces_reasonable_position() -> None:
         (
             1,
             2,
-        ):
-            3e-6,
-
+        ): 3e-6,
         (
             1,
             3,
-        ):
-            -2e-6,
-
+        ): -2e-6,
         (
             2,
             3,
-        ):
-            1e-6,
+        ): 1e-6,
     }
 
     measurements = tuple(
@@ -1090,23 +787,18 @@ def test_small_tdoa_error_produces_reasonable_position() -> None:
             source,
             node_a,
             node_b,
-            delay_offset_seconds=
-                pair_offsets[
-                    (
-                        node_a,
-                        node_b,
-                    )
-                ],
+            delay_offset_seconds=pair_offsets[
+                (
+                    node_a,
+                    node_b,
+                )
+            ],
         )
-
         for (
             node_a,
             node_b,
-        )
-        in combinations(
-            sorted(
-                NODE_POSITIONS
-            ),
+        ) in combinations(
+            sorted(NODE_POSITIONS),
             2,
         )
     )
@@ -1114,13 +806,10 @@ def test_small_tdoa_error_produces_reasonable_position() -> None:
     result = solve_position(
         NODE_POSITIONS,
         measurements,
-        speed_of_sound_mps=
-            SPEED_OF_SOUND_MPS,
+        speed_of_sound_mps=SPEED_OF_SOUND_MPS,
     )
 
-    assert (
-        result.success
-    )
+    assert result.success
 
     position_error_m = distance(
         (
@@ -1130,20 +819,11 @@ def test_small_tdoa_error_produces_reasonable_position() -> None:
         source,
     )
 
-    assert (
-        position_error_m
-        < 0.05
-    )
+    assert position_error_m < 0.05
 
-    assert (
-        result.residual_rms_seconds
-        >= 0.0
-    )
+    assert result.residual_rms_seconds >= 0.0
 
-    assert (
-        result.residual_rms_meters
-        >= 0.0
-    )
+    assert result.residual_rms_meters >= 0.0
 
 
 # ======================================================================
@@ -1158,11 +838,7 @@ def test_solver_accepts_bounds_containing_source() -> None:
         0.35,
     )
 
-    measurements = (
-        make_all_pair_measurements(
-            source
-        )
-    )
+    measurements = make_all_pair_measurements(source)
 
     bounds = (
         (
@@ -1178,48 +854,24 @@ def test_solver_accepts_bounds_containing_source() -> None:
     result = solve_position(
         NODE_POSITIONS,
         measurements,
-        speed_of_sound_mps=
-            SPEED_OF_SOUND_MPS,
-        bounds=
-            bounds,
+        speed_of_sound_mps=SPEED_OF_SOUND_MPS,
+        bounds=bounds,
     )
 
-    assert (
-        result.success
+    assert result.success
+
+    assert 0.0 <= result.x <= 1.0
+
+    assert 0.0 <= result.y <= 1.0
+
+    assert result.x == pytest.approx(
+        source[0],
+        abs=1e-4,
     )
 
-    assert (
-        0.0
-        <= result.x
-        <= 1.0
-    )
-
-    assert (
-        0.0
-        <= result.y
-        <= 1.0
-    )
-
-    assert (
-        result.x
-        == pytest.approx(
-            source[
-                0
-            ],
-            abs=
-                1e-4,
-        )
-    )
-
-    assert (
-        result.y
-        == pytest.approx(
-            source[
-                1
-            ],
-            abs=
-                1e-4,
-        )
+    assert result.y == pytest.approx(
+        source[1],
+        abs=1e-4,
     )
 
 
@@ -1243,30 +895,18 @@ def test_solver_result_respects_configured_bounds() -> None:
 
     result = solve_position(
         NODE_POSITIONS,
-        make_all_pair_measurements(
-            source
-        ),
-        speed_of_sound_mps=
-            SPEED_OF_SOUND_MPS,
-        bounds=
-            bounds,
+        make_all_pair_measurements(source),
+        speed_of_sound_mps=SPEED_OF_SOUND_MPS,
+        bounds=bounds,
     )
 
     # True source lies outside this artificial box. The optimizer may
     # still succeed numerically, but its estimate must remain inside the
     # requested search bounds.
 
-    assert (
-        0.0
-        <= result.x
-        <= 0.40
-    )
+    assert 0.0 <= result.x <= 0.40
 
-    assert (
-        0.0
-        <= result.y
-        <= 0.30
-    )
+    assert 0.0 <= result.y <= 0.30
 
 
 # ======================================================================
@@ -1290,104 +930,56 @@ def test_solver_recovers_shared_known_source_fixture(
         node_a,
         node_b,
     ) in combinations(
-        sorted(
-            node_positions
-        ),
+        sorted(node_positions),
         2,
     ):
-
         distance_a = distance(
             known_source_xy,
-            node_positions[
-                node_a
-            ],
+            node_positions[node_a],
         )
 
         distance_b = distance(
             known_source_xy,
-            node_positions[
-                node_b
-            ],
+            node_positions[node_b],
         )
 
-        delay_seconds = (
-            distance_b
-            - distance_a
-        ) / speed_of_sound_mps
+        delay_seconds = (distance_b - distance_a) / speed_of_sound_mps
 
         max_delay_seconds = physical_max_delay(
-            node_positions[
-                node_a
-            ],
-            node_positions[
-                node_b
-            ],
-            speed_of_sound_mps=
-                speed_of_sound_mps,
+            node_positions[node_a],
+            node_positions[node_b],
+            speed_of_sound_mps=speed_of_sound_mps,
         )
 
         measurements.append(
             TDOAMeasurement(
-                node_a=
-                    node_a,
-
-                node_b=
-                    node_b,
-
-                delay_seconds=
-                    delay_seconds,
-
-                delay_samples=
-                    delay_seconds
-                    * SAMPLE_RATE,
-
-                peak_ratio=
-                    5.0,
-
-                max_delay_seconds=
-                    max_delay_seconds,
-
-                valid=
-                    True,
-
-                reason=
-                    "",
+                node_a=node_a,
+                node_b=node_b,
+                delay_seconds=delay_seconds,
+                delay_samples=delay_seconds * SAMPLE_RATE,
+                peak_ratio=5.0,
+                max_delay_seconds=max_delay_seconds,
+                valid=True,
+                reason="",
             )
         )
 
     result = solve_position(
         node_positions,
-        tuple(
-            measurements
-        ),
-        speed_of_sound_mps=
-            speed_of_sound_mps,
+        tuple(measurements),
+        speed_of_sound_mps=speed_of_sound_mps,
     )
 
-    assert (
-        result.success
+    assert result.success
+
+    assert result.x == pytest.approx(
+        known_source_xy[0],
+        abs=1e-4,
     )
 
-    assert (
-        result.x
-        == pytest.approx(
-            known_source_xy[
-                0
-            ],
-            abs=
-                1e-4,
-        )
-    )
-
-    assert (
-        result.y
-        == pytest.approx(
-            known_source_xy[
-                1
-            ],
-            abs=
-                1e-4,
-        )
+    assert result.y == pytest.approx(
+        known_source_xy[1],
+        abs=1e-4,
     )
 
 
@@ -1403,56 +995,35 @@ def test_solver_is_deterministic_for_same_input() -> None:
         0.29,
     )
 
-    measurements = (
-        make_all_pair_measurements(
-            source
-        )
-    )
+    measurements = make_all_pair_measurements(source)
 
     first = solve_position(
         NODE_POSITIONS,
         measurements,
-        speed_of_sound_mps=
-            SPEED_OF_SOUND_MPS,
+        speed_of_sound_mps=SPEED_OF_SOUND_MPS,
     )
 
     second = solve_position(
         NODE_POSITIONS,
         measurements,
-        speed_of_sound_mps=
-            SPEED_OF_SOUND_MPS,
+        speed_of_sound_mps=SPEED_OF_SOUND_MPS,
     )
 
-    assert (
-        first.success
-        == second.success
+    assert first.success == second.success
+
+    assert first.x == pytest.approx(
+        second.x,
+        abs=1e-12,
     )
 
-    assert (
-        first.x
-        == pytest.approx(
-            second.x,
-            abs=
-                1e-12,
-        )
+    assert first.y == pytest.approx(
+        second.y,
+        abs=1e-12,
     )
 
-    assert (
-        first.y
-        == pytest.approx(
-            second.y,
-            abs=
-                1e-12,
-        )
-    )
-
-    assert (
-        first.residual_rms_seconds
-        == pytest.approx(
-            second.residual_rms_seconds,
-            abs=
-                1e-15,
-        )
+    assert first.residual_rms_seconds == pytest.approx(
+        second.residual_rms_seconds,
+        abs=1e-15,
     )
 
 
@@ -1470,23 +1041,12 @@ def test_exact_measurements_have_near_zero_residual() -> None:
 
     result = solve_position(
         NODE_POSITIONS,
-        make_all_pair_measurements(
-            source
-        ),
-        speed_of_sound_mps=
-            SPEED_OF_SOUND_MPS,
+        make_all_pair_measurements(source),
+        speed_of_sound_mps=SPEED_OF_SOUND_MPS,
     )
 
-    assert (
-        result.success
-    )
+    assert result.success
 
-    assert (
-        result.residual_rms_seconds
-        < 1e-8
-    )
+    assert result.residual_rms_seconds < 1e-8
 
-    assert (
-        result.residual_rms_meters
-        < 1e-5
-    )
+    assert result.residual_rms_meters < 1e-5

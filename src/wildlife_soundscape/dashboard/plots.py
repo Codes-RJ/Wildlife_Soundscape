@@ -87,6 +87,8 @@ from typing import (
 
 import plotly.graph_objects as go
 
+from wildlife_soundscape.dashboard.palette import apply_chart_theme, class_color
+
 
 # ======================================================================
 # PROJECT IMPORTS
@@ -107,19 +109,13 @@ from wildlife_soundscape.analytics.models import (
 # ======================================================================
 
 
-DEFAULT_MAX_PLOT_POINTS = (
-    5000
-)
+DEFAULT_MAX_PLOT_POINTS = 5000
 
 
-UTC_SUFFIX = (
-    "Z"
-)
+UTC_SUFFIX = "Z"
 
 
-_MISSING = (
-    object()
-)
+_MISSING = object()
 
 
 # ======================================================================
@@ -142,12 +138,8 @@ def _row_value(
         None,
     )
 
-    if callable(
-        getter
-    ):
-
+    if callable(getter):
         try:
-
             return getter(
                 key,
                 default,
@@ -157,24 +149,17 @@ def _row_value(
             KeyError,
             TypeError,
         ):
-
             pass
 
     try:
-
-        return row[
-            key
-        ]
+        return row[key]
 
     except (
         KeyError,
         IndexError,
         TypeError,
     ):
-
-        return (
-            default
-        )
+        return default
 
 
 # ======================================================================
@@ -189,41 +174,22 @@ def _finite_float_or_none(
     Convert optional numeric input to finite float.
     """
 
-    if (
-        value
-        is None
-    ):
-
-        return (
-            None
-        )
+    if value is None:
+        return None
 
     try:
-
-        result = float(
-            value
-        )
+        result = float(value)
 
     except (
         TypeError,
         ValueError,
     ):
+        return None
 
-        return (
-            None
-        )
+    if not math.isfinite(result):
+        return None
 
-    if not math.isfinite(
-        result
-    ):
-
-        return (
-            None
-        )
-
-    return (
-        result
-    )
+    return result
 
 
 # ======================================================================
@@ -260,105 +226,54 @@ def _boolean_or_none(
         value,
         bool,
     ):
-
-        return (
-            value
-        )
+        return value
 
     if isinstance(
         value,
         int,
     ):
+        if value == 1:
+            return True
 
-        if (
-            value
-            == 1
-        ):
+        if value == 0:
+            return False
 
-            return (
-                True
-            )
-
-        if (
-            value
-            == 0
-        ):
-
-            return (
-                False
-            )
-
-        return (
-            None
-        )
+        return None
 
     if isinstance(
         value,
         float,
     ):
+        if not math.isfinite(value):
+            return None
 
-        if not math.isfinite(
-            value
-        ):
+        if value == 1.0:
+            return True
 
-            return (
-                None
-            )
+        if value == 0.0:
+            return False
 
-        if (
-            value
-            == 1.0
-        ):
-
-            return (
-                True
-            )
-
-        if (
-            value
-            == 0.0
-        ):
-
-            return (
-                False
-            )
-
-        return (
-            None
-        )
+        return None
 
     if isinstance(
         value,
         str,
     ):
-
-        normalized = (
-            value
-            .strip()
-            .lower()
-        )
+        normalized = value.strip().lower()
 
         if normalized in {
             "1",
             "true",
         }:
-
-            return (
-                True
-            )
+            return True
 
         if normalized in {
             "0",
             "false",
         }:
+            return False
 
-            return (
-                False
-            )
-
-    return (
-        None
-    )
+    return None
 
 
 # ======================================================================
@@ -376,29 +291,16 @@ def _localization_is_accepted(
     are not presented as successful localization results.
     """
 
-    raw_value = (
-        _row_value(
-            row,
-            "localization_success",
-            _MISSING,
-        )
+    raw_value = _row_value(
+        row,
+        "localization_success",
+        _MISSING,
     )
 
-    if (
-        raw_value
-        is _MISSING
-    ):
+    if raw_value is _MISSING:
+        return False
 
-        return (
-            False
-        )
-
-    return (
-        _boolean_or_none(
-            raw_value
-        )
-        is True
-    )
+    return _boolean_or_none(raw_value) is True
 
 
 # ======================================================================
@@ -421,30 +323,18 @@ def _event_identifier(
         event_id
     """
 
-    value = (
-        _row_value(
-            row,
-            "id",
-            _MISSING,
-        )
+    value = _row_value(
+        row,
+        "id",
+        _MISSING,
     )
 
-    if (
-        value
-        is not _MISSING
-        and value
-        is not None
-    ):
+    if value is not _MISSING and value is not None:
+        return value
 
-        return (
-            value
-        )
-
-    return (
-        _row_value(
-            row,
-            "event_id",
-        )
+    return _row_value(
+        row,
+        "event_id",
     )
 
 
@@ -462,67 +352,34 @@ def _parse_datetime_or_none(
     Invalid/missing timestamps return None.
     """
 
-    if (
-        value
-        is None
-    ):
-
-        return (
-            None
-        )
+    if value is None:
+        return None
 
     if isinstance(
         value,
         datetime,
     ):
-
-        return (
-            value
-        )
+        return value
 
     if not isinstance(
         value,
         str,
     ):
+        return None
 
-        return (
-            None
-        )
+    text = value.strip()
 
-    text = (
-        value.strip()
-    )
+    if not (text):
+        return None
 
-    if not (
-        text
-    ):
-
-        return (
-            None
-        )
-
-    if text.endswith(
-        UTC_SUFFIX
-    ):
-
-        text = (
-            text[
-                :-1
-            ]
-            + "+00:00"
-        )
+    if text.endswith(UTC_SUFFIX):
+        text = text[:-1] + "+00:00"
 
     try:
-
-        return datetime.fromisoformat(
-            text
-        )
+        return datetime.fromisoformat(text)
 
     except ValueError:
-
-        return (
-            None
-        )
+        return None
 
 
 # ======================================================================
@@ -537,35 +394,19 @@ def _validate_max_points(
     Require a positive Python integer plot-point limit.
     """
 
-    if (
-        isinstance(
-            value,
-            bool,
-        )
-        or not isinstance(
-            value,
-            int,
-        )
+    if isinstance(
+        value,
+        bool,
+    ) or not isinstance(
+        value,
+        int,
     ):
+        raise TypeError("max_points must be an integer.")
 
-        raise TypeError(
-            "max_points must be an integer."
-        )
+    if value <= 0:
+        raise ValueError("max_points must be greater than 0.")
 
-    if (
-        value
-        <= 0
-    ):
-
-        raise ValueError(
-            "max_points must be greater than 0."
-        )
-
-    return (
-        int(
-            value
-        )
-    )
+    return int(value)
 
 
 # ======================================================================
@@ -574,14 +415,10 @@ def _validate_max_points(
 
 
 def _decimate_sequence(
-    values: Sequence[
-        Any
-    ],
+    values: Sequence[Any],
     *,
     max_points: int,
-) -> list[
-    Any
-]:
+) -> list[Any]:
     """
     Reduce a sequence to at most max_points while preserving order.
 
@@ -591,56 +428,24 @@ def _decimate_sequence(
     This helper is only for visualization.
     """
 
-    max_points = (
-        _validate_max_points(
-            max_points
-        )
-    )
+    max_points = _validate_max_points(max_points)
 
-    value_count = (
-        len(
-            values
-        )
-    )
+    value_count = len(values)
 
-    if (
-        value_count
-        <= max_points
-    ):
+    if value_count <= max_points:
+        return list(values)
 
-        return list(
-            values
-        )
-
-    step = (
-        value_count
-        / max_points
-    )
+    step = value_count / max_points
 
     indices = [
         min(
-            value_count
-            - 1,
-            int(
-                index
-                * step
-            ),
+            value_count - 1,
+            int(index * step),
         )
-
-        for index
-        in range(
-            max_points
-        )
+        for index in range(max_points)
     ]
 
-    return [
-        values[
-            index
-        ]
-
-        for index
-        in indices
-    ]
+    return [values[index] for index in indices]
 
 
 # ======================================================================
@@ -660,125 +465,59 @@ def _validated_node_positions(
         | None
     ),
 ) -> tuple[
-    list[
-        int
-    ],
-    list[
-        float
-    ],
-    list[
-        float
-    ],
+    list[int],
+    list[float],
+    list[float],
 ]:
     """
     Normalize microphone-node coordinates for plotting.
     """
 
-    if (
-        node_positions
-        is None
-    ):
-
+    if node_positions is None:
         return (
             [],
             [],
             [],
         )
 
-    node_ids: list[
-        int
-    ] = []
+    node_ids: list[int] = []
 
-    node_x: list[
-        float
-    ] = []
+    node_x: list[float] = []
 
-    node_y: list[
-        float
-    ] = []
+    node_y: list[float] = []
 
-    for node_id in sorted(
-        node_positions
-    ):
-
-        position = (
-            node_positions[
-                node_id
-            ]
-        )
+    for node_id in sorted(node_positions):
+        position = node_positions[node_id]
 
         try:
-
-            raw_x_value, raw_y_value = (
-                position
-            )
+            raw_x_value, raw_y_value = position
 
         except Exception as exc:
-
             raise ValueError(
-                (
-                    "Each node position must contain "
-                    "exactly two coordinates."
-                )
+                ("Each node position must contain exactly two coordinates.")
             ) from exc
 
-        x_value = (
-            _finite_float_or_none(
-                raw_x_value
-            )
-        )
+        x_value = _finite_float_or_none(raw_x_value)
 
-        y_value = (
-            _finite_float_or_none(
-                raw_y_value
-            )
-        )
+        y_value = _finite_float_or_none(raw_y_value)
 
-        if (
-            x_value
-            is None
-            or y_value
-            is None
-        ):
-
-            raise ValueError(
-                (
-                    "Node positions must contain "
-                    "finite coordinates."
-                )
-            )
+        if x_value is None or y_value is None:
+            raise ValueError(("Node positions must contain finite coordinates."))
 
         try:
-
-            normalized_node_id = (
-                int(
-                    node_id
-                )
-            )
+            normalized_node_id = int(node_id)
 
         except (
             TypeError,
             ValueError,
         ) as exc:
+            raise ValueError(("Node IDs must be integer-compatible.")) from exc
 
-            raise ValueError(
-                (
-                    "Node IDs must be "
-                    "integer-compatible."
-                )
-            ) from exc
+        node_ids.append(normalized_node_id)
 
-        node_ids.append(
-            normalized_node_id
-        )
+        node_x.append(x_value)
 
-        node_x.append(
-            x_value
-        )
-
-        node_y.append(
-            y_value
-        )
+        node_y.append(y_value)
 
     return (
         node_ids,
@@ -814,56 +553,33 @@ def _add_microphone_trace(
         node_ids,
         node_x,
         node_y,
-    ) = (
-        _validated_node_positions(
-            node_positions
-        )
-    )
+    ) = _validated_node_positions(node_positions)
 
-    if not (
-        node_ids
-    ):
-
+    if not (node_ids):
         return
+
+    if len(node_ids) == 3:
+        figure.add_trace(go.Scatter(
+            x=node_x + [node_x[0]], y=node_y + [node_y[0]],
+            mode="lines", name="Array boundary",
+            line={"color": "#111111", "width": 2, "dash": "dash"},
+            hoverinfo="skip",
+        ))
 
     figure.add_trace(
         go.Scatter(
-            x=
-                node_x,
-
-            y=
-                node_y,
-
-            mode=
-                "markers+text",
-
-            name=
-                "Microphones",
-
-            text=[
-                f"Node {node_id}"
-
-                for node_id
-                in node_ids
-            ],
-
-            textposition=
-                "top center",
-
+            x=node_x,
+            y=node_y,
+            mode="markers+text",
+            name="Microphones",
+            text=[f"Node {node_id}" for node_id in node_ids],
+            textposition="top center",
             marker=dict(
-                symbol=
-                    "diamond",
-
-                size=
-                    13,
+                symbol="diamond",
+                size=13,
+                color="#111111",
             ),
-
-            hovertemplate=(
-                "%{text}<br>"
-                "X: %{x:.3f} m<br>"
-                "Y: %{y:.3f} m"
-                "<extra></extra>"
-            ),
+            hovertemplate=("%{text}<br>X: %{x:.3f} m<br>Y: %{y:.3f} m<extra></extra>"),
         )
     )
 
@@ -882,64 +598,32 @@ def _apply_common_layout(
     height: int | None = None,
 ) -> go.Figure:
     """
-    Apply consistent dashboard layout without imposing a color theme.
+    Apply monochrome chart surfaces with semantic data colors.
     """
 
+    apply_chart_theme(figure)
     figure.update_layout(
-        title=
-            title,
-
+        title=title,
         margin=dict(
-            l=
-                40,
-            r=
-                30,
-            t=
-                60,
-            b=
-                40,
+            l=40,
+            r=30,
+            t=60,
+            b=40,
         ),
-
-        hovermode=
-            "closest",
-
-        legend_title_text=
-            "",
+        hovermode="closest",
+        legend_title_text="",
     )
 
-    if (
-        x_title
-        is not None
-    ):
+    if x_title is not None:
+        figure.update_xaxes(title_text=x_title)
 
-        figure.update_xaxes(
-            title_text=
-                x_title
-        )
+    if y_title is not None:
+        figure.update_yaxes(title_text=y_title)
 
-    if (
-        y_title
-        is not None
-    ):
+    if height is not None:
+        figure.update_layout(height=height)
 
-        figure.update_yaxes(
-            title_text=
-                y_title
-        )
-
-    if (
-        height
-        is not None
-    ):
-
-        figure.update_layout(
-            height=
-                height
-        )
-
-    return (
-        figure
-    )
+    return figure
 
 
 # ======================================================================
@@ -961,62 +645,33 @@ def empty_figure(
         title,
         str,
     ):
-
-        raise TypeError(
-            "title must be a string."
-        )
+        raise TypeError("title must be a string.")
 
     if not isinstance(
         message,
         str,
     ):
+        raise TypeError("message must be a string.")
 
-        raise TypeError(
-            "message must be a string."
-        )
-
-    figure = (
-        go.Figure()
-    )
+    figure = go.Figure()
 
     figure.add_annotation(
-        x=
-            0.5,
-
-        y=
-            0.5,
-
-        xref=
-            "paper",
-
-        yref=
-            "paper",
-
-        text=
-            message,
-
-        showarrow=
-            False,
+        x=0.5,
+        y=0.5,
+        xref="paper",
+        yref="paper",
+        text=message,
+        showarrow=False,
     )
 
-    figure.update_xaxes(
-        visible=
-            False
-    )
+    figure.update_xaxes(visible=False)
 
-    figure.update_yaxes(
-        visible=
-            False
-    )
+    figure.update_yaxes(visible=False)
 
-    return (
-        _apply_common_layout(
-            figure,
-            title=
-                title,
-            height=
-                height,
-        )
+    return _apply_common_layout(
+        figure,
+        title=title,
+        height=height,
     )
 
 
@@ -1026,9 +681,7 @@ def empty_figure(
 
 
 def build_recent_event_timeline(
-    rows: Iterable[
-        Any
-    ],
+    rows: Iterable[Any],
     *,
     max_points: int = DEFAULT_MAX_PLOT_POINTS,
 ) -> go.Figure:
@@ -1047,15 +700,9 @@ def build_recent_event_timeline(
     ``localization_success`` is explicitly true.
     """
 
-    max_points = (
-        _validate_max_points(
-            max_points
-        )
-    )
+    max_points = _validate_max_points(max_points)
 
-    materialized = list(
-        rows
-    )
+    materialized = list(rows)
 
     points: list[
         dict[
@@ -1064,154 +711,85 @@ def build_recent_event_timeline(
         ]
     ] = []
 
-    for row in (
-        materialized
-    ):
-
-        timestamp = (
-            _parse_datetime_or_none(
-                _row_value(
-                    row,
-                    "event_time",
-                    _row_value(
-                        row,
-                        "created_at",
-                    ),
-                )
-            )
-        )
-
-        if (
-            timestamp
-            is None
-        ):
-
-            continue
-
-        label = (
+    for row in materialized:
+        timestamp = _parse_datetime_or_none(
             _row_value(
                 row,
-                "classification_label",
-                "unclassified",
-            )
-        )
-
-        if (
-            label
-            is None
-            or not str(
-                label
-            ).strip()
-        ):
-
-            label = (
-                "unclassified"
-            )
-
-        confidence = (
-            _finite_float_or_none(
+                "event_time",
                 _row_value(
                     row,
-                    "classification_confidence",
-                )
+                    "created_at",
+                ),
             )
         )
 
-        rms = (
-            _finite_float_or_none(
+        if timestamp is None:
+            continue
+
+        label = _row_value(
+            row,
+            "classification_label",
+            "unclassified",
+        )
+
+        if label is None or not str(label).strip():
+            label = "unclassified"
+
+        confidence = _finite_float_or_none(
+            _row_value(
+                row,
+                "classification_confidence",
+            )
+        )
+
+        rms = _finite_float_or_none(
+            _row_value(
+                row,
+                "rms",
+            )
+        )
+
+        if _localization_is_accepted(row):
+            x_m = _finite_float_or_none(
                 _row_value(
                     row,
-                    "rms",
-                )
-            )
-        )
-
-        if (
-            _localization_is_accepted(
-                row
-            )
-        ):
-
-            x_m = (
-                _finite_float_or_none(
-                    _row_value(
-                        row,
-                        "x_m",
-                    )
+                    "x_m",
                 )
             )
 
-            y_m = (
-                _finite_float_or_none(
-                    _row_value(
-                        row,
-                        "y_m",
-                    )
+            y_m = _finite_float_or_none(
+                _row_value(
+                    row,
+                    "y_m",
                 )
             )
 
         else:
+            x_m = None
 
-            x_m = (
-                None
-            )
-
-            y_m = (
-                None
-            )
+            y_m = None
 
         points.append(
             {
-                "time":
-                    timestamp,
-
-                "label":
-                    str(
-                        label
-                    ),
-
-                "event_id":
-                    _event_identifier(
-                        row
-                    ),
-
-                "confidence":
-                    confidence,
-
-                "rms":
-                    rms,
-
-                "x_m":
-                    x_m,
-
-                "y_m":
-                    y_m,
+                "time": timestamp,
+                "label": str(label),
+                "event_id": _event_identifier(row),
+                "confidence": confidence,
+                "rms": rms,
+                "x_m": x_m,
+                "y_m": y_m,
             }
         )
 
-    points = (
-        _decimate_sequence(
-            points,
-            max_points=
-                max_points,
-        )
+    points = _decimate_sequence(
+        points,
+        max_points=max_points,
     )
 
-    if not (
-        points
-    ):
-
-        return (
-            empty_figure(
-                title=
-                    "Recent Acoustic Events",
-
-                message=
-                    (
-                        "No timestamped acoustic "
-                        "events are available."
-                    ),
-            )
+    if not (points):
+        return empty_figure(
+            title="Recent Acoustic Events",
+            message=("No timestamped acoustic events are available."),
         )
 
     grouped: dict[
@@ -1222,87 +800,33 @@ def build_recent_event_timeline(
                 Any,
             ]
         ],
-    ] = (
-        defaultdict(
-            list
-        )
-    )
+    ] = defaultdict(list)
 
-    for point in (
-        points
-    ):
+    for point in points:
+        grouped[point["label"]].append(point)
 
-        grouped[
-            point[
-                "label"
-            ]
-        ].append(
-            point
-        )
+    figure = go.Figure()
 
-    figure = (
-        go.Figure()
-    )
-
-    for label in sorted(
-        grouped
-    ):
-
-        label_points = (
-            grouped[
-                label
-            ]
-        )
+    for label in sorted(grouped):
+        label_points = grouped[label]
 
         figure.add_trace(
             go.Scatter(
-                x=[
-                    point[
-                        "time"
-                    ]
-
-                    for point
-                    in label_points
-                ],
-
-                y=[
-                    point[
-                        "label"
-                    ]
-
-                    for point
-                    in label_points
-                ],
-
-                mode=
-                    "markers",
-
-                name=
-                    label,
-
+                x=[point["time"] for point in label_points],
+                y=[point["label"] for point in label_points],
+                mode="markers",
+                name=label,
+                marker={"color": class_color(label), "size": 9},
                 customdata=[
                     [
-                        point[
-                            "event_id"
-                        ],
-                        point[
-                            "confidence"
-                        ],
-                        point[
-                            "rms"
-                        ],
-                        point[
-                            "x_m"
-                        ],
-                        point[
-                            "y_m"
-                        ],
+                        point["event_id"],
+                        point["confidence"],
+                        point["rms"],
+                        point["x_m"],
+                        point["y_m"],
                     ]
-
-                    for point
-                    in label_points
+                    for point in label_points
                 ],
-
                 hovertemplate=(
                     "<b>%{y}</b><br>"
                     "Time: %{x}<br>"
@@ -1316,22 +840,12 @@ def build_recent_event_timeline(
             )
         )
 
-    return (
-        _apply_common_layout(
-            figure,
-
-            title=
-                "Recent Acoustic Events",
-
-            x_title=
-                "Time",
-
-            y_title=
-                "Acoustic Class",
-
-            height=
-                400,
-        )
+    return _apply_common_layout(
+        figure,
+        title="Recent Acoustic Events",
+        x_title="Time",
+        y_title="Acoustic Class",
+        height=400,
     )
 
 
@@ -1341,9 +855,7 @@ def build_recent_event_timeline(
 
 
 def build_activity_timeline(
-    bins: Iterable[
-        ActivityBin
-    ],
+    bins: Iterable[ActivityBin],
     *,
     max_points: int = DEFAULT_MAX_PLOT_POINTS,
 ) -> go.Figure:
@@ -1351,150 +863,71 @@ def build_activity_timeline(
     Plot event count and active duration across temporal bins.
     """
 
-    max_points = (
-        _validate_max_points(
-            max_points
-        )
-    )
+    max_points = _validate_max_points(max_points)
 
-    materialized = tuple(
-        bins
-    )
+    materialized = tuple(bins)
 
-    for activity_bin in (
-        materialized
-    ):
-
+    for activity_bin in materialized:
         if not isinstance(
             activity_bin,
             ActivityBin,
         ):
+            raise TypeError(("bins must contain ActivityBin objects."))
 
-            raise TypeError(
-                (
-                    "bins must contain "
-                    "ActivityBin objects."
-                )
-            )
-
-    if not (
-        materialized
-    ):
-
-        return (
-            empty_figure(
-                title=
-                    "Temporal Acoustic Activity",
-            )
+    if not (materialized):
+        return empty_figure(
+            title="Temporal Acoustic Activity",
         )
 
-    visible_bins = (
-        _decimate_sequence(
-            materialized,
-            max_points=
-                max_points,
-        )
+    visible_bins = _decimate_sequence(
+        materialized,
+        max_points=max_points,
     )
 
     centers = [
         (
             activity_bin.bucket_start
-            + (
-                activity_bin.bucket_end
-                - activity_bin.bucket_start
-            )
-            / 2
+            + (activity_bin.bucket_end - activity_bin.bucket_start) / 2
         )
-
-        for activity_bin
-        in visible_bins
+        for activity_bin in visible_bins
     ]
 
-    figure = (
-        go.Figure()
-    )
+    figure = go.Figure()
 
     figure.add_trace(
         go.Bar(
-            x=
-                centers,
-
-            y=[
-                activity_bin.event_count
-
-                for activity_bin
-                in visible_bins
-            ],
-
-            name=
-                "Event count",
-
-            hovertemplate=(
-                "Time: %{x}<br>"
-                "Events: %{y}"
-                "<extra></extra>"
-            ),
+            x=centers,
+            y=[activity_bin.event_count for activity_bin in visible_bins],
+            name="Event count",
+            hovertemplate=("Time: %{x}<br>Events: %{y}<extra></extra>"),
         )
     )
 
     figure.add_trace(
         go.Scatter(
-            x=
-                centers,
-
-            y=[
-                activity_bin.active_duration_s
-
-                for activity_bin
-                in visible_bins
-            ],
-
-            mode=
-                "lines+markers",
-
-            name=
-                "Active duration (s)",
-
-            yaxis=
-                "y2",
-
-            hovertemplate=(
-                "Time: %{x}<br>"
-                "Active duration: %{y:.3f} s"
-                "<extra></extra>"
-            ),
+            x=centers,
+            y=[activity_bin.active_duration_s for activity_bin in visible_bins],
+            mode="lines+markers",
+            name="Active duration (s)",
+            yaxis="y2",
+            hovertemplate=("Time: %{x}<br>Active duration: %{y:.3f} s<extra></extra>"),
         )
     )
 
     figure.update_layout(
         yaxis2=dict(
-            title=
-                "Active Duration (s)",
-
-            overlaying=
-                "y",
-
-            side=
-                "right",
+            title="Active Duration (s)",
+            overlaying="y",
+            side="right",
         )
     )
 
-    return (
-        _apply_common_layout(
-            figure,
-
-            title=
-                "Temporal Acoustic Activity",
-
-            x_title=
-                "Time",
-
-            y_title=
-                "Event Count",
-
-            height=
-                430,
-        )
+    return _apply_common_layout(
+        figure,
+        title="Temporal Acoustic Activity",
+        x_title="Time",
+        y_title="Event Count",
+        height=430,
     )
 
 
@@ -1514,66 +947,34 @@ def build_class_distribution(
         activity,
         ActivitySummary,
     ):
+        raise TypeError(("activity must be an ActivitySummary."))
 
-        raise TypeError(
-            (
-                "activity must be an "
-                "ActivitySummary."
-            )
+    summaries = activity.class_summaries
+
+    if not (summaries):
+        return empty_figure(
+            title="Acoustic Class Distribution",
         )
 
-    summaries = (
-        activity.class_summaries
-    )
+    labels = [summary.class_label for summary in summaries]
 
-    if not (
-        summaries
-    ):
+    counts = [summary.event_count for summary in summaries]
 
-        return (
-            empty_figure(
-                title=
-                    "Acoustic Class Distribution",
-            )
-        )
-
-    labels = [
-        summary.class_label
-
-        for summary
-        in summaries
-    ]
-
-    counts = [
-        summary.event_count
-
-        for summary
-        in summaries
-    ]
-
-    figure = (
-        go.Figure()
-    )
+    figure = go.Figure()
 
     figure.add_trace(
         go.Bar(
-            x=
-                labels,
-
-            y=
-                counts,
-
+            x=labels,
+            y=counts,
+            marker={"color": [class_color(label) for label in labels]},
             customdata=[
                 [
                     summary.proportion_of_events,
                     summary.total_duration_s,
                     summary.mean_confidence,
                 ]
-
-                for summary
-                in summaries
+                for summary in summaries
             ],
-
             hovertemplate=(
                 "<b>%{x}</b><br>"
                 "Events: %{y}<br>"
@@ -1586,22 +987,12 @@ def build_class_distribution(
         )
     )
 
-    return (
-        _apply_common_layout(
-            figure,
-
-            title=
-                "Acoustic Class Distribution",
-
-            x_title=
-                "Acoustic Class",
-
-            y_title=
-                "Detected Events",
-
-            height=
-                400,
-        )
+    return _apply_common_layout(
+        figure,
+        title="Acoustic Class Distribution",
+        x_title="Acoustic Class",
+        y_title="Detected Events",
+        height=400,
     )
 
 
@@ -1611,9 +1002,7 @@ def build_class_distribution(
 
 
 def build_environmental_timeseries(
-    rows: Iterable[
-        Any
-    ],
+    rows: Iterable[Any],
     *,
     timestamp_key: str = "bucket_start",
     max_points: int = DEFAULT_MAX_PLOT_POINTS,
@@ -1622,82 +1011,44 @@ def build_environmental_timeseries(
     Plot BME280 environmental measurements over time.
     """
 
-    max_points = (
-        _validate_max_points(
-            max_points
-        )
-    )
+    max_points = _validate_max_points(max_points)
 
     if not isinstance(
         timestamp_key,
         str,
     ):
+        raise TypeError("timestamp_key must be a string.")
 
-        raise TypeError(
-            "timestamp_key must be a string."
-        )
+    timestamp_key = timestamp_key.strip()
 
-    timestamp_key = (
-        timestamp_key.strip()
+    if not (timestamp_key):
+        raise ValueError("timestamp_key cannot be empty.")
+
+    materialized = _decimate_sequence(
+        list(rows),
+        max_points=max_points,
     )
 
-    if not (
-        timestamp_key
-    ):
+    timestamps: list[datetime] = []
 
-        raise ValueError(
-            "timestamp_key cannot be empty."
-        )
+    temperatures: list[float | None] = []
 
-    materialized = (
-        _decimate_sequence(
-            list(
-                rows
-            ),
-            max_points=
-                max_points,
-        )
-    )
+    humidities: list[float | None] = []
 
-    timestamps: list[
-        datetime
-    ] = []
+    pressures: list[float | None] = []
 
-    temperatures: list[
-        float | None
-    ] = []
-
-    humidities: list[
-        float | None
-    ] = []
-
-    pressures: list[
-        float | None
-    ] = []
-
-    for row in (
-        materialized
-    ):
-
-        timestamp = (
-            _parse_datetime_or_none(
-                _row_value(
-                    row,
-                    timestamp_key,
-                )
+    for row in materialized:
+        timestamp = _parse_datetime_or_none(
+            _row_value(
+                row,
+                timestamp_key,
             )
         )
 
-        if (
-            timestamp
-            is None
-        ):
-
+        if timestamp is None:
             continue
 
-        timestamps.append(
-            timestamp
-        )
+        timestamps.append(timestamp)
 
         temperatures.append(
             _finite_float_or_none(
@@ -1726,141 +1077,68 @@ def build_environmental_timeseries(
             )
         )
 
-    if not (
-        timestamps
-    ):
-
-        return (
-            empty_figure(
-                title=
-                    "Environmental Conditions",
-            )
+    if not (timestamps):
+        return empty_figure(
+            title="Environmental Conditions",
         )
 
-    figure = (
-        go.Figure()
-    )
+    figure = go.Figure()
 
     figure.add_trace(
         go.Scatter(
-            x=
-                timestamps,
-
-            y=
-                temperatures,
-
-            mode=
-                "lines+markers",
-
-            name=
-                "Temperature (°C)",
-
-            hovertemplate=(
-                "Time: %{x}<br>"
-                "Temperature: %{y:.2f} °C"
-                "<extra></extra>"
-            ),
+            x=timestamps,
+            y=temperatures,
+            mode="lines+markers",
+            name="Temperature (°C)",
+            hovertemplate=("Time: %{x}<br>Temperature: %{y:.2f} °C<extra></extra>"),
         )
     )
 
     figure.add_trace(
         go.Scatter(
-            x=
-                timestamps,
-
-            y=
-                humidities,
-
-            mode=
-                "lines+markers",
-
-            name=
-                "Humidity (%)",
-
-            yaxis=
-                "y2",
-
-            hovertemplate=(
-                "Time: %{x}<br>"
-                "Humidity: %{y:.2f}%"
-                "<extra></extra>"
-            ),
+            x=timestamps,
+            y=humidities,
+            mode="lines+markers",
+            name="Humidity (%)",
+            yaxis="y2",
+            hovertemplate=("Time: %{x}<br>Humidity: %{y:.2f}%<extra></extra>"),
         )
     )
 
     figure.add_trace(
         go.Scatter(
-            x=
-                timestamps,
-
-            y=
-                pressures,
-
-            mode=
-                "lines+markers",
-
-            name=
-                "Pressure (hPa)",
-
-            yaxis=
-                "y3",
-
-            hovertemplate=(
-                "Time: %{x}<br>"
-                "Pressure: %{y:.2f} hPa"
-                "<extra></extra>"
-            ),
+            x=timestamps,
+            y=pressures,
+            mode="lines+markers",
+            name="Pressure (hPa)",
+            yaxis="y3",
+            hovertemplate=("Time: %{x}<br>Pressure: %{y:.2f} hPa<extra></extra>"),
         )
     )
 
     figure.update_layout(
         yaxis=dict(
-            title=
-                "Temperature (°C)",
+            title="Temperature (°C)",
         ),
-
         yaxis2=dict(
-            title=
-                "Humidity (%)",
-
-            overlaying=
-                "y",
-
-            side=
-                "right",
+            title="Humidity (%)",
+            overlaying="y",
+            side="right",
         ),
-
         yaxis3=dict(
-            title=
-                "Pressure (hPa)",
-
-            anchor=
-                "free",
-
-            overlaying=
-                "y",
-
-            side=
-                "right",
-
-            position=
-                0.95,
+            title="Pressure (hPa)",
+            anchor="free",
+            overlaying="y",
+            side="right",
+            position=0.95,
         ),
     )
 
-    return (
-        _apply_common_layout(
-            figure,
-
-            title=
-                "Environmental Conditions",
-
-            x_title=
-                "Time",
-
-            height=
-                430,
-        )
+    return _apply_common_layout(
+        figure,
+        title="Environmental Conditions",
+        x_title="Time",
+        height=430,
     )
 
 
@@ -1870,9 +1148,7 @@ def build_environmental_timeseries(
 
 
 def build_environmental_association_matrix(
-    associations: Iterable[
-        EnvironmentalAssociation
-    ],
+    associations: Iterable[EnvironmentalAssociation],
 ) -> go.Figure:
     """
     Plot environmental Spearman coefficients as a heatmap.
@@ -1880,113 +1156,57 @@ def build_environmental_association_matrix(
     Undefined coefficients remain blank.
     """
 
-    materialized = tuple(
-        associations
-    )
+    materialized = tuple(associations)
 
-    for association in (
-        materialized
-    ):
-
+    for association in materialized:
         if not isinstance(
             association,
             EnvironmentalAssociation,
         ):
-
             raise TypeError(
-                (
-                    "associations must contain "
-                    "EnvironmentalAssociation objects."
-                )
+                ("associations must contain EnvironmentalAssociation objects.")
             )
 
-    if not (
-        materialized
-    ):
-
-        return (
-            empty_figure(
-                title=
-                    "Environmental Associations",
-            )
+    if not (materialized):
+        return empty_figure(
+            title="Environmental Associations",
         )
 
     environmental_variables = sorted(
-        {
-            association.environmental_variable
-
-            for association
-            in materialized
-        }
+        {association.environmental_variable for association in materialized}
     )
 
     response_variables = sorted(
-        {
-            association.response_variable
-
-            for association
-            in materialized
-        }
+        {association.response_variable for association in materialized}
     )
 
     lookup = {
         (
             association.environmental_variable,
             association.response_variable,
-        ):
-            association
-
-        for association
-        in materialized
+        ): association
+        for association in materialized
     }
 
-    z_values: list[
-        list[
-            float | None
-        ]
-    ] = []
+    z_values: list[list[float | None]] = []
 
-    hover_text: list[
-        list[
-            str
-        ]
-    ] = []
+    hover_text: list[list[str]] = []
 
-    for environmental_variable in (
-        environmental_variables
-    ):
+    for environmental_variable in environmental_variables:
+        z_row: list[float | None] = []
 
-        z_row: list[
-            float | None
-        ] = []
+        hover_row: list[str] = []
 
-        hover_row: list[
-            str
-        ] = []
-
-        for response_variable in (
-            response_variables
-        ):
-
-            association = (
-                lookup.get(
-                    (
-                        environmental_variable,
-                        response_variable,
-                    )
+        for response_variable in response_variables:
+            association = lookup.get(
+                (
+                    environmental_variable,
+                    response_variable,
                 )
             )
 
-            if (
-                association
-                is None
-                or association.coefficient
-                is None
-            ):
-
-                z_row.append(
-                    None
-                )
+            if association is None or association.coefficient is None:
+                z_row.append(None)
 
                 hover_row.append(
                     (
@@ -1999,19 +1219,12 @@ def build_environmental_association_matrix(
 
                 continue
 
-            z_row.append(
-                association.coefficient
-            )
+            z_row.append(association.coefficient)
 
             p_value_text = (
                 "Unavailable"
-
-                if association.p_value
-                is None
-
-                else (
-                    f"{association.p_value:.4g}"
-                )
+                if association.p_value is None
+                else (f"{association.p_value:.4g}")
             )
 
             hover_row.append(
@@ -2032,63 +1245,29 @@ def build_environmental_association_matrix(
                 )
             )
 
-        z_values.append(
-            z_row
-        )
+        z_values.append(z_row)
 
-        hover_text.append(
-            hover_row
-        )
+        hover_text.append(hover_row)
 
-    figure = (
-        go.Figure(
-            data=
-                go.Heatmap(
-                    z=
-                        z_values,
-
-                    x=
-                        response_variables,
-
-                    y=
-                        environmental_variables,
-
-                    zmin=
-                        -1.0,
-
-                    zmax=
-                        1.0,
-
-                    text=
-                        hover_text,
-
-                    hovertemplate=
-                        "%{text}<extra></extra>",
-
-                    colorbar=dict(
-                        title=
-                            "Spearman ρ"
-                    ),
-                )
+    figure = go.Figure(
+        data=go.Heatmap(
+            z=z_values,
+            x=response_variables,
+            y=environmental_variables,
+            zmin=-1.0,
+            zmax=1.0,
+            text=hover_text,
+            hovertemplate="%{text}<extra></extra>",
+            colorbar=dict(title="Spearman ρ"),
         )
     )
 
-    return (
-        _apply_common_layout(
-            figure,
-
-            title=
-                "Environmental Associations",
-
-            x_title=
-                "Acoustic / Activity Metric",
-
-            y_title=
-                "Environmental Variable",
-
-            height=
-                430,
-        )
+    return _apply_common_layout(
+        figure,
+        title="Environmental Associations",
+        x_title="Acoustic / Activity Metric",
+        y_title="Environmental Variable",
+        height=430,
     )
 
 
@@ -2098,9 +1277,7 @@ def build_environmental_association_matrix(
 
 
 def build_localization_scatter(
-    rows: Iterable[
-        Any
-    ],
+    rows: Iterable[Any],
     *,
     node_positions: (
         Mapping[
@@ -2124,11 +1301,7 @@ def build_localization_scatter(
     and both ``x_m`` and ``y_m`` are finite.
     """
 
-    max_points = (
-        _validate_max_points(
-            max_points
-        )
-    )
+    max_points = _validate_max_points(max_points)
 
     accepted_points: list[
         tuple[
@@ -2138,43 +1311,25 @@ def build_localization_scatter(
         ]
     ] = []
 
-    for row in (
-        rows
-    ):
-
-        if not (
-            _localization_is_accepted(
-                row
-            )
-        ):
-
+    for row in rows:
+        if not (_localization_is_accepted(row)):
             continue
 
-        x_m = (
-            _finite_float_or_none(
-                _row_value(
-                    row,
-                    "x_m",
-                )
+        x_m = _finite_float_or_none(
+            _row_value(
+                row,
+                "x_m",
             )
         )
 
-        y_m = (
-            _finite_float_or_none(
-                _row_value(
-                    row,
-                    "y_m",
-                )
+        y_m = _finite_float_or_none(
+            _row_value(
+                row,
+                "y_m",
             )
         )
 
-        if (
-            x_m
-            is None
-            or y_m
-            is None
-        ):
-
+        if x_m is None or y_m is None:
             continue
 
         accepted_points.append(
@@ -2185,12 +1340,9 @@ def build_localization_scatter(
             )
         )
 
-    visible_points = (
-        _decimate_sequence(
-            accepted_points,
-            max_points=
-                max_points,
-        )
+    visible_points = _decimate_sequence(
+        accepted_points,
+        max_points=max_points,
     )
 
     grouped: dict[
@@ -2201,167 +1353,80 @@ def build_localization_scatter(
                 Any,
             ]
         ],
-    ] = (
-        defaultdict(
-            list
-        )
-    )
+    ] = defaultdict(list)
 
     for (
         row,
         x_m,
         y_m,
-    ) in (
-        visible_points
-    ):
-
-        label = (
-            _row_value(
-                row,
-                "classification_label",
-                "unclassified",
-            )
+    ) in visible_points:
+        label = _row_value(
+            row,
+            "classification_label",
+            "unclassified",
         )
 
-        if (
-            label
-            is None
-            or not str(
-                label
-            ).strip()
-        ):
+        if label is None or not str(label).strip():
+            label = "unclassified"
 
-            label = (
-                "unclassified"
-            )
-
-        grouped[
-            str(
-                label
-            )
-        ].append(
+        grouped[str(label)].append(
             {
-                "x":
-                    x_m,
-
-                "y":
-                    y_m,
-
-                "event_id":
-                    _event_identifier(
-                        row
-                    ),
-
-                "time":
+                "x": x_m,
+                "y": y_m,
+                "event_id": _event_identifier(row),
+                "time": _row_value(
+                    row,
+                    "event_time",
                     _row_value(
                         row,
-                        "event_time",
-                        _row_value(
-                            row,
-                            "created_at",
-                        ),
+                        "created_at",
                     ),
-
-                "confidence":
-                    _finite_float_or_none(
-                        _row_value(
-                            row,
-                            "classification_confidence",
-                        )
-                    ),
-
-                "residual":
-                    _finite_float_or_none(
-                        _row_value(
-                            row,
-                            "localization_residual_m",
-                        )
-                    ),
+                ),
+                "confidence": _finite_float_or_none(
+                    _row_value(
+                        row,
+                        "classification_confidence",
+                    )
+                ),
+                "residual": _finite_float_or_none(
+                    _row_value(
+                        row,
+                        "localization_residual_m",
+                    )
+                ),
             }
         )
 
-    if (
-        not grouped
-        and not node_positions
-    ):
-
-        return (
-            empty_figure(
-                title=
-                    "Localized Acoustic Events",
-
-                message=
-                    (
-                        "No accepted localized acoustic "
-                        "events are available."
-                    ),
-            )
+    if not grouped and not node_positions:
+        return empty_figure(
+            title="Localized Acoustic Events",
+            message=("No accepted localized acoustic events are available."),
         )
 
-    figure = (
-        go.Figure()
-    )
+    figure = go.Figure()
 
-    for label in sorted(
-        grouped
-    ):
-
-        points = (
-            grouped[
-                label
-            ]
-        )
+    for label in sorted(grouped):
+        points = grouped[label]
 
         figure.add_trace(
             go.Scatter(
-                x=[
-                    point[
-                        "x"
-                    ]
-
-                    for point
-                    in points
-                ],
-
-                y=[
-                    point[
-                        "y"
-                    ]
-
-                    for point
-                    in points
-                ],
-
-                mode=
-                    "markers",
-
-                name=
-                    label,
-
+                x=[point["x"] for point in points],
+                y=[point["y"] for point in points],
+                mode="markers",
+                name=label,
+                marker={"color": class_color(label), "size": 9,
+                        "line": {"color": "#FFFFFF", "width": 1}},
                 customdata=[
                     [
-                        point[
-                            "event_id"
-                        ],
-                        point[
-                            "time"
-                        ],
-                        point[
-                            "confidence"
-                        ],
-                        point[
-                            "residual"
-                        ],
+                        point["event_id"],
+                        point["time"],
+                        point["confidence"],
+                        point["residual"],
                     ]
-
-                    for point
-                    in points
+                    for point in points
                 ],
-
                 hovertemplate=(
-                    "<b>"
-                    + label
-                    + "</b><br>"
+                    "<b>" + label + "</b><br>"
                     "X: %{x:.3f} m<br>"
                     "Y: %{y:.3f} m<br>"
                     "Event: %{customdata[0]}<br>"
@@ -2375,34 +1440,20 @@ def build_localization_scatter(
 
     _add_microphone_trace(
         figure,
-        node_positions=
-            node_positions,
+        node_positions=node_positions,
     )
 
     figure.update_yaxes(
-        scaleanchor=
-            "x",
-
-        scaleratio=
-            1,
+        scaleanchor="x",
+        scaleratio=1,
     )
 
-    return (
-        _apply_common_layout(
-            figure,
-
-            title=
-                "Localized Acoustic Events",
-
-            x_title=
-                "X Position (m)",
-
-            y_title=
-                "Y Position (m)",
-
-            height=
-                520,
-        )
+    return _apply_common_layout(
+        figure,
+        title="Localized Acoustic Events",
+        x_title="X Position (m)",
+        y_title="Y Position (m)",
+        height=520,
     )
 
 
@@ -2433,130 +1484,46 @@ def build_spatial_occupancy_heatmap(
         spatial,
         SpatialSummary,
     ):
+        raise TypeError(("spatial must be a SpatialSummary."))
 
-        raise TypeError(
-            (
-                "spatial must be a "
-                "SpatialSummary."
-            )
+    if not (spatial.cells):
+        return empty_figure(
+            title="Spatial Acoustic Occupancy",
+            message=("No localized acoustic occupancy data are available."),
         )
 
-    if not (
-        spatial.cells
-    ):
+    x_centers = sorted({cell.center_x_m for cell in spatial.cells})
 
-        return (
-            empty_figure(
-                title=
-                    "Spatial Acoustic Occupancy",
-
-                message=
-                    (
-                        "No localized acoustic "
-                        "occupancy data are available."
-                    ),
-            )
-        )
-
-    x_centers = sorted(
-        {
-            cell.center_x_m
-
-            for cell
-            in spatial.cells
-        }
-    )
-
-    y_centers = sorted(
-        {
-            cell.center_y_m
-
-            for cell
-            in spatial.cells
-        }
-    )
+    y_centers = sorted({cell.center_y_m for cell in spatial.cells})
 
     x_lookup = {
-        value:
-            index
-
+        value: index
         for (
             index,
             value,
-        ) in enumerate(
-            x_centers
-        )
+        ) in enumerate(x_centers)
     }
 
     y_lookup = {
-        value:
-            index
-
+        value: index
         for (
             index,
             value,
-        ) in enumerate(
-            y_centers
-        )
+        ) in enumerate(y_centers)
     }
 
-    z_values = [
-        [
-            0
+    z_values = [[0 for _ in (x_centers)] for _ in (y_centers)]
 
-            for _ in (
-                x_centers
-            )
-        ]
+    text_values = [["" for _ in (x_centers)] for _ in (y_centers)]
 
-        for _ in (
-            y_centers
-        )
-    ]
+    for cell in spatial.cells:
+        x_index = x_lookup[cell.center_x_m]
 
-    text_values = [
-        [
-            ""
+        y_index = y_lookup[cell.center_y_m]
 
-            for _ in (
-                x_centers
-            )
-        ]
+        z_values[y_index][x_index] = cell.event_count
 
-        for _ in (
-            y_centers
-        )
-    ]
-
-    for cell in (
-        spatial.cells
-    ):
-
-        x_index = (
-            x_lookup[
-                cell.center_x_m
-            ]
-        )
-
-        y_index = (
-            y_lookup[
-                cell.center_y_m
-            ]
-        )
-
-        z_values[
-            y_index
-        ][
-            x_index
-        ] = (
-            cell.event_count
-        )
-
-        text_values[
-            y_index
-        ][
-            x_index
-        ] = (
+        text_values[y_index][x_index] = (
             "Cell: "
             f"{cell.cell_id}"
             "<br>Events: "
@@ -2565,64 +1532,35 @@ def build_spatial_occupancy_heatmap(
             f"{cell.mean_confidence}"
         )
 
-    figure = (
-        go.Figure()
-    )
+    figure = go.Figure()
 
     figure.add_trace(
         go.Heatmap(
-            x=
-                x_centers,
-
-            y=
-                y_centers,
-
-            z=
-                z_values,
-
-            text=
-                text_values,
-
-            hovertemplate=
-                "%{text}<extra></extra>",
-
-            colorbar=dict(
-                title=
-                    "Events"
-            ),
+            x=x_centers,
+            y=y_centers,
+            z=z_values,
+            text=text_values,
+            hovertemplate="%{text}<extra></extra>",
+            colorbar=dict(title="Events"),
         )
     )
 
     _add_microphone_trace(
         figure,
-        node_positions=
-            node_positions,
+        node_positions=node_positions,
     )
 
     figure.update_yaxes(
-        scaleanchor=
-            "x",
-
-        scaleratio=
-            1,
+        scaleanchor="x",
+        scaleratio=1,
     )
 
-    return (
-        _apply_common_layout(
-            figure,
-
-            title=
-                "Spatial Acoustic Occupancy",
-
-            x_title=
-                "X Position (m)",
-
-            y_title=
-                "Y Position (m)",
-
-            height=
-                520,
-        )
+    return _apply_common_layout(
+        figure,
+        title="Spatial Acoustic Occupancy",
+        x_title="X Position (m)",
+        y_title="Y Position (m)",
+        height=520,
     )
 
 
@@ -2632,9 +1570,7 @@ def build_spatial_occupancy_heatmap(
 
 
 def build_behavior_indicator_chart(
-    indicators: Iterable[
-        BehaviorIndicator
-    ],
+    indicators: Iterable[BehaviorIndicator],
 ) -> go.Figure:
     """
     Plot conservative behavior-related acoustic indicator scores.
@@ -2643,57 +1579,29 @@ def build_behavior_indicator_chart(
     with a missing bar value rather than an invented numeric zero.
     """
 
-    materialized = tuple(
-        indicators
-    )
+    materialized = tuple(indicators)
 
-    for indicator in (
-        materialized
-    ):
-
+    for indicator in materialized:
         if not isinstance(
             indicator,
             BehaviorIndicator,
         ):
+            raise TypeError(("indicators must contain BehaviorIndicator objects."))
 
-            raise TypeError(
-                (
-                    "indicators must contain "
-                    "BehaviorIndicator objects."
-                )
-            )
-
-    if not (
-        materialized
-    ):
-
-        return (
-            empty_figure(
-                title=
-                    "Behavior-Related Acoustic Indicators",
-            )
+    if not (materialized):
+        return empty_figure(
+            title="Behavior-Related Acoustic Indicators",
         )
 
-    names: list[
-        str
-    ] = []
+    names: list[str] = []
 
-    scores: list[
-        float | None
-    ] = []
+    scores: list[float | None] = []
 
-    status_text: list[
-        str
-    ] = []
+    status_text: list[str] = []
 
-    evidence_text: list[
-        str
-    ] = []
+    evidence_text: list[str] = []
 
-    for indicator in (
-        materialized
-    ):
-
+    for indicator in materialized:
         names.append(
             indicator.name.replace(
                 "_",
@@ -2701,63 +1609,37 @@ def build_behavior_indicator_chart(
             ).title()
         )
 
-        scores.append(
-            indicator.score
-        )
+        scores.append(indicator.score)
 
-        status_text.append(
-            indicator.status.value
-        )
+        status_text.append(indicator.status.value)
 
-        evidence_text.append(
-            "<br>".join(
-                indicator.evidence
-            )
-        )
+        evidence_text.append("<br>".join(indicator.evidence))
 
-    figure = (
-        go.Figure()
-    )
+    figure = go.Figure()
 
     figure.add_trace(
         go.Bar(
-            x=
-                scores,
-
-            y=
-                names,
-
-            orientation=
-                "h",
-
+            x=scores,
+            y=names,
+            orientation="h",
             customdata=[
                 [
                     status,
                     evidence,
                     indicator.supporting_event_count,
-                    (
-                        indicator.score
-
-                        if indicator.score
-                        is not None
-
-                        else "Unavailable"
-                    ),
+                    (indicator.score if indicator.score is not None else "Unavailable"),
                 ]
-
                 for (
                     status,
                     evidence,
                     indicator,
-                )
-                in zip(
+                ) in zip(
                     status_text,
                     evidence_text,
                     materialized,
                     strict=False,
                 )
             ],
-
             hovertemplate=(
                 "<b>%{y}</b><br>"
                 "Score: %{customdata[3]}<br>"
@@ -2771,35 +1653,21 @@ def build_behavior_indicator_chart(
     )
 
     figure.update_xaxes(
-        range=
-            [
-                0.0,
-                1.0,
-            ]
+        range=[
+            0.0,
+            1.0,
+        ]
     )
 
-    return (
-        _apply_common_layout(
-            figure,
-
-            title=
-                "Behavior-Related Acoustic Indicators",
-
-            x_title=
-                "Normalized Indicator Score",
-
-            y_title=
-                "Indicator",
-
-            height=
-                max(
-                    350,
-                    80
-                    * len(
-                        materialized
-                    ),
-                ),
-        )
+    return _apply_common_layout(
+        figure,
+        title="Behavior-Related Acoustic Indicators",
+        x_title="Normalized Indicator Score",
+        y_title="Indicator",
+        height=max(
+            350,
+            80 * len(materialized),
+        ),
     )
 
 
@@ -2822,31 +1690,14 @@ def activity_summary_metrics(
         activity,
         ActivitySummary,
     ):
-
-        raise TypeError(
-            (
-                "activity must be an "
-                "ActivitySummary."
-            )
-        )
+        raise TypeError(("activity must be an ActivitySummary."))
 
     return {
-        "total_events":
-            activity.total_events,
-
-        "total_active_duration_s":
-            activity.total_active_duration_s,
-
-        "mean_event_duration_s":
-            activity.mean_event_duration_s,
-
-        "peak_activity_hour":
-            activity.peak_activity_hour,
-
-        "classified_classes":
-            len(
-                activity.class_summaries
-            ),
+        "total_events": activity.total_events,
+        "total_active_duration_s": activity.total_active_duration_s,
+        "mean_event_duration_s": activity.mean_event_duration_s,
+        "peak_activity_hour": activity.peak_activity_hour,
+        "classified_classes": len(activity.class_summaries),
     }
 
 
@@ -2856,125 +1707,51 @@ def activity_summary_metrics(
 
 
 def build_soundscape_indices_timeline(
-    records: Sequence[Mapping[str, Any]],
+    records: Sequence[Mapping[str, Any]], *, sample_rate: int = 48000,
 ) -> go.Figure:
-    """
-    Build multi-panel Plotly time series for continuous ecoacoustic indices.
-    """
+    """Plot each microphone separately on acquisition time, not insertion time."""
     from plotly.subplots import make_subplots
 
+    if sample_rate <= 0:
+        raise ValueError("sample_rate must be positive")
     if not records:
-        fig = go.Figure()
-        fig.update_layout(
+        return empty_figure(
             title="Continuous Ecoacoustic Soundscape Indices",
-            annotations=[
-                {
-                    "text": "No continuous soundscape index data recorded for selected session/node.",
-                    "xref": "paper",
-                    "yref": "paper",
-                    "showarrow": False,
-                    "font": {"size": 14, "color": "gray"},
-                }
-            ],
-            template="plotly_dark",
+            message="No soundscape windows recorded for this session/node.",
         )
-        return fig
-
-    # Sort records chronologically
-    sorted_records = sorted(records, key=lambda r: str(r.get("created_at", "")))
-    timestamps = [str(r.get("created_at", "")) for r in sorted_records]
-    nodes = [r.get("node_id", 1) for r in sorted_records]
-
-    acis = [float(r.get("aci", 0.0)) for r in sorted_records]
-    ndsis = [float(r.get("ndsi", 0.0)) for r in sorted_records]
-    entropies = [float(r.get("acoustic_entropy", 0.0)) for r in sorted_records]
-    bis = [float(r.get("bioacoustic_index", 0.0)) for r in sorted_records]
-
-    fig = make_subplots(
-        rows=3,
-        cols=1,
-        shared_xaxes=True,
-        vertical_spacing=0.08,
-        subplot_titles=(
-            "Acoustic Complexity Index (ACI) & Bioacoustic Index (BI)",
-            "Normalized Difference Soundscape Index (NDSI)",
-            "Acoustic Entropy (H = Ht * Hf)",
-        ),
+    figure = make_subplots(
+        rows=3, cols=1, shared_xaxes=True, vertical_spacing=0.08,
+        subplot_titles=("Acoustic Complexity & Bioacoustic Index", "NDSI", "Acoustic Entropy"),
     )
-
-    # Panel 1: ACI & BI
-    fig.add_trace(
-        go.Scatter(
-            x=timestamps,
-            y=acis,
-            mode="lines+markers",
-            name="ACI",
-            line={"color": "#00CC96", "width": 2},
-            hovertemplate="Time: %{x}<br>ACI: %{y:.2f}<br>Node: %{text}",
-            text=[f"Node {n}" for n in nodes],
-        ),
-        row=1,
-        col=1,
+    by_node: dict[int, list[Mapping[str, Any]]] = defaultdict(list)
+    for record in records:
+        by_node[int(record.get("node_id", 1))].append(record)
+    metrics = (
+        ("aci", "ACI", 1, "#16A34A"),
+        ("bioacoustic_index", "BI", 1, "#2563EB"),
+        ("ndsi", "NDSI", 2, "#DC2626"),
+        ("acoustic_entropy", "Entropy", 3, "#9333EA"),
     )
-    fig.add_trace(
-        go.Scatter(
-            x=timestamps,
-            y=bis,
-            mode="lines+markers",
-            name="Bioacoustic Index (BI)",
-            line={"color": "#636EFA", "width": 2, "dash": "dot"},
-            hovertemplate="Time: %{x}<br>BI: %{y:.2f}",
-        ),
-        row=1,
-        col=1,
-    )
-
-    # Panel 2: NDSI
-    fig.add_trace(
-        go.Scatter(
-            x=timestamps,
-            y=ndsis,
-            mode="lines+markers",
-            name="NDSI",
-            line={"color": "#FFA15A", "width": 2},
-            hovertemplate="Time: %{x}<br>NDSI: %{y:.3f}",
-        ),
-        row=2,
-        col=1,
-    )
-    fig.add_hline(
-        y=0.0,
-        line_dash="dash",
-        line_color="gray",
-        row=2,
-        col=1,
-    )
-
-    # Panel 3: Entropy
-    fig.add_trace(
-        go.Scatter(
-            x=timestamps,
-            y=entropies,
-            mode="lines+markers",
-            name="Entropy (H)",
-            line={"color": "#AB63FA", "width": 2},
-            hovertemplate="Time: %{x}<br>H: %{y:.3f}",
-        ),
-        row=3,
-        col=1,
-    )
-
-    fig.update_yaxes(title_text="ACI / BI", row=1, col=1)
-    fig.update_yaxes(title_text="NDSI [-1, +1]", range=[-1.05, 1.05], row=2, col=1)
-    fig.update_yaxes(title_text="Entropy [0, 1]", range=[-0.05, 1.05], row=3, col=1)
-    fig.update_xaxes(title_text="Timestamp", row=3, col=1)
-
-    fig.update_layout(
-        height=700,
-        template="plotly_dark",
-        title_text="Continuous Soundscape Ecoacoustic Metrics",
-        showlegend=True,
+    styles = ("solid", "dash", "dot")
+    for node_index, node in enumerate(sorted(by_node)):
+        windows = sorted(by_node[node], key=lambda row: int(row.get("start_sample", 0)))
+        times = [int(row.get("start_sample", 0)) / sample_rate for row in windows]
+        for key, name, panel, color in metrics:
+            figure.add_trace(go.Scatter(
+                x=times, y=[_finite_float_or_none(row.get(key)) for row in windows],
+                mode="lines+markers", name=f"{name} · Node {node}",
+                line={"color": color, "width": 2, "dash": styles[node_index % len(styles)]},
+                connectgaps=False,
+                hovertemplate=f"{name} · Node {node}<br>Session time: %{{x:.1f}} s<br>Value: %{{y:.3f}}<extra></extra>",
+            ), row=panel, col=1)
+    figure.add_hline(y=0, line_dash="dash", line_color="#737373", row=2, col=1)
+    figure.update_yaxes(title_text="ACI / BI", row=1, col=1)
+    figure.update_yaxes(title_text="NDSI", range=[-1.05, 1.05], row=2, col=1)
+    figure.update_yaxes(title_text="Entropy", range=[-0.05, 1.05], row=3, col=1)
+    figure.update_xaxes(title_text="Time since session start (s)", row=3, col=1)
+    figure.update_layout(
+        height=700, title="Continuous Soundscape Ecoacoustic Metrics",
         margin={"l": 60, "r": 40, "t": 60, "b": 40},
+        legend={"orientation": "h", "y": -0.15},
     )
-
-    return fig
+    return apply_chart_theme(figure)

@@ -60,6 +60,7 @@ wildlife-simulator = "wildlife_soundscape.cli:simulator"
 wildlife-export-events = "wildlife_soundscape.cli:export_events"
 wildlife-export-research = "wildlife_soundscape.cli:export_research"
 wildlife-benchmark-gcc = "wildlife_soundscape.cli:benchmark_gcc"
+wildlife-validate-dataset = "wildlife_soundscape.cli:validate_dataset"
 
 [tool.setuptools]
 package-dir = {"" = "src"}
@@ -588,7 +589,7 @@ precision = 2
 # focused test coverage. Raise it deliberately as those gaps close.
 # ----------------------------------------------------------------------
 
-fail_under = 40
+fail_under = 60
 
 
 # ----------------------------------------------------------------------

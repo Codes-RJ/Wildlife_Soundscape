@@ -71,37 +71,21 @@ from typing import Final
 # ======================================================================
 
 
-UINT8_MAX: Final[int] = (
-    0xFF
-)
+UINT8_MAX: Final[int] = 0xFF
 
-UINT16_MAX: Final[int] = (
-    0xFFFF
-)
+UINT16_MAX: Final[int] = 0xFFFF
 
-UINT32_MAX: Final[int] = (
-    0xFFFFFFFF
-)
+UINT32_MAX: Final[int] = 0xFFFFFFFF
 
-UINT64_MAX: Final[int] = (
-    0xFFFFFFFFFFFFFFFF
-)
+UINT64_MAX: Final[int] = 0xFFFFFFFFFFFFFFFF
 
-INT16_MIN: Final[int] = (
-    -0x8000
-)
+INT16_MIN: Final[int] = -0x8000
 
-INT16_MAX: Final[int] = (
-    0x7FFF
-)
+INT16_MAX: Final[int] = 0x7FFF
 
-INT32_MIN: Final[int] = (
-    -0x80000000
-)
+INT32_MIN: Final[int] = -0x80000000
 
-INT32_MAX: Final[int] = (
-    0x7FFFFFFF
-)
+INT32_MAX: Final[int] = 0x7FFFFFFF
 
 
 # ======================================================================
@@ -109,9 +93,7 @@ INT32_MAX: Final[int] = (
 # ======================================================================
 
 
-MAGIC: Final[int] = (
-    0x574C5343
-)
+MAGIC: Final[int] = 0x574C5343
 
 # ASCII interpretation:
 #
@@ -120,9 +102,7 @@ MAGIC: Final[int] = (
 #
 # Wildlife Soundscape Core
 
-PROTOCOL_VERSION: Final[int] = (
-    4
-)
+PROTOCOL_VERSION: Final[int] = 4
 
 
 # ======================================================================
@@ -156,15 +136,9 @@ PROTOCOL_VERSION: Final[int] = (
 # ======================================================================
 
 
-HEADER_STRUCT: Final[
-    struct.Struct
-] = struct.Struct(
-    "<IBBBBIIQIIII"
-)
+HEADER_STRUCT: Final[struct.Struct] = struct.Struct("<IBBBBIIQIIII")
 
-HEADER_SIZE: Final[int] = (
-    HEADER_STRUCT.size
-)
+HEADER_SIZE: Final[int] = HEADER_STRUCT.size
 
 
 # ======================================================================
@@ -182,23 +156,13 @@ HEADER_SIZE: Final[int] = (
 # ======================================================================
 
 
-CONTROL_MAGIC: Final[int] = (
-    0xC0DE
-)
+CONTROL_MAGIC: Final[int] = 0xC0DE
 
-CONTROL_VERSION: Final[int] = (
-    1
-)
+CONTROL_VERSION: Final[int] = 1
 
-CONTROL_STRUCT: Final[
-    struct.Struct
-] = struct.Struct(
-    "<HBBI"
-)
+CONTROL_STRUCT: Final[struct.Struct] = struct.Struct("<HBBI")
 
-CONTROL_SIZE: Final[int] = (
-    CONTROL_STRUCT.size
-)
+CONTROL_SIZE: Final[int] = CONTROL_STRUCT.size
 
 
 # ======================================================================
@@ -222,11 +186,7 @@ CONTROL_SIZE: Final[int] = (
 # ----------------------------------------------------------------------
 
 
-HELLO_STRUCT: Final[
-    struct.Struct
-] = struct.Struct(
-    "<IHBBBh16s"
-)
+HELLO_STRUCT: Final[struct.Struct] = struct.Struct("<IHBBBh16s")
 
 
 # ----------------------------------------------------------------------
@@ -241,11 +201,7 @@ HELLO_STRUCT: Final[
 # ----------------------------------------------------------------------
 
 
-ENVIRONMENT_STRUCT: Final[
-    struct.Struct
-] = struct.Struct(
-    "<fff"
-)
+ENVIRONMENT_STRUCT: Final[struct.Struct] = struct.Struct("<fff")
 
 
 # ----------------------------------------------------------------------
@@ -261,11 +217,7 @@ ENVIRONMENT_STRUCT: Final[
 # ----------------------------------------------------------------------
 
 
-SYNC_STRUCT: Final[
-    struct.Struct
-] = struct.Struct(
-    "<IIQI"
-)
+SYNC_STRUCT: Final[struct.Struct] = struct.Struct("<IIQI")
 
 
 # ----------------------------------------------------------------------
@@ -286,11 +238,7 @@ SYNC_STRUCT: Final[
 # ----------------------------------------------------------------------
 
 
-MASTER_HEARTBEAT_STRUCT: Final[
-    struct.Struct
-] = struct.Struct(
-    "<IiIIIIHBB"
-)
+MASTER_HEARTBEAT_STRUCT: Final[struct.Struct] = struct.Struct("<IiIIIIHBB")
 
 
 # ----------------------------------------------------------------------
@@ -312,11 +260,7 @@ MASTER_HEARTBEAT_STRUCT: Final[
 # ----------------------------------------------------------------------
 
 
-SLAVE_HEARTBEAT_STRUCT: Final[
-    struct.Struct
-] = struct.Struct(
-    "<IiIIIIHBBB"
-)
+SLAVE_HEARTBEAT_STRUCT: Final[struct.Struct] = struct.Struct("<IiIIIIHBBB")
 
 
 # ======================================================================
@@ -329,37 +273,24 @@ SLAVE_HEARTBEAT_STRUCT: Final[
 
 
 if HEADER_SIZE != 40:
-
     raise RuntimeError(
-        (
-            "Protocol layout error: "
-            f"HEADER_SIZE={HEADER_SIZE}, expected 40"
-        )
+        (f"Protocol layout error: HEADER_SIZE={HEADER_SIZE}, expected 40")
     )
 
 
 if CONTROL_SIZE != 8:
-
     raise RuntimeError(
-        (
-            "Protocol layout error: "
-            f"CONTROL_SIZE={CONTROL_SIZE}, expected 8"
-        )
+        (f"Protocol layout error: CONTROL_SIZE={CONTROL_SIZE}, expected 8")
     )
 
 
 if HELLO_STRUCT.size != 27:
-
     raise RuntimeError(
-        (
-            "Protocol layout error: "
-            f"HELLO size={HELLO_STRUCT.size}, expected 27"
-        )
+        (f"Protocol layout error: HELLO size={HELLO_STRUCT.size}, expected 27")
     )
 
 
 if ENVIRONMENT_STRUCT.size != 12:
-
     raise RuntimeError(
         (
             "Protocol layout error: "
@@ -369,17 +300,12 @@ if ENVIRONMENT_STRUCT.size != 12:
 
 
 if SYNC_STRUCT.size != 20:
-
     raise RuntimeError(
-        (
-            "Protocol layout error: "
-            f"SYNC size={SYNC_STRUCT.size}, expected 20"
-        )
+        (f"Protocol layout error: SYNC size={SYNC_STRUCT.size}, expected 20")
     )
 
 
 if MASTER_HEARTBEAT_STRUCT.size != 28:
-
     raise RuntimeError(
         (
             "Protocol layout error: master HEARTBEAT "
@@ -389,7 +315,6 @@ if MASTER_HEARTBEAT_STRUCT.size != 28:
 
 
 if SLAVE_HEARTBEAT_STRUCT.size != 29:
-
     raise RuntimeError(
         (
             "Protocol layout error: slave HEARTBEAT "
@@ -403,33 +328,25 @@ if SLAVE_HEARTBEAT_STRUCT.size != 29:
 # ======================================================================
 
 
-class ProtocolError(
-    Exception
-):
+class ProtocolError(Exception):
     """
     Base exception for binary protocol failures.
     """
 
 
-class InvalidHeader(
-    ProtocolError
-):
+class InvalidHeader(ProtocolError):
     """
     Packet header is malformed or incompatible.
     """
 
 
-class CRCMismatch(
-    ProtocolError
-):
+class CRCMismatch(ProtocolError):
     """
     Payload CRC32 does not match packet header.
     """
 
 
-class InvalidControlFrame(
-    ProtocolError
-):
+class InvalidControlFrame(ProtocolError):
     """
     Laptop -> ESP32 control frame is malformed.
     """
@@ -440,28 +357,18 @@ class InvalidControlFrame(
 # ======================================================================
 
 
-class PacketFlags(
-    enum.IntFlag
-):
+class PacketFlags(enum.IntFlag):
     """
     ESP32 runtime health flags carried in every packet header.
     """
 
-    NONE = (
-        0x00
-    )
+    NONE = 0x00
 
-    CLIPPED = (
-        0x01
-    )
+    CLIPPED = 0x01
 
-    CLOCK_FAULT = (
-        0x02
-    )
+    CLOCK_FAULT = 0x02
 
-    QUEUE_CONGESTED = (
-        0x04
-    )
+    QUEUE_CONGESTED = 0x04
 
 
 # ======================================================================
@@ -469,32 +376,20 @@ class PacketFlags(
 # ======================================================================
 
 
-class PacketType(
-    enum.IntEnum
-):
+class PacketType(enum.IntEnum):
     """
     ESP32 -> laptop packet type.
     """
 
-    HELLO = (
-        1
-    )
+    HELLO = 1
 
-    AUDIO = (
-        2
-    )
+    AUDIO = 2
 
-    ENVIRONMENT = (
-        3
-    )
+    ENVIRONMENT = 3
 
-    HEARTBEAT = (
-        4
-    )
+    HEARTBEAT = 4
 
-    SYNC = (
-        5
-    )
+    SYNC = 5
 
 
 # ======================================================================
@@ -502,24 +397,16 @@ class PacketType(
 # ======================================================================
 
 
-class ControlCommand(
-    enum.IntEnum
-):
+class ControlCommand(enum.IntEnum):
     """
     Laptop -> ESP32 command.
     """
 
-    START = (
-        0xA1
-    )
+    START = 0xA1
 
-    STOP = (
-        0xA2
-    )
+    STOP = 0xA2
 
-    PING = (
-        0xA3
-    )
+    PING = 0xA3
 
 
 # ======================================================================
@@ -586,9 +473,7 @@ class ControlFrame:
 
     command: ControlCommand
 
-    session_id: int = (
-        0
-    )
+    session_id: int = 0
 
 
 @dataclass(
@@ -683,21 +568,12 @@ class HeartbeatPayload:
     streaming: bool
 
     # Master-specific
-    bme_available: (
-        bool
-        | None
-    ) = None
+    bme_available: bool | None = None
 
     # Slave-specific
-    sync_received: (
-        bool
-        | None
-    ) = None
+    sync_received: bool | None = None
 
-    clock_healthy: (
-        bool
-        | None
-    ) = None
+    clock_healthy: bool | None = None
 
 
 # ======================================================================
@@ -714,19 +590,10 @@ def _uint8(
     Validate an unsigned 8-bit value.
     """
 
-    result = int(
-        value
-    )
+    result = int(value)
 
-    if not (
-        0
-        <= result
-        <= UINT8_MAX
-    ):
-
-        raise ValueError(
-            f"{name} must fit uint8"
-        )
+    if not (0 <= result <= UINT8_MAX):
+        raise ValueError(f"{name} must fit uint8")
 
     return result
 
@@ -740,19 +607,10 @@ def _uint16(
     Validate an unsigned 16-bit value.
     """
 
-    result = int(
-        value
-    )
+    result = int(value)
 
-    if not (
-        0
-        <= result
-        <= UINT16_MAX
-    ):
-
-        raise ValueError(
-            f"{name} must fit uint16"
-        )
+    if not (0 <= result <= UINT16_MAX):
+        raise ValueError(f"{name} must fit uint16")
 
     return result
 
@@ -766,19 +624,10 @@ def _uint32(
     Validate an unsigned 32-bit value.
     """
 
-    result = int(
-        value
-    )
+    result = int(value)
 
-    if not (
-        0
-        <= result
-        <= UINT32_MAX
-    ):
-
-        raise ValueError(
-            f"{name} must fit uint32"
-        )
+    if not (0 <= result <= UINT32_MAX):
+        raise ValueError(f"{name} must fit uint32")
 
     return result
 
@@ -792,19 +641,10 @@ def _uint64(
     Validate an unsigned 64-bit value.
     """
 
-    result = int(
-        value
-    )
+    result = int(value)
 
-    if not (
-        0
-        <= result
-        <= UINT64_MAX
-    ):
-
-        raise ValueError(
-            f"{name} must fit uint64"
-        )
+    if not (0 <= result <= UINT64_MAX):
+        raise ValueError(f"{name} must fit uint64")
 
     return result
 
@@ -818,19 +658,10 @@ def _int16(
     Validate a signed 16-bit value.
     """
 
-    result = int(
-        value
-    )
+    result = int(value)
 
-    if not (
-        INT16_MIN
-        <= result
-        <= INT16_MAX
-    ):
-
-        raise ValueError(
-            f"{name} must fit int16"
-        )
+    if not (INT16_MIN <= result <= INT16_MAX):
+        raise ValueError(f"{name} must fit int16")
 
     return result
 
@@ -844,19 +675,10 @@ def _int32(
     Validate a signed 32-bit value.
     """
 
-    result = int(
-        value
-    )
+    result = int(value)
 
-    if not (
-        INT32_MIN
-        <= result
-        <= INT32_MAX
-    ):
-
-        raise ValueError(
-            f"{name} must fit int32"
-        )
+    if not (INT32_MIN <= result <= INT32_MAX):
+        raise ValueError(f"{name} must fit int32")
 
     return result
 
@@ -872,25 +694,15 @@ def _validate_boolean_byte(
     Only 0 and 1 are accepted.
     """
 
-    value = int(
-        value
-    )
+    value = int(value)
 
     if value not in {
         0,
         1,
     }:
+        raise ProtocolError((f"{name} boolean byte must be 0 or 1, got {value}"))
 
-        raise ProtocolError(
-            (
-                f"{name} boolean byte "
-                f"must be 0 or 1, got {value}"
-            )
-        )
-
-    return bool(
-        value
-    )
+    return bool(value)
 
 
 def _validate_exact_payload_size(
@@ -903,21 +715,10 @@ def _validate_exact_payload_size(
     Validate a fixed-size payload.
     """
 
-    actual = len(
-        payload
-    )
+    actual = len(payload)
 
-    if (
-        actual
-        != expected
-    ):
-
-        raise ProtocolError(
-            (
-                f"{name} size "
-                f"{actual} != {expected}"
-            )
-        )
+    if actual != expected:
+        raise ProtocolError((f"{name} size {actual} != {expected}"))
 
 
 def _validate_finite_float(
@@ -929,17 +730,10 @@ def _validate_finite_float(
     Require a finite floating-point telemetry value.
     """
 
-    result = float(
-        value
-    )
+    result = float(value)
 
-    if not math.isfinite(
-        result
-    ):
-
-        raise ValueError(
-            f"{name} must be finite"
-        )
+    if not math.isfinite(result):
+        raise ValueError(f"{name} must be finite")
 
     return result
 
@@ -950,11 +744,7 @@ def _validate_finite_float(
 
 
 def crc32(
-    data: (
-        bytes
-        | bytearray
-        | memoryview
-    ),
+    data: (bytes | bytearray | memoryview),
 ) -> int:
     """
     Calculate protocol CRC32.
@@ -962,12 +752,7 @@ def crc32(
     Result is always represented as unsigned uint32.
     """
 
-    return (
-        zlib.crc32(
-            data
-        )
-        & UINT32_MAX
-    )
+    return zlib.crc32(data) & UINT32_MAX
 
 
 # ======================================================================
@@ -982,117 +767,52 @@ def unpack_header(
     Decode and validate one 40-byte ESP32 packet header.
     """
 
-    if (
-        len(
-            data
-        )
-        != HEADER_SIZE
-    ):
+    if len(data) != HEADER_SIZE:
+        raise InvalidHeader((f"header size {len(data)} != expected {HEADER_SIZE}"))
 
-        raise InvalidHeader(
-            (
-                f"header size "
-                f"{len(data)} "
-                f"!= expected {HEADER_SIZE}"
-            )
-        )
-
-    values = (
-        HEADER_STRUCT.unpack(
-            data
-        )
-    )
+    values = HEADER_STRUCT.unpack(data)
 
     # ==============================================================
     # PACKET TYPE
     # ==============================================================
 
     try:
-
-        packet_type = (
-            PacketType(
-                values[
-                    3
-                ]
-            )
-        )
+        packet_type = PacketType(values[3])
 
     except ValueError as exc:
-
-        raise InvalidHeader(
-            (
-                "unknown packet type "
-                f"{values[3]}"
-            )
-        ) from exc
+        raise InvalidHeader((f"unknown packet type {values[3]}")) from exc
 
     # ==============================================================
     # HEADER OBJECT
     # ==============================================================
 
     header = PacketHeader(
-        magic=
-            values[0],
-
-        protocol_version=
-            values[1],
-
-        node_id=
-            values[2],
-
-        packet_type=
-            packet_type,
-
-        flags=
-            values[4],
-
-        sequence=
-            values[5],
-
-        session_id=
-            values[6],
-
-        sample_index=
-            values[7],
-
-        local_micros=
-            values[8],
-
-        i2s_error_count=
-            values[9],
-
-        payload_length=
-            values[10],
-
-        payload_crc32=
-            values[11],
+        magic=values[0],
+        protocol_version=values[1],
+        node_id=values[2],
+        packet_type=packet_type,
+        flags=values[4],
+        sequence=values[5],
+        session_id=values[6],
+        sample_index=values[7],
+        local_micros=values[8],
+        i2s_error_count=values[9],
+        payload_length=values[10],
+        payload_crc32=values[11],
     )
 
     # ==============================================================
     # MAGIC
     # ==============================================================
 
-    if (
-        header.magic
-        != MAGIC
-    ):
-
-        raise InvalidHeader(
-            (
-                "bad packet magic "
-                f"0x{header.magic:08X}"
-            )
-        )
+    if header.magic != MAGIC:
+        raise InvalidHeader((f"bad packet magic 0x{header.magic:08X}"))
 
     # ==============================================================
     # PROTOCOL VERSION
     # ==============================================================
 
-    if (
-        header.protocol_version
-        != PROTOCOL_VERSION
-    ):
-
+    if header.protocol_version != PROTOCOL_VERSION:
         raise InvalidHeader(
             (
                 "protocol version "
@@ -1105,18 +825,8 @@ def unpack_header(
     # NODE ID
     # ==============================================================
 
-    if not (
-        1
-        <= header.node_id
-        <= UINT8_MAX
-    ):
-
-        raise InvalidHeader(
-            (
-                "invalid node id "
-                f"{header.node_id}"
-            )
-        )
+    if not (1 <= header.node_id <= UINT8_MAX):
+        raise InvalidHeader((f"invalid node id {header.node_id}"))
 
     return header
 
@@ -1136,142 +846,81 @@ def pack_header(
     invalid values.
     """
 
-    magic = (
-        _uint32(
-            header.magic,
-            name="magic",
-        )
+    magic = _uint32(
+        header.magic,
+        name="magic",
     )
 
-    version = (
-        _uint8(
-            header.protocol_version,
-            name="protocol_version",
-        )
+    version = _uint8(
+        header.protocol_version,
+        name="protocol_version",
     )
 
-    node_id = (
-        _uint8(
-            header.node_id,
-            name="node_id",
-        )
+    node_id = _uint8(
+        header.node_id,
+        name="node_id",
     )
 
-    flags = (
-        _uint8(
-            header.flags,
-            name="flags",
-        )
+    flags = _uint8(
+        header.flags,
+        name="flags",
     )
 
-    sequence = (
-        _uint32(
-            header.sequence,
-            name="sequence",
-        )
+    sequence = _uint32(
+        header.sequence,
+        name="sequence",
     )
 
-    session_id = (
-        _uint32(
-            header.session_id,
-            name="session_id",
-        )
+    session_id = _uint32(
+        header.session_id,
+        name="session_id",
     )
 
-    sample_index = (
-        _uint64(
-            header.sample_index,
-            name="sample_index",
-        )
+    sample_index = _uint64(
+        header.sample_index,
+        name="sample_index",
     )
 
-    local_micros = (
-        _uint32(
-            header.local_micros,
-            name="local_micros",
-        )
+    local_micros = _uint32(
+        header.local_micros,
+        name="local_micros",
     )
 
-    i2s_error_count = (
-        _uint32(
-            header.i2s_error_count,
-            name="i2s_error_count",
-        )
+    i2s_error_count = _uint32(
+        header.i2s_error_count,
+        name="i2s_error_count",
     )
 
-    payload_length = (
-        _uint32(
-            header.payload_length,
-            name="payload_length",
-        )
+    payload_length = _uint32(
+        header.payload_length,
+        name="payload_length",
     )
 
-    payload_crc32 = (
-        _uint32(
-            header.payload_crc32,
-            name="payload_crc32",
-        )
+    payload_crc32 = _uint32(
+        header.payload_crc32,
+        name="payload_crc32",
     )
 
-    if (
-        magic
-        != MAGIC
-    ):
+    if magic != MAGIC:
+        raise ValueError((f"header magic must equal 0x{MAGIC:08X}"))
 
-        raise ValueError(
-            (
-                "header magic must equal "
-                f"0x{MAGIC:08X}"
-            )
-        )
+    if version != PROTOCOL_VERSION:
+        raise ValueError((f"header protocol_version must equal {PROTOCOL_VERSION}"))
 
-    if (
-        version
-        != PROTOCOL_VERSION
-    ):
-
-        raise ValueError(
-            (
-                "header protocol_version must "
-                f"equal {PROTOCOL_VERSION}"
-            )
-        )
-
-    if (
-        node_id
-        == 0
-    ):
-
-        raise ValueError(
-            "node_id cannot be zero"
-        )
+    if node_id == 0:
+        raise ValueError("node_id cannot be zero")
 
     try:
-
-        packet_type = (
-            PacketType(
-                int(
-                    header.packet_type
-                )
-            )
-        )
+        packet_type = PacketType(int(header.packet_type))
 
     except ValueError as exc:
-
-        raise ValueError(
-            (
-                "invalid packet_type "
-                f"{header.packet_type}"
-            )
-        ) from exc
+        raise ValueError((f"invalid packet_type {header.packet_type}")) from exc
 
     return HEADER_STRUCT.pack(
         magic,
         version,
         node_id,
-        int(
-            packet_type
-        ),
+        int(packet_type),
         flags,
         sequence,
         session_id,
@@ -1295,11 +944,7 @@ def build_packet(
     sequence: int,
     session_id: int,
     sample_index: int,
-    payload: (
-        bytes
-        | bytearray
-        | memoryview
-    ) = b"",
+    payload: (bytes | bytearray | memoryview) = b"",
     local_micros: int = 0,
     i2s_error_count: int = 0,
     flags: int = 0,
@@ -1313,64 +958,26 @@ def build_packet(
         offline packet generation
     """
 
-    payload_bytes = bytes(
-        payload
-    )
+    payload_bytes = bytes(payload)
 
-    payload_crc = (
-        crc32(
-            payload_bytes
-        )
-        if payload_bytes
-        else 0
-    )
+    payload_crc = crc32(payload_bytes) if payload_bytes else 0
 
     header = PacketHeader(
-        magic=
-            MAGIC,
-
-        protocol_version=
-            PROTOCOL_VERSION,
-
-        node_id=
-            node_id,
-
-        packet_type=
-            packet_type,
-
-        flags=
-            flags,
-
-        sequence=
-            sequence,
-
-        session_id=
-            session_id,
-
-        sample_index=
-            sample_index,
-
-        local_micros=
-            local_micros,
-
-        i2s_error_count=
-            i2s_error_count,
-
-        payload_length=
-            len(
-                payload_bytes
-            ),
-
-        payload_crc32=
-            payload_crc,
+        magic=MAGIC,
+        protocol_version=PROTOCOL_VERSION,
+        node_id=node_id,
+        packet_type=packet_type,
+        flags=flags,
+        sequence=sequence,
+        session_id=session_id,
+        sample_index=sample_index,
+        local_micros=local_micros,
+        i2s_error_count=i2s_error_count,
+        payload_length=len(payload_bytes),
+        payload_crc32=payload_crc,
     )
 
-    return (
-        pack_header(
-            header
-        )
-        + payload_bytes
-    )
+    return pack_header(header) + payload_bytes
 
 
 # ======================================================================
@@ -1386,37 +993,16 @@ def verify_payload_crc(
     Verify payload length and CRC32.
     """
 
-    actual_length = len(
-        payload
-    )
+    actual_length = len(payload)
 
-    if (
-        actual_length
-        != header.payload_length
-    ):
-
+    if actual_length != header.payload_length:
         raise ProtocolError(
-            (
-                "payload size "
-                f"{actual_length} "
-                "!= header length "
-                f"{header.payload_length}"
-            )
+            (f"payload size {actual_length} != header length {header.payload_length}")
         )
 
-    expected_crc = (
-        crc32(
-            payload
-        )
-        if payload
-        else 0
-    )
+    expected_crc = crc32(payload) if payload else 0
 
-    if (
-        expected_crc
-        != header.payload_crc32
-    ):
-
+    if expected_crc != header.payload_crc32:
         raise CRCMismatch(
             (
                 "CRC mismatch "
@@ -1441,37 +1027,20 @@ def pack_control(
     """
 
     try:
-
-        command = (
-            ControlCommand(
-                int(
-                    frame.command
-                )
-            )
-        )
+        command = ControlCommand(int(frame.command))
 
     except ValueError as exc:
+        raise InvalidControlFrame((f"unknown control command {frame.command}")) from exc
 
-        raise InvalidControlFrame(
-            (
-                "unknown control command "
-                f"{frame.command}"
-            )
-        ) from exc
-
-    session_id = (
-        _uint32(
-            frame.session_id,
-            name="session_id",
-        )
+    session_id = _uint32(
+        frame.session_id,
+        name="session_id",
     )
 
     return CONTROL_STRUCT.pack(
         CONTROL_MAGIC,
         CONTROL_VERSION,
-        int(
-            command
-        ),
+        int(command),
         session_id,
     )
 
@@ -1488,19 +1057,9 @@ def unpack_control(
     Decode and validate one laptop -> ESP32 control frame.
     """
 
-    if (
-        len(
-            data
-        )
-        != CONTROL_SIZE
-    ):
-
+    if len(data) != CONTROL_SIZE:
         raise InvalidControlFrame(
-            (
-                "control size "
-                f"{len(data)} "
-                f"!= expected {CONTROL_SIZE}"
-            )
+            (f"control size {len(data)} != expected {CONTROL_SIZE}")
         )
 
     (
@@ -1508,59 +1067,27 @@ def unpack_control(
         version,
         command_raw,
         session_id,
-    ) = CONTROL_STRUCT.unpack(
-        data
-    )
+    ) = CONTROL_STRUCT.unpack(data)
 
-    if (
-        magic
-        != CONTROL_MAGIC
-    ):
+    if magic != CONTROL_MAGIC:
+        raise InvalidControlFrame((f"bad control magic 0x{magic:04X}"))
 
+    if version != CONTROL_VERSION:
         raise InvalidControlFrame(
-            (
-                "bad control magic "
-                f"0x{magic:04X}"
-            )
-        )
-
-    if (
-        version
-        != CONTROL_VERSION
-    ):
-
-        raise InvalidControlFrame(
-            (
-                "control version "
-                f"{version} "
-                f"!= expected "
-                f"{CONTROL_VERSION}"
-            )
+            (f"control version {version} != expected {CONTROL_VERSION}")
         )
 
     try:
-
-        command = (
-            ControlCommand(
-                command_raw
-            )
-        )
+        command = ControlCommand(command_raw)
 
     except ValueError as exc:
-
         raise InvalidControlFrame(
-            (
-                "unknown control command "
-                f"0x{command_raw:02X}"
-            )
+            (f"unknown control command 0x{command_raw:02X}")
         ) from exc
 
     return ControlFrame(
-        command=
-            command,
-
-        session_id=
-            session_id,
+        command=command,
+        session_id=session_id,
     )
 
 
@@ -1578,10 +1105,8 @@ def parse_hello(
 
     _validate_exact_payload_size(
         payload,
-        expected=
-            HELLO_STRUCT.size,
-        name=
-            "HELLO",
+        expected=HELLO_STRUCT.size,
+        name="HELLO",
     )
 
     (
@@ -1592,112 +1117,44 @@ def parse_hello(
         master_raw,
         tolerance,
         firmware_raw,
-    ) = HELLO_STRUCT.unpack(
-        payload
+    ) = HELLO_STRUCT.unpack(payload)
+
+    master_node = _validate_boolean_byte(
+        master_raw,
+        name="HELLO master_node",
     )
 
-    master_node = (
-        _validate_boolean_byte(
-            master_raw,
-            name="HELLO master_node",
-        )
-    )
+    if sample_rate <= 0:
+        raise ProtocolError(("HELLO sample_rate must be greater than 0"))
 
-    if (
-        sample_rate
-        <= 0
-    ):
+    if frames <= 0:
+        raise ProtocolError(("HELLO frames_per_packet must be greater than 0"))
 
-        raise ProtocolError(
-            (
-                "HELLO sample_rate "
-                "must be greater than 0"
-            )
-        )
+    if bits <= 0:
+        raise ProtocolError(("HELLO bits_per_sample must be greater than 0"))
 
-    if (
-        frames
-        <= 0
-    ):
+    if channels <= 0:
+        raise ProtocolError(("HELLO channels must be greater than 0"))
 
-        raise ProtocolError(
-            (
-                "HELLO frames_per_packet "
-                "must be greater than 0"
-            )
-        )
+    if tolerance < 0:
+        raise ProtocolError(("HELLO sync_tolerance_samples cannot be negative"))
 
-    if (
-        bits
-        <= 0
-    ):
-
-        raise ProtocolError(
-            (
-                "HELLO bits_per_sample "
-                "must be greater than 0"
-            )
-        )
-
-    if (
-        channels
-        <= 0
-    ):
-
-        raise ProtocolError(
-            (
-                "HELLO channels "
-                "must be greater than 0"
-            )
-        )
-
-    if (
-        tolerance
-        < 0
-    ):
-
-        raise ProtocolError(
-            (
-                "HELLO sync_tolerance_samples "
-                "cannot be negative"
-            )
-        )
-
-    firmware_text = (
-        firmware_raw
-        .split(
-            b"\0",
-            1,
-        )[
-            0
-        ]
-        .decode(
-            "ascii",
-            errors="replace",
-        )
+    firmware_text = firmware_raw.split(
+        b"\0",
+        1,
+    )[0].decode(
+        "ascii",
+        errors="replace",
     )
 
     return HelloPayload(
-        sample_rate=
-            sample_rate,
-
-        frames_per_packet=
-            frames,
-
-        bits_per_sample=
-            bits,
-
-        channels=
-            channels,
-
-        master_node=
-            master_node,
-
-        sync_tolerance_samples=
-            tolerance,
-
-        firmware=
-            firmware_text,
+        sample_rate=sample_rate,
+        frames_per_packet=frames,
+        bits_per_sample=bits,
+        channels=channels,
+        master_node=master_node,
+        sync_tolerance_samples=tolerance,
+        firmware=firmware_text,
     )
 
 
@@ -1713,124 +1170,59 @@ def pack_hello(
     Encode one HELLO payload.
     """
 
-    sample_rate = (
-        _uint32(
-            value.sample_rate,
-            name="sample_rate",
-        )
+    sample_rate = _uint32(
+        value.sample_rate,
+        name="sample_rate",
     )
 
-    frames = (
-        _uint16(
-            value.frames_per_packet,
-            name="frames_per_packet",
-        )
+    frames = _uint16(
+        value.frames_per_packet,
+        name="frames_per_packet",
     )
 
-    bits = (
-        _uint8(
-            value.bits_per_sample,
-            name="bits_per_sample",
-        )
+    bits = _uint8(
+        value.bits_per_sample,
+        name="bits_per_sample",
     )
 
-    channels = (
-        _uint8(
-            value.channels,
-            name="channels",
-        )
+    channels = _uint8(
+        value.channels,
+        name="channels",
     )
 
-    tolerance = (
-        _int16(
-            value.sync_tolerance_samples,
-            name="sync_tolerance_samples",
-        )
+    tolerance = _int16(
+        value.sync_tolerance_samples,
+        name="sync_tolerance_samples",
     )
 
-    if (
-        sample_rate
-        == 0
-    ):
+    if sample_rate == 0:
+        raise ValueError("sample_rate cannot be zero")
 
-        raise ValueError(
-            "sample_rate cannot be zero"
-        )
+    if frames == 0:
+        raise ValueError("frames_per_packet cannot be zero")
 
-    if (
-        frames
-        == 0
-    ):
+    if bits == 0:
+        raise ValueError("bits_per_sample cannot be zero")
 
-        raise ValueError(
-            "frames_per_packet cannot be zero"
-        )
+    if channels == 0:
+        raise ValueError("channels cannot be zero")
 
-    if (
-        bits
-        == 0
-    ):
+    if tolerance < 0:
+        raise ValueError(("sync_tolerance_samples cannot be negative"))
 
-        raise ValueError(
-            "bits_per_sample cannot be zero"
-        )
+    firmware = str(value.firmware).encode(
+        "ascii",
+        errors="replace",
+    )[:15]
 
-    if (
-        channels
-        == 0
-    ):
-
-        raise ValueError(
-            "channels cannot be zero"
-        )
-
-    if (
-        tolerance
-        < 0
-    ):
-
-        raise ValueError(
-            (
-                "sync_tolerance_samples "
-                "cannot be negative"
-            )
-        )
-
-    firmware = (
-        str(
-            value.firmware
-        )
-        .encode(
-            "ascii",
-            errors="replace",
-        )[
-            :15
-        ]
-    )
-
-    firmware = (
-        firmware
-        + (
-            b"\0"
-            * (
-                16
-                - len(
-                    firmware
-                )
-            )
-        )
-    )
+    firmware = firmware + (b"\0" * (16 - len(firmware)))
 
     return HELLO_STRUCT.pack(
         sample_rate,
         frames,
         bits,
         channels,
-        int(
-            bool(
-                value.master_node
-            )
-        ),
+        int(bool(value.master_node)),
         tolerance,
         firmware,
     )
@@ -1850,54 +1242,30 @@ def parse_environment(
 
     _validate_exact_payload_size(
         payload,
-        expected=
-            ENVIRONMENT_STRUCT.size,
-        name=
-            "ENVIRONMENT",
+        expected=ENVIRONMENT_STRUCT.size,
+        name="ENVIRONMENT",
     )
 
     (
         temperature_c,
         humidity_percent,
         pressure_hpa,
-    ) = ENVIRONMENT_STRUCT.unpack(
-        payload
-    )
+    ) = ENVIRONMENT_STRUCT.unpack(payload)
 
     if not all(
-        math.isfinite(
-            value
-        )
-        for value
-        in (
+        math.isfinite(value)
+        for value in (
             temperature_c,
             humidity_percent,
             pressure_hpa,
         )
     ):
-
-        raise ProtocolError(
-            (
-                "ENVIRONMENT payload contains "
-                "non-finite values"
-            )
-        )
+        raise ProtocolError(("ENVIRONMENT payload contains non-finite values"))
 
     return EnvironmentPayload(
-        temperature_c=
-            float(
-                temperature_c
-            ),
-
-        humidity_percent=
-            float(
-                humidity_percent
-            ),
-
-        pressure_hpa=
-            float(
-                pressure_hpa
-            ),
+        temperature_c=float(temperature_c),
+        humidity_percent=float(humidity_percent),
+        pressure_hpa=float(pressure_hpa),
     )
 
 
@@ -1913,25 +1281,19 @@ def pack_environment(
     Encode one BME280 telemetry payload.
     """
 
-    temperature = (
-        _validate_finite_float(
-            value.temperature_c,
-            name="temperature_c",
-        )
+    temperature = _validate_finite_float(
+        value.temperature_c,
+        name="temperature_c",
     )
 
-    humidity = (
-        _validate_finite_float(
-            value.humidity_percent,
-            name="humidity_percent",
-        )
+    humidity = _validate_finite_float(
+        value.humidity_percent,
+        name="humidity_percent",
     )
 
-    pressure = (
-        _validate_finite_float(
-            value.pressure_hpa,
-            name="pressure_hpa",
-        )
+    pressure = _validate_finite_float(
+        value.pressure_hpa,
+        name="pressure_hpa",
     )
 
     return ENVIRONMENT_STRUCT.pack(
@@ -1955,10 +1317,8 @@ def parse_sync(
 
     _validate_exact_payload_size(
         payload,
-        expected=
-            SYNC_STRUCT.size,
-        name=
-            "SYNC",
+        expected=SYNC_STRUCT.size,
+        name="SYNC",
     )
 
     (
@@ -1966,22 +1326,13 @@ def parse_sync(
         sync_id,
         sample_index,
         local_micros,
-    ) = SYNC_STRUCT.unpack(
-        payload
-    )
+    ) = SYNC_STRUCT.unpack(payload)
 
     return SyncPayload(
-        session_id=
-            session_id,
-
-        sync_id=
-            sync_id,
-
-        sample_index=
-            sample_index,
-
-        local_micros=
-            local_micros,
+        session_id=session_id,
+        sync_id=sync_id,
+        sample_index=sample_index,
+        local_micros=local_micros,
     )
 
 
@@ -2002,17 +1353,14 @@ def pack_sync(
             value.session_id,
             name="session_id",
         ),
-
         _uint32(
             value.sync_id,
             name="sync_id",
         ),
-
         _uint64(
             value.sample_index,
             name="sample_index",
         ),
-
         _uint32(
             value.local_micros,
             name="local_micros",
@@ -2046,42 +1394,31 @@ def _validated_heartbeat_common(
             value.uptime_seconds,
             name="uptime_seconds",
         ),
-
         _int32(
             value.wifi_rssi,
             name="wifi_rssi",
         ),
-
         _uint32(
             value.free_heap,
             name="free_heap",
         ),
-
         _uint32(
             value.dropped_audio_blocks,
             name="dropped_audio_blocks",
         ),
-
         _uint32(
             value.transmitted_audio_blocks,
             name="transmitted_audio_blocks",
         ),
-
         _uint32(
             value.i2s_errors,
             name="i2s_errors",
         ),
-
         _uint16(
             value.audio_queue_depth,
             name="audio_queue_depth",
         ),
-
-        int(
-            bool(
-                value.streaming
-            )
-        ),
+        int(bool(value.streaming)),
     )
 
 
@@ -2104,62 +1441,34 @@ def parse_heartbeat(
     # ==============================================================
 
     if master_node:
-
         _validate_exact_payload_size(
             payload,
-            expected=
-                MASTER_HEARTBEAT_STRUCT.size,
-            name=
-                "master HEARTBEAT",
+            expected=MASTER_HEARTBEAT_STRUCT.size,
+            name="master HEARTBEAT",
         )
 
-        values = (
-            MASTER_HEARTBEAT_STRUCT.unpack(
-                payload
-            )
+        values = MASTER_HEARTBEAT_STRUCT.unpack(payload)
+
+        streaming = _validate_boolean_byte(
+            values[7],
+            name="HEARTBEAT streaming",
         )
 
-        streaming = (
-            _validate_boolean_byte(
-                values[7],
-                name="HEARTBEAT streaming",
-            )
-        )
-
-        bme_available = (
-            _validate_boolean_byte(
-                values[8],
-                name="HEARTBEAT bme_available",
-            )
+        bme_available = _validate_boolean_byte(
+            values[8],
+            name="HEARTBEAT bme_available",
         )
 
         return HeartbeatPayload(
-            uptime_seconds=
-                values[0],
-
-            wifi_rssi=
-                values[1],
-
-            free_heap=
-                values[2],
-
-            dropped_audio_blocks=
-                values[3],
-
-            transmitted_audio_blocks=
-                values[4],
-
-            i2s_errors=
-                values[5],
-
-            audio_queue_depth=
-                values[6],
-
-            streaming=
-                streaming,
-
-            bme_available=
-                bme_available,
+            uptime_seconds=values[0],
+            wifi_rssi=values[1],
+            free_heap=values[2],
+            dropped_audio_blocks=values[3],
+            transmitted_audio_blocks=values[4],
+            i2s_errors=values[5],
+            audio_queue_depth=values[6],
+            streaming=streaming,
+            bme_available=bme_available,
         )
 
     # ==============================================================
@@ -2168,69 +1477,38 @@ def parse_heartbeat(
 
     _validate_exact_payload_size(
         payload,
-        expected=
-            SLAVE_HEARTBEAT_STRUCT.size,
-        name=
-            "slave HEARTBEAT",
+        expected=SLAVE_HEARTBEAT_STRUCT.size,
+        name="slave HEARTBEAT",
     )
 
-    values = (
-        SLAVE_HEARTBEAT_STRUCT.unpack(
-            payload
-        )
+    values = SLAVE_HEARTBEAT_STRUCT.unpack(payload)
+
+    streaming = _validate_boolean_byte(
+        values[7],
+        name="HEARTBEAT streaming",
     )
 
-    streaming = (
-        _validate_boolean_byte(
-            values[7],
-            name="HEARTBEAT streaming",
-        )
+    sync_received = _validate_boolean_byte(
+        values[8],
+        name="HEARTBEAT sync_received",
     )
 
-    sync_received = (
-        _validate_boolean_byte(
-            values[8],
-            name="HEARTBEAT sync_received",
-        )
-    )
-
-    clock_healthy = (
-        _validate_boolean_byte(
-            values[9],
-            name="HEARTBEAT clock_healthy",
-        )
+    clock_healthy = _validate_boolean_byte(
+        values[9],
+        name="HEARTBEAT clock_healthy",
     )
 
     return HeartbeatPayload(
-        uptime_seconds=
-            values[0],
-
-        wifi_rssi=
-            values[1],
-
-        free_heap=
-            values[2],
-
-        dropped_audio_blocks=
-            values[3],
-
-        transmitted_audio_blocks=
-            values[4],
-
-        i2s_errors=
-            values[5],
-
-        audio_queue_depth=
-            values[6],
-
-        streaming=
-            streaming,
-
-        sync_received=
-            sync_received,
-
-        clock_healthy=
-            clock_healthy,
+        uptime_seconds=values[0],
+        wifi_rssi=values[1],
+        free_heap=values[2],
+        dropped_audio_blocks=values[3],
+        transmitted_audio_blocks=values[4],
+        i2s_errors=values[5],
+        audio_queue_depth=values[6],
+        streaming=streaming,
+        sync_received=sync_received,
+        clock_healthy=clock_healthy,
     )
 
 
@@ -2255,9 +1533,7 @@ def pack_master_heartbeat(
         i2s_errors,
         queue_depth,
         streaming,
-    ) = _validated_heartbeat_common(
-        value
-    )
+    ) = _validated_heartbeat_common(value)
 
     return MASTER_HEARTBEAT_STRUCT.pack(
         uptime,
@@ -2268,11 +1544,7 @@ def pack_master_heartbeat(
         i2s_errors,
         queue_depth,
         streaming,
-        int(
-            bool(
-                value.bme_available
-            )
-        ),
+        int(bool(value.bme_available)),
     )
 
 
@@ -2297,9 +1569,7 @@ def pack_slave_heartbeat(
         i2s_errors,
         queue_depth,
         streaming,
-    ) = _validated_heartbeat_common(
-        value
-    )
+    ) = _validated_heartbeat_common(value)
 
     return SLAVE_HEARTBEAT_STRUCT.pack(
         uptime,
@@ -2310,14 +1580,6 @@ def pack_slave_heartbeat(
         i2s_errors,
         queue_depth,
         streaming,
-        int(
-            bool(
-                value.sync_received
-            )
-        ),
-        int(
-            bool(
-                value.clock_healthy
-            )
-        ),
+        int(bool(value.sync_received)),
+        int(bool(value.clock_healthy)),
     )

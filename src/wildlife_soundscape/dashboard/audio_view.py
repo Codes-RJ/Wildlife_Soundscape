@@ -53,7 +53,6 @@ visualization.
 They do not modify the raw persisted event recordings.
 """
 
-
 from __future__ import annotations
 
 
@@ -90,6 +89,8 @@ import numpy as np
 
 import plotly.graph_objects as go
 
+from wildlife_soundscape.dashboard.palette import apply_chart_theme
+
 
 # ======================================================================
 # PROJECT IMPORTS
@@ -106,40 +107,27 @@ from wildlife_soundscape.dsp.features import (
 # ======================================================================
 
 
-DEFAULT_MAX_AUDIO_PREVIEW_S = (
-    30.0
-)
+DEFAULT_MAX_AUDIO_PREVIEW_S = 30.0
 
 
-DEFAULT_MAX_WAVEFORM_POINTS = (
-    5000
-)
+DEFAULT_MAX_WAVEFORM_POINTS = 5000
 
 
-DEFAULT_SPECTROGRAM_N_FFT = (
-    2048
-)
+DEFAULT_SPECTROGRAM_N_FFT = 2048
 
 
-DEFAULT_SPECTROGRAM_HOP_LENGTH = (
-    512
-)
+DEFAULT_SPECTROGRAM_HOP_LENGTH = 512
 
 
-EXPECTED_SAMPLE_WIDTH_BYTES = (
-    2
-)
+EXPECTED_SAMPLE_WIDTH_BYTES = 2
 
 
-EXPECTED_CHANNEL_COUNT = (
-    1
-)
+EXPECTED_CHANNEL_COUNT = 1
 
 
 NODE_FILENAME_PATTERN = re.compile(
     r"^node_(\d+)\.wav$",
-    flags=
-        re.IGNORECASE,
+    flags=re.IGNORECASE,
 )
 
 
@@ -185,31 +173,14 @@ class EventAudioFile:
     ]:
 
         return {
-            "node_id":
-                self.node_id,
-
-            "path":
-                str(
-                    self.path
-                ),
-
-            "sample_rate":
-                self.sample_rate,
-
-            "channels":
-                self.channels,
-
-            "sample_width_bytes":
-                self.sample_width_bytes,
-
-            "frame_count":
-                self.frame_count,
-
-            "duration_s":
-                self.duration_s,
-
-            "file_size_bytes":
-                self.file_size_bytes,
+            "node_id": self.node_id,
+            "path": str(self.path),
+            "sample_rate": self.sample_rate,
+            "channels": self.channels,
+            "sample_width_bytes": self.sample_width_bytes,
+            "frame_count": self.frame_count,
+            "duration_s": self.duration_s,
+            "file_size_bytes": self.file_size_bytes,
         }
 
 
@@ -233,12 +204,8 @@ def _row_value(
         None,
     )
 
-    if callable(
-        getter
-    ):
-
+    if callable(getter):
         try:
-
             return getter(
                 key,
                 default,
@@ -248,24 +215,17 @@ def _row_value(
             KeyError,
             TypeError,
         ):
-
             pass
 
     try:
-
-        return row[
-            key
-        ]
+        return row[key]
 
     except (
         KeyError,
         IndexError,
         TypeError,
     ):
-
-        return (
-            default
-        )
+        return default
 
 
 # ======================================================================
@@ -282,35 +242,19 @@ def _positive_int(
     Require a positive Python integer.
     """
 
-    if (
-        isinstance(
-            value,
-            bool,
-        )
-        or not isinstance(
-            value,
-            int,
-        )
+    if isinstance(
+        value,
+        bool,
+    ) or not isinstance(
+        value,
+        int,
     ):
+        raise TypeError(f"{name} must be an integer.")
 
-        raise TypeError(
-            f"{name} must be an integer."
-        )
+    if value <= 0:
+        raise ValueError(f"{name} must be greater than 0.")
 
-    if (
-        value
-        <= 0
-    ):
-
-        raise ValueError(
-            f"{name} must be greater than 0."
-        )
-
-    return (
-        int(
-            value
-        )
-    )
+    return int(value)
 
 
 # ======================================================================
@@ -328,38 +272,18 @@ def _positive_finite(
     """
 
     try:
-
-        result = float(
-            value
-        )
+        result = float(value)
 
     except (
         TypeError,
         ValueError,
     ) as exc:
+        raise TypeError(f"{name} must be numeric.") from exc
 
-        raise TypeError(
-            f"{name} must be numeric."
-        ) from exc
+    if not math.isfinite(result) or result <= 0.0:
+        raise ValueError((f"{name} must be finite and greater than 0."))
 
-    if (
-        not math.isfinite(
-            result
-        )
-        or result
-        <= 0.0
-    ):
-
-        raise ValueError(
-            (
-                f"{name} must be finite "
-                "and greater than 0."
-            )
-        )
-
-    return (
-        result
-    )
+    return result
 
 
 # ======================================================================
@@ -380,58 +304,27 @@ def resolve_event_directory(
     Returns None when the event contains no directory path.
     """
 
-    raw_directory = (
-        _row_value(
-            event_row,
-            "event_directory",
-        )
+    raw_directory = _row_value(
+        event_row,
+        "event_directory",
     )
 
-    if (
-        raw_directory
-        is None
-    ):
+    if raw_directory is None:
+        return None
 
-        return (
-            None
-        )
+    directory_text = str(raw_directory).strip()
 
-    directory_text = str(
-        raw_directory
-    ).strip()
+    if not (directory_text):
+        return None
 
-    if not (
-        directory_text
-    ):
+    root = Path(project_root)
 
-        return (
-            None
-        )
+    path = Path(directory_text)
 
-    root = Path(
-        project_root
-    )
+    if not (path.is_absolute()):
+        path = root / path
 
-    path = Path(
-        directory_text
-    )
-
-    if not (
-        path.is_absolute()
-    ):
-
-        path = (
-            root
-            / path
-        )
-
-    return (
-        path.expanduser()
-        .resolve(
-            strict=
-                False
-        )
-    )
+    return path.expanduser().resolve(strict=False)
 
 
 # ======================================================================
@@ -454,41 +347,19 @@ def node_id_from_wav_filename(
     example.wav -> None
     """
 
-    path = Path(
-        path
-    )
+    path = Path(path)
 
-    match = NODE_FILENAME_PATTERN.match(
-        path.name
-    )
+    match = NODE_FILENAME_PATTERN.match(path.name)
 
-    if (
-        match
-        is None
-    ):
+    if match is None:
+        return None
 
-        return (
-            None
-        )
+    node_id = int(match.group(1))
 
-    node_id = int(
-        match.group(
-            1
-        )
-    )
+    if node_id <= 0:
+        return None
 
-    if (
-        node_id
-        <= 0
-    ):
-
-        return (
-            None
-        )
-
-    return (
-        node_id
-    )
+    return node_id
 
 
 # ======================================================================
@@ -522,185 +393,79 @@ def read_wav_metadata(
             sample width = 2 bytes
     """
 
-    path = Path(
-        path
-    ).expanduser().resolve(
-        strict=
-            False
-    )
+    path = Path(path).expanduser().resolve(strict=False)
 
-    if not (
-        path.exists()
-    ):
+    if not (path.exists()):
+        raise FileNotFoundError(f"WAV file does not exist: {path}")
 
-        raise FileNotFoundError(
-            f"WAV file does not exist: {path}"
-        )
+    if not (path.is_file()):
+        raise ValueError(f"WAV path is not a file: {path}")
 
-    if not (
-        path.is_file()
-    ):
+    if path.suffix.lower() != ".wav":
+        raise ValueError(f"Audio file must use .wav extension: {path}")
 
+    if node_id is None:
+        node_id = node_id_from_wav_filename(path)
+
+    if node_id is None:
         raise ValueError(
-            f"WAV path is not a file: {path}"
-        )
-
-    if (
-        path.suffix.lower()
-        != ".wav"
-    ):
-
-        raise ValueError(
-            f"Audio file must use .wav extension: {path}"
-        )
-
-    if (
-        node_id
-        is None
-    ):
-
-        node_id = (
-            node_id_from_wav_filename(
-                path
-            )
-        )
-
-    if (
-        node_id
-        is None
-    ):
-
-        raise ValueError(
-            (
-                "Unable to determine node_id "
-                f"from WAV filename: {path.name}"
-            )
+            (f"Unable to determine node_id from WAV filename: {path.name}")
         )
 
     node_id = _positive_int(
         node_id,
-        name=
-            "node_id",
+        name="node_id",
     )
 
     try:
-
         with wave.open(
-            str(
-                path
-            ),
+            str(path),
             "rb",
         ) as wav_file:
+            channels = int(wav_file.getnchannels())
 
-            channels = int(
-                wav_file.getnchannels()
-            )
+            sample_width_bytes = int(wav_file.getsampwidth())
 
-            sample_width_bytes = int(
-                wav_file.getsampwidth()
-            )
+            sample_rate = int(wav_file.getframerate())
 
-            sample_rate = int(
-                wav_file.getframerate()
-            )
+            frame_count = int(wav_file.getnframes())
 
-            frame_count = int(
-                wav_file.getnframes()
-            )
-
-            compression_type = (
-                wav_file.getcomptype()
-            )
+            compression_type = wav_file.getcomptype()
 
     except (
         wave.Error,
         EOFError,
     ) as exc:
-
-        raise ValueError(
-            (
-                "Invalid or unsupported WAV file: "
-                f"{path}"
-            )
-        ) from exc
+        raise ValueError((f"Invalid or unsupported WAV file: {path}")) from exc
 
     # ==============================================================
     # BASIC WAV VALIDATION
     # ==============================================================
 
-    if (
-        channels
-        <= 0
-    ):
+    if channels <= 0:
+        raise ValueError("WAV channel count must be positive.")
 
-        raise ValueError(
-            "WAV channel count must be positive."
-        )
+    if sample_width_bytes <= 0:
+        raise ValueError("WAV sample width must be positive.")
 
-    if (
-        sample_width_bytes
-        <= 0
-    ):
+    if sample_rate <= 0:
+        raise ValueError("WAV sample rate must be positive.")
 
-        raise ValueError(
-            "WAV sample width must be positive."
-        )
+    if frame_count < 0:
+        raise ValueError("WAV frame count cannot be negative.")
 
-    if (
-        sample_rate
-        <= 0
-    ):
-
-        raise ValueError(
-            "WAV sample rate must be positive."
-        )
-
-    if (
-        frame_count
-        < 0
-    ):
-
-        raise ValueError(
-            "WAV frame count cannot be negative."
-        )
-
-    if (
-        compression_type
-        != "NONE"
-    ):
-
-        raise ValueError(
-            (
-                "Dashboard currently supports "
-                "uncompressed PCM WAV only."
-            )
-        )
+    if compression_type != "NONE":
+        raise ValueError(("Dashboard currently supports uncompressed PCM WAV only."))
 
     # ==============================================================
     # PROJECT AUDIO CONTRACT
     # ==============================================================
 
-    if (
-        require_pcm16_mono
-    ):
+    if require_pcm16_mono:
+        if channels != EXPECTED_CHANNEL_COUNT:
+            raise ValueError((f"Event WAV must be mono. Found {channels} channels."))
 
-        if (
-            channels
-            != EXPECTED_CHANNEL_COUNT
-        ):
-
-            raise ValueError(
-                (
-                    "Event WAV must be mono. "
-                    f"Found {channels} channels."
-                )
-            )
-
-        if (
-            sample_width_bytes
-            != EXPECTED_SAMPLE_WIDTH_BYTES
-        ):
-
+        if sample_width_bytes != EXPECTED_SAMPLE_WIDTH_BYTES:
             raise ValueError(
                 (
                     "Event WAV must contain PCM16 "
@@ -710,41 +475,17 @@ def read_wav_metadata(
                 )
             )
 
-    duration_s = (
-        frame_count
-        / float(
-            sample_rate
-        )
-    )
+    duration_s = frame_count / float(sample_rate)
 
     return EventAudioFile(
-        node_id=
-            node_id,
-
-        path=
-            path,
-
-        sample_rate=
-            sample_rate,
-
-        channels=
-            channels,
-
-        sample_width_bytes=
-            sample_width_bytes,
-
-        frame_count=
-            frame_count,
-
-        duration_s=
-            float(
-                duration_s
-            ),
-
-        file_size_bytes=
-            int(
-                path.stat().st_size
-            ),
+        node_id=node_id,
+        path=path,
+        sample_rate=sample_rate,
+        channels=channels,
+        sample_width_bytes=sample_width_bytes,
+        frame_count=frame_count,
+        duration_s=float(duration_s),
+        file_size_bytes=int(path.stat().st_size),
     )
 
 
@@ -757,9 +498,7 @@ def discover_event_audio_files(
     event_row: Any,
     *,
     project_root: str | Path = Path("."),
-    expected_nodes: Iterable[
-        int
-    ] | None = None,
+    expected_nodes: Iterable[int] | None = None,
     require_pcm16_mono: bool = True,
 ) -> tuple[
     EventAudioFile,
@@ -774,111 +513,54 @@ def discover_event_audio_files(
     still inspect partially persisted events.
     """
 
-    event_directory = (
-        resolve_event_directory(
-            event_row,
-            project_root=
-                project_root,
-        )
+    event_directory = resolve_event_directory(
+        event_row,
+        project_root=project_root,
     )
 
-    if (
-        event_directory
-        is None
-    ):
+    if event_directory is None:
+        return ()
 
-        return (
-            ()
-        )
+    if not (event_directory.exists()):
+        return ()
 
-    if not (
-        event_directory.exists()
-    ):
+    if not (event_directory.is_dir()):
+        return ()
 
-        return (
-            ()
-        )
+    expected: set[int] | None = None
 
-    if not (
-        event_directory.is_dir()
-    ):
-
-        return (
-            ()
-        )
-
-    expected: set[
-        int
-    ] | None = (
-        None
-    )
-
-    if (
-        expected_nodes
-        is not None
-    ):
-
+    if expected_nodes is not None:
         expected = set()
 
-        for node_id in (
-            expected_nodes
-        ):
-
+        for node_id in expected_nodes:
             expected.add(
                 _positive_int(
                     node_id,
-                    name=
-                        "expected node_id",
+                    name="expected node_id",
                 )
             )
 
-    discovered: list[
-        EventAudioFile
-    ] = []
+    discovered: list[EventAudioFile] = []
 
-    for path in sorted(
-        event_directory.glob(
-            "*.wav"
-        )
-    ):
+    for path in sorted(event_directory.glob("*.wav")):
+        discovered_node_id = node_id_from_wav_filename(path)
 
-        discovered_node_id = (
-            node_id_from_wav_filename(
-                path
-            )
-        )
-
-        if (
-            discovered_node_id
-            is None
-        ):
-
+        if discovered_node_id is None:
             continue
 
-        if (
-            expected
-            is not None
-            and discovered_node_id
-            not in expected
-        ):
-
+        if expected is not None and discovered_node_id not in expected:
             continue
 
         try:
-
-            metadata = (
-                read_wav_metadata(
-                    path,
-                    require_pcm16_mono=
-                        require_pcm16_mono,
-                )
+            metadata = read_wav_metadata(
+                path,
+                require_pcm16_mono=require_pcm16_mono,
             )
 
         except (
             FileNotFoundError,
             ValueError,
         ):
-
             # ----------------------------------------------------------
             # One malformed/missing node recording should not prevent
             # discovery of other valid recordings for the event.
@@ -886,19 +568,11 @@ def discover_event_audio_files(
 
             continue
 
-        discovered.append(
-            metadata
-        )
+        discovered.append(metadata)
 
-    discovered.sort(
-        key=
-            lambda item:
-                item.node_id
-    )
+    discovered.sort(key=lambda item: item.node_id)
 
-    return tuple(
-        discovered
-    )
+    return tuple(discovered)
 
 
 # ======================================================================
@@ -938,107 +612,51 @@ def load_pcm16_mono(
         audio_file,
         EventAudioFile,
     ):
-
-        metadata = (
-            audio_file
-        )
+        metadata = audio_file
 
     else:
+        metadata = read_wav_metadata(audio_file)
 
-        metadata = (
-            read_wav_metadata(
-                audio_file
-            )
-        )
+    if metadata.channels != EXPECTED_CHANNEL_COUNT:
+        raise ValueError(("PCM decoder currently requires mono event WAV audio."))
 
-    if (
-        metadata.channels
-        != EXPECTED_CHANNEL_COUNT
-    ):
+    if metadata.sample_width_bytes != EXPECTED_SAMPLE_WIDTH_BYTES:
+        raise ValueError(("PCM decoder currently requires 16-bit event WAV audio."))
 
-        raise ValueError(
-            (
-                "PCM decoder currently requires "
-                "mono event WAV audio."
-            )
-        )
+    frame_limit = metadata.frame_count
 
-    if (
-        metadata.sample_width_bytes
-        != EXPECTED_SAMPLE_WIDTH_BYTES
-    ):
-
-        raise ValueError(
-            (
-                "PCM decoder currently requires "
-                "16-bit event WAV audio."
-            )
-        )
-
-    frame_limit = (
-        metadata.frame_count
-    )
-
-    if (
-        max_duration_s
-        is not None
-    ):
-
-        max_duration_s = (
-            _positive_finite(
-                max_duration_s,
-                name=
-                    "max_duration_s",
-            )
+    if max_duration_s is not None:
+        max_duration_s = _positive_finite(
+            max_duration_s,
+            name="max_duration_s",
         )
 
         frame_limit = min(
             frame_limit,
-            int(
-                math.ceil(
-                    max_duration_s
-                    * metadata.sample_rate
-                )
-            ),
+            int(math.ceil(max_duration_s * metadata.sample_rate)),
         )
 
     try:
-
         with wave.open(
-            str(
-                metadata.path
-            ),
+            str(metadata.path),
             "rb",
         ) as wav_file:
-
-            raw_bytes = (
-                wav_file.readframes(
-                    frame_limit
-                )
-            )
+            raw_bytes = wav_file.readframes(frame_limit)
 
     except (
         wave.Error,
         EOFError,
     ) as exc:
-
-        raise ValueError(
-            (
-                "Unable to decode event WAV: "
-                f"{metadata.path}"
-            )
-        ) from exc
+        raise ValueError((f"Unable to decode event WAV: {metadata.path}")) from exc
 
     pcm = np.frombuffer(
         raw_bytes,
-        dtype=
-            "<i2",
+        dtype="<i2",
     )
 
     pcm = np.ascontiguousarray(
         pcm,
-        dtype=
-            np.int16,
+        dtype=np.int16,
     )
 
     return (
@@ -1063,56 +681,29 @@ def pcm16_to_float(
         pcm,
         np.ndarray,
     ):
+        raise TypeError("pcm must be a numpy array.")
 
-        raise TypeError(
-            "pcm must be a numpy array."
-        )
+    if pcm.ndim != 1:
+        raise ValueError("pcm must be one-dimensional.")
 
-    if (
-        pcm.ndim
-        != 1
-    ):
-
-        raise ValueError(
-            "pcm must be one-dimensional."
-        )
-
-    if (
-        pcm.dtype
-        != np.int16
-    ):
-
+    if pcm.dtype != np.int16:
         try:
-
             pcm = np.asarray(
                 pcm,
-                dtype=
-                    np.int16,
+                dtype=np.int16,
             )
 
         except (
             TypeError,
             ValueError,
         ) as exc:
+            raise TypeError(("pcm must contain int16-compatible samples.")) from exc
 
-            raise TypeError(
-                (
-                    "pcm must contain "
-                    "int16-compatible samples."
-                )
-            ) from exc
-
-    signal = (
-        pcm.astype(
-            np.float32
-        )
-        / 32768.0
-    )
+    signal = pcm.astype(np.float32) / 32768.0
 
     return np.ascontiguousarray(
         signal,
-        dtype=
-            np.float32,
+        dtype=np.float32,
     )
 
 
@@ -1135,20 +726,14 @@ def build_preview_wav_bytes(
     event is included.
     """
 
-    max_duration_s = (
-        _positive_finite(
-            max_duration_s,
-            name=
-                "max_duration_s",
-        )
+    max_duration_s = _positive_finite(
+        max_duration_s,
+        name="max_duration_s",
     )
 
-    pcm, sample_rate = (
-        load_pcm16_mono(
-            audio_file,
-            max_duration_s=
-                max_duration_s,
-        )
+    pcm, sample_rate = load_pcm16_mono(
+        audio_file,
+        max_duration_s=max_duration_s,
     )
 
     buffer = io.BytesIO()
@@ -1157,30 +742,20 @@ def build_preview_wav_bytes(
         buffer,
         "wb",
     ) as wav_file:
+        wav_file.setnchannels(EXPECTED_CHANNEL_COUNT)
 
-        wav_file.setnchannels(
-            EXPECTED_CHANNEL_COUNT
-        )
+        wav_file.setsampwidth(EXPECTED_SAMPLE_WIDTH_BYTES)
 
-        wav_file.setsampwidth(
-            EXPECTED_SAMPLE_WIDTH_BYTES
-        )
-
-        wav_file.setframerate(
-            sample_rate
-        )
+        wav_file.setframerate(sample_rate)
 
         wav_file.writeframes(
             pcm.astype(
                 "<i2",
-                copy=
-                    False,
+                copy=False,
             ).tobytes()
         )
 
-    return (
-        buffer.getvalue()
-    )
+    return buffer.getvalue()
 
 
 # ======================================================================
@@ -1201,35 +776,25 @@ def _waveform_decimation_indices(
 
     sample_count = _positive_int(
         sample_count,
-        name=
-            "sample_count",
+        name="sample_count",
     )
 
     max_points = _positive_int(
         max_points,
-        name=
-            "max_points",
+        name="max_points",
     )
 
-    if (
-        sample_count
-        <= max_points
-    ):
-
+    if sample_count <= max_points:
         return np.arange(
             sample_count,
-            dtype=
-                np.int64,
+            dtype=np.int64,
         )
 
     return np.linspace(
         0,
-        sample_count
-        - 1,
-        num=
-            max_points,
-        dtype=
-            np.int64,
+        sample_count - 1,
+        num=max_points,
+        dtype=np.int64,
     )
 
 
@@ -1250,57 +815,31 @@ def _empty_audio_figure(
     figure = go.Figure()
 
     figure.add_annotation(
-        x=
-            0.5,
-
-        y=
-            0.5,
-
-        xref=
-            "paper",
-
-        yref=
-            "paper",
-
-        text=
-            message,
-
-        showarrow=
-            False,
+        x=0.5,
+        y=0.5,
+        xref="paper",
+        yref="paper",
+        text=message,
+        showarrow=False,
     )
 
-    figure.update_xaxes(
-        visible=
-            False
-    )
+    figure.update_xaxes(visible=False)
 
-    figure.update_yaxes(
-        visible=
-            False
-    )
+    figure.update_yaxes(visible=False)
 
+    apply_chart_theme(figure)
     figure.update_layout(
-        title=
-            title,
-
-        height=
-            300,
-
+        title=title,
+        height=300,
         margin=dict(
-            l=
-                40,
-            r=
-                30,
-            t=
-                60,
-            b=
-                40,
+            l=40,
+            r=30,
+            t=60,
+            b=40,
         ),
     )
 
-    return (
-        figure
-    )
+    return figure
 
 
 # ======================================================================
@@ -1321,160 +860,82 @@ def build_waveform_figure(
     recording remains untouched.
     """
 
-    max_duration_s = (
-        _positive_finite(
-            max_duration_s,
-            name=
-                "max_duration_s",
-        )
+    max_duration_s = _positive_finite(
+        max_duration_s,
+        name="max_duration_s",
     )
 
-    max_points = (
-        _positive_int(
-            max_points,
-            name=
-                "max_points",
-        )
+    max_points = _positive_int(
+        max_points,
+        name="max_points",
     )
 
     if isinstance(
         audio_file,
         EventAudioFile,
     ):
-
-        metadata = (
-            audio_file
-        )
+        metadata = audio_file
 
     else:
+        metadata = read_wav_metadata(audio_file)
 
-        metadata = (
-            read_wav_metadata(
-                audio_file
-            )
-        )
-
-    pcm, sample_rate = (
-        load_pcm16_mono(
-            metadata,
-            max_duration_s=
-                max_duration_s,
-        )
+    pcm, sample_rate = load_pcm16_mono(
+        metadata,
+        max_duration_s=max_duration_s,
     )
 
-    if (
-        pcm.size
-        == 0
-    ):
-
+    if pcm.size == 0:
         return _empty_audio_figure(
-            title=
-                (
-                    f"Node {metadata.node_id} "
-                    "Waveform"
-                ),
-
-            message=
-                "Audio file contains no samples.",
+            title=(f"Node {metadata.node_id} Waveform"),
+            message="Audio file contains no samples.",
         )
 
-    signal = (
-        pcm16_to_float(
-            pcm
-        )
+    signal = pcm16_to_float(pcm)
+
+    indices = _waveform_decimation_indices(
+        int(signal.size),
+        max_points=max_points,
     )
 
-    indices = (
-        _waveform_decimation_indices(
-            int(
-                signal.size
-            ),
-            max_points=
-                max_points,
-        )
-    )
+    times = indices.astype(np.float64) / float(sample_rate)
 
-    times = (
-        indices.astype(
-            np.float64
-        )
-        / float(
-            sample_rate
-        )
-    )
-
-    values = (
-        signal[
-            indices
-        ]
-    )
+    values = signal[indices]
 
     figure = go.Figure()
 
     figure.add_trace(
         go.Scatter(
-            x=
-                times,
-
-            y=
-                values,
-
-            mode=
-                "lines",
-
-            name=
-                f"Node {metadata.node_id}",
-
-            hovertemplate=(
-                "Time: %{x:.4f} s<br>"
-                "Amplitude: %{y:.5f}"
-                "<extra></extra>"
-            ),
+            x=times,
+            y=values,
+            mode="lines",
+            name=f"Node {metadata.node_id}",
+            hovertemplate=("Time: %{x:.4f} s<br>Amplitude: %{y:.5f}<extra></extra>"),
         )
     )
 
+    apply_chart_theme(figure)
     figure.update_layout(
-        title=
-            (
-                f"Node {metadata.node_id} "
-                "Waveform"
-            ),
-
-        xaxis_title=
-            "Time (s)",
-
-        yaxis_title=
-            "Normalized Amplitude",
-
-        height=
-            330,
-
+        title=(f"Node {metadata.node_id} Waveform"),
+        xaxis_title="Time (s)",
+        yaxis_title="Normalized Amplitude",
+        height=330,
         margin=dict(
-            l=
-                50,
-            r=
-                30,
-            t=
-                60,
-            b=
-                45,
+            l=50,
+            r=30,
+            t=60,
+            b=45,
         ),
-
-        hovermode=
-            "x",
+        hovermode="x",
     )
 
     figure.update_yaxes(
-        range=
-            [
-                -1.0,
-                1.0,
-            ]
+        range=[
+            -1.0,
+            1.0,
+        ]
     )
 
-    return (
-        figure
-    )
+    return figure
 
 
 # ======================================================================
@@ -1498,182 +959,93 @@ def build_spectrogram_figure(
     visualization.
     """
 
-    max_duration_s = (
-        _positive_finite(
-            max_duration_s,
-            name=
-                "max_duration_s",
-        )
+    max_duration_s = _positive_finite(
+        max_duration_s,
+        name="max_duration_s",
     )
 
-    n_fft = (
-        _positive_int(
-            n_fft,
-            name=
-                "n_fft",
-        )
+    n_fft = _positive_int(
+        n_fft,
+        name="n_fft",
     )
 
-    hop_length = (
-        _positive_int(
-            hop_length,
-            name=
-                "hop_length",
-        )
+    hop_length = _positive_int(
+        hop_length,
+        name="hop_length",
     )
 
-    if (
-        hop_length
-        > n_fft
-    ):
-
-        raise ValueError(
-            "hop_length cannot exceed n_fft."
-        )
+    if hop_length > n_fft:
+        raise ValueError("hop_length cannot exceed n_fft.")
 
     if isinstance(
         audio_file,
         EventAudioFile,
     ):
-
-        metadata = (
-            audio_file
-        )
+        metadata = audio_file
 
     else:
+        metadata = read_wav_metadata(audio_file)
 
-        metadata = (
-            read_wav_metadata(
-                audio_file
-            )
-        )
-
-    pcm, sample_rate = (
-        load_pcm16_mono(
-            metadata,
-            max_duration_s=
-                max_duration_s,
-        )
+    pcm, sample_rate = load_pcm16_mono(
+        metadata,
+        max_duration_s=max_duration_s,
     )
 
-    if (
-        pcm.size
-        == 0
-    ):
-
+    if pcm.size == 0:
         return _empty_audio_figure(
-            title=
-                (
-                    f"Node {metadata.node_id} "
-                    "Spectrogram"
-                ),
-
-            message=
-                "Audio file contains no samples.",
+            title=(f"Node {metadata.node_id} Spectrogram"),
+            message="Audio file contains no samples.",
         )
 
-    signal = (
-        pcm16_to_float(
-            pcm
-        )
-    )
+    signal = pcm16_to_float(pcm)
 
     (
         log_spectrogram,
         frequencies,
         times,
-    ) = (
-        calculate_log_spectrogram(
-            signal,
-
-            sample_rate=
-                sample_rate,
-
-            n_fft=
-                n_fft,
-
-            hop_length=
-                hop_length,
-        )
+    ) = calculate_log_spectrogram(
+        signal,
+        sample_rate=sample_rate,
+        n_fft=n_fft,
+        hop_length=hop_length,
     )
 
-    if (
-        log_spectrogram.size
-        == 0
-        or frequencies.size
-        == 0
-        or times.size
-        == 0
-    ):
-
+    if log_spectrogram.size == 0 or frequencies.size == 0 or times.size == 0:
         return _empty_audio_figure(
-            title=
-                (
-                    f"Node {metadata.node_id} "
-                    "Spectrogram"
-                ),
-
-            message=
-                "Unable to construct spectrogram.",
+            title=(f"Node {metadata.node_id} Spectrogram"),
+            message="Unable to construct spectrogram.",
         )
 
     figure = go.Figure(
-        data=
-            go.Heatmap(
-                x=
-                    times,
-
-                y=
-                    frequencies,
-
-                z=
-                    log_spectrogram,
-
-                colorbar=dict(
-                    title=
-                        "dB"
-                ),
-
-                hovertemplate=(
-                    "Time: %{x:.4f} s<br>"
-                    "Frequency: %{y:.1f} Hz<br>"
-                    "Level: %{z:.2f} dB"
-                    "<extra></extra>"
-                ),
-            )
+        data=go.Heatmap(
+            x=times,
+            y=frequencies,
+            z=log_spectrogram,
+            colorbar=dict(title="dB"),
+            hovertemplate=(
+                "Time: %{x:.4f} s<br>"
+                "Frequency: %{y:.1f} Hz<br>"
+                "Level: %{z:.2f} dB"
+                "<extra></extra>"
+            ),
+        )
     )
 
+    apply_chart_theme(figure)
     figure.update_layout(
-        title=
-            (
-                f"Node {metadata.node_id} "
-                "Spectrogram"
-            ),
-
-        xaxis_title=
-            "Time (s)",
-
-        yaxis_title=
-            "Frequency (Hz)",
-
-        height=
-            420,
-
+        title=(f"Node {metadata.node_id} Spectrogram"),
+        xaxis_title="Time (s)",
+        yaxis_title="Frequency (Hz)",
+        height=420,
         margin=dict(
-            l=
-                55,
-            r=
-                30,
-            t=
-                60,
-            b=
-                45,
+            l=55,
+            r=30,
+            t=60,
+            b=45,
         ),
     )
 
-    return (
-        figure
-    )
+    return figure
 
 
 # ======================================================================
@@ -1685,9 +1057,7 @@ def event_audio_summary(
     event_row: Any,
     *,
     project_root: str | Path = Path("."),
-    expected_nodes: Iterable[
-        int
-    ] | None = None,
+    expected_nodes: Iterable[int] | None = None,
 ) -> dict[
     str,
     Any,
@@ -1696,60 +1066,23 @@ def event_audio_summary(
     Build a dashboard-friendly summary of available event recordings.
     """
 
-    event_directory = (
-        resolve_event_directory(
-            event_row,
-            project_root=
-                project_root,
-        )
+    event_directory = resolve_event_directory(
+        event_row,
+        project_root=project_root,
     )
 
-    files = (
-        discover_event_audio_files(
-            event_row,
-            project_root=
-                project_root,
-            expected_nodes=
-                expected_nodes,
-        )
+    files = discover_event_audio_files(
+        event_row,
+        project_root=project_root,
+        expected_nodes=expected_nodes,
     )
 
     return {
-        "event_directory":
-            (
-                str(
-                    event_directory
-                )
-
-                if event_directory
-                is not None
-
-                else None
-            ),
-
-        "available":
-            bool(
-                files
-            ),
-
-        "node_count":
-            len(
-                files
-            ),
-
-        "nodes":
-            tuple(
-                audio_file.node_id
-
-                for audio_file
-                in files
-            ),
-
-        "files":
-            tuple(
-                audio_file.to_dict()
-
-                for audio_file
-                in files
-            ),
+        "event_directory": (
+            str(event_directory) if event_directory is not None else None
+        ),
+        "available": bool(files),
+        "node_count": len(files),
+        "nodes": tuple(audio_file.node_id for audio_file in files),
+        "files": tuple(audio_file.to_dict() for audio_file in files),
     }

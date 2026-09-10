@@ -40,4 +40,17 @@ or press `Ctrl+C` in it to stop that service.
 - `run_website.bat demo` is the health-checked demo-mode orchestrator.
 - `run_website.ps1` contains the process orchestration and startup health
   checks used by the two one-click batch files.
-- `validate_windows.bat` runs compilation, Ruff, and the complete test suite.
+- `validate_windows.bat` runs compilation, Ruff, mypy, the complete test suite
+  with coverage enforcement, and a dependency audit.
+
+## Research and data utilities
+
+- `wildlife-validate-dataset` checks the native three-node dataset contract.
+- `python -m wildlife_soundscape.tools.reprocess_unknown` previews or applies
+  recovery of old heuristic `unknown` classifications; apply mode creates a
+  database backup first.
+- `wildlife-export-events` and `wildlife-export-research` create portable
+  exports with experiment-manifest sidecars.
+
+See [`docs/OPERATIONS.md`](../docs/OPERATIONS.md) for data recovery and live
+hardware checks.

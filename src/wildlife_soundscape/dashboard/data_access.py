@@ -81,7 +81,6 @@ This module does NOT
 Those responsibilities remain elsewhere.
 """
 
-
 from __future__ import annotations
 
 
@@ -160,28 +159,16 @@ def row_to_dict(
         row,
         dict,
     ):
-
-        return dict(
-            row
-        )
+        return dict(row)
 
     try:
-
-        return dict(
-            row
-        )
+        return dict(row)
 
     except (
         TypeError,
         ValueError,
     ) as exc:
-
-        raise TypeError(
-            (
-                "Dashboard row must be "
-                "dictionary-like."
-            )
-        ) from exc
+        raise TypeError(("Dashboard row must be dictionary-like.")) from exc
 
 
 # ======================================================================
@@ -190,9 +177,7 @@ def row_to_dict(
 
 
 def rows_to_dicts(
-    rows: Iterable[
-        Any
-    ],
+    rows: Iterable[Any],
 ) -> list[
     dict[
         str,
@@ -203,14 +188,7 @@ def rows_to_dicts(
     Convert an iterable of database rows into plain dictionaries.
     """
 
-    return [
-        row_to_dict(
-            row
-        )
-
-        for row
-        in rows
-    ]
+    return [row_to_dict(row) for row in rows]
 
 
 # ======================================================================
@@ -225,62 +203,25 @@ def _optional_session_id(
     Validate optional Protocol-v4 session identifier.
     """
 
-    if (
-        value
-        is None
+    if value is None:
+        return None
+
+    if isinstance(
+        value,
+        bool,
+    ) or not isinstance(
+        value,
+        int,
     ):
+        raise TypeError(("session_id must be an integer or None."))
 
-        return (
-            None
-        )
+    if value <= 0:
+        raise ValueError(("session_id must be greater than 0."))
 
-    if (
-        isinstance(
-            value,
-            bool,
-        )
-        or not isinstance(
-            value,
-            int,
-        )
-    ):
+    if value > 0xFFFFFFFF:
+        raise ValueError(("session_id exceeds Protocol-v4 uint32 range."))
 
-        raise TypeError(
-            (
-                "session_id must be an "
-                "integer or None."
-            )
-        )
-
-    if (
-        value
-        <= 0
-    ):
-
-        raise ValueError(
-            (
-                "session_id must be greater "
-                "than 0."
-            )
-        )
-
-    if (
-        value
-        > 0xFFFFFFFF
-    ):
-
-        raise ValueError(
-            (
-                "session_id exceeds "
-                "Protocol-v4 uint32 range."
-            )
-        )
-
-    return (
-        int(
-            value
-        )
-    )
+    return int(value)
 
 
 # ======================================================================
@@ -299,27 +240,14 @@ def _required_session_id(
     observation period.
     """
 
-    result = (
-        _optional_session_id(
-            value
-        )
-    )
+    result = _optional_session_id(value)
 
-    if (
-        result
-        is None
-    ):
-
+    if result is None:
         raise ValueError(
-            (
-                "session_id is required for "
-                "single-session research analysis."
-            )
+            ("session_id is required for single-session research analysis.")
         )
 
-    return (
-        result
-    )
+    return result
 
 
 # ======================================================================
@@ -336,44 +264,22 @@ def _optional_positive_int(
     Validate optional positive integer.
     """
 
-    if (
-        value
-        is None
+    if value is None:
+        return None
+
+    if isinstance(
+        value,
+        bool,
+    ) or not isinstance(
+        value,
+        int,
     ):
+        raise TypeError(f"{name} must be an integer or None.")
 
-        return (
-            None
-        )
+    if value <= 0:
+        raise ValueError(f"{name} must be greater than 0.")
 
-    if (
-        isinstance(
-            value,
-            bool,
-        )
-        or not isinstance(
-            value,
-            int,
-        )
-    ):
-
-        raise TypeError(
-            f"{name} must be an integer or None."
-        )
-
-    if (
-        value
-        <= 0
-    ):
-
-        raise ValueError(
-            f"{name} must be greater than 0."
-        )
-
-    return (
-        int(
-            value
-        )
-    )
+    return int(value)
 
 
 # ======================================================================
@@ -424,38 +330,20 @@ class DashboardDataAccess:
             config,
             AppConfig,
         ):
+            raise TypeError("config must be an AppConfig.")
 
-            raise TypeError(
-                "config must be an AppConfig."
-            )
-
-        if (
-            database
-            is not None
-            and not isinstance(
-                database,
-                EventDatabase,
-            )
+        if database is not None and not isinstance(
+            database,
+            EventDatabase,
         ):
+            raise TypeError(("database must be an EventDatabase or None."))
 
-            raise TypeError(
-                (
-                    "database must be an "
-                    "EventDatabase or None."
-                )
-            )
-
-        self.config = (
-            config
-        )
+        self.config = config
 
         self.database = (
             database
-            if database
-            is not None
-            else EventDatabase(
-                config.persistence.database_path
-            )
+            if database is not None
+            else EventDatabase(config.persistence.database_path)
         )
 
     # ==================================================================
@@ -470,9 +358,7 @@ class DashboardDataAccess:
         Path of the currently opened event database.
         """
 
-        return (
-            self.database.path
-        )
+        return self.database.path
 
     # ==================================================================
     # SESSION LIST
@@ -494,37 +380,19 @@ class DashboardDataAccess:
         If ``limit`` is omitted, the configured dashboard limit is used.
         """
 
-        if (
-            limit
-            is None
-        ):
+        if limit is None:
+            limit = self.config.dashboard.session_list_limit
 
-            limit = (
-                self.config
-                .dashboard
-                .session_list_limit
-            )
-
-        limit = (
-            _optional_positive_int(
-                limit,
-                name=
-                    "limit",
-            )
+        limit = _optional_positive_int(
+            limit,
+            name="limit",
         )
 
-        rows = (
-            self.database.list_sessions(
-                limit=
-                    limit,
-            )
+        rows = self.database.list_sessions(
+            limit=limit,
         )
 
-        return (
-            rows_to_dicts(
-                rows
-            )
-        )
+        return rows_to_dicts(rows)
 
     # ==================================================================
     # LATEST SESSION
@@ -532,34 +400,23 @@ class DashboardDataAccess:
 
     def latest_session(
         self,
-    ) -> dict[
-        str,
-        Any,
-    ] | None:
+    ) -> (
+        dict[
+            str,
+            Any,
+        ]
+        | None
+    ):
         """
         Return the newest persisted acquisition session.
         """
 
-        rows = (
-            self.sessions(
-                limit=
-                    1
-            )
-        )
+        rows = self.sessions(limit=1)
 
-        if not (
-            rows
-        ):
+        if not (rows):
+            return None
 
-            return (
-                None
-            )
-
-        return (
-            rows[
-                0
-            ]
-        )
+        return rows[0]
 
     # ==================================================================
     # RECENT EVENTS
@@ -588,46 +445,20 @@ class DashboardDataAccess:
         instead.
         """
 
-        if (
-            limit
-            is None
-        ):
+        if limit is None:
+            limit = self.config.dashboard.recent_events_limit
 
-            limit = (
-                self.config
-                .dashboard
-                .recent_events_limit
-            )
-
-        limit = (
-            _optional_positive_int(
-                limit,
-                name=
-                    "limit",
-            )
+        limit = _optional_positive_int(
+            limit,
+            name="limit",
         )
 
-        if (
-            limit
-            is None
-        ):
+        if limit is None:
+            return []
 
-            return (
-                []
-            )
+        rows = self.database.recent_events(limit=limit)
 
-        rows = (
-            self.database.recent_events(
-                limit=
-                    limit
-            )
-        )
-
-        return (
-            rows_to_dicts(
-                rows
-            )
-        )
+        return rows_to_dicts(rows)
 
     # ==================================================================
     # SOUNDSCAPE INDICES
@@ -654,10 +485,7 @@ class DashboardDataAccess:
             if node_id is not None
             else None
         )
-        limit_val = (
-            _optional_positive_int(limit, name="limit")
-            or 1000
-        )
+        limit_val = _optional_positive_int(limit, name="limit") or 1000
 
         return self.database.get_soundscape_indices(
             session_id=session_id,
@@ -672,58 +500,35 @@ class DashboardDataAccess:
     def event(
         self,
         event_id: int,
-    ) -> dict[
-        str,
-        Any,
-    ] | None:
+    ) -> (
+        dict[
+            str,
+            Any,
+        ]
+        | None
+    ):
         """
         Return one event including DSP and classification fields.
         """
 
-        if (
-            isinstance(
-                event_id,
-                bool,
-            )
-            or not isinstance(
-                event_id,
-                int,
-            )
+        if isinstance(
+            event_id,
+            bool,
+        ) or not isinstance(
+            event_id,
+            int,
         ):
+            raise TypeError("event_id must be an integer.")
 
-            raise TypeError(
-                "event_id must be an integer."
-            )
+        if event_id <= 0:
+            raise ValueError("event_id must be greater than 0.")
 
-        if (
-            event_id
-            <= 0
-        ):
+        row = self.database.get_event(event_id)
 
-            raise ValueError(
-                "event_id must be greater than 0."
-            )
+        if row is None:
+            return None
 
-        row = (
-            self.database.get_event(
-                event_id
-            )
-        )
-
-        if (
-            row
-            is None
-        ):
-
-            return (
-                None
-            )
-
-        return (
-            row_to_dict(
-                row
-            )
-        )
+        return row_to_dict(row)
 
     # ==================================================================
     # NORMALIZED ANALYTICS EVENTS
@@ -761,39 +566,16 @@ class DashboardDataAccess:
         explicit session boundaries.
         """
 
-        session_id = (
-            _optional_session_id(
-                session_id
-            )
+        session_id = _optional_session_id(session_id)
+
+        rows = self.database.analytics_event_rows(
+            sample_rate=self.config.audio.sample_rate,
+            session_id=session_id,
+            start=start,
+            end=end,
         )
 
-        rows = (
-            self.database
-            .analytics_event_rows(
-                sample_rate=
-                    self.config
-                    .audio
-                    .sample_rate,
-
-                session_id=
-                    session_id,
-
-                start=
-                    start,
-
-                end=
-                    end,
-            )
-        )
-
-        return [
-            row_to_dict(
-                row
-            )
-
-            for row
-            in rows
-        ]
+        return [row_to_dict(row) for row in rows]
 
     # ==================================================================
     # NORMALIZED TELEMETRY
@@ -817,78 +599,30 @@ class DashboardDataAccess:
         timeline.
         """
 
-        session_id = (
-            _optional_session_id(
-                session_id
-            )
+        session_id = _optional_session_id(session_id)
+
+        if node_id is not None:
+            if isinstance(
+                node_id,
+                bool,
+            ) or not isinstance(
+                node_id,
+                int,
+            ):
+                raise TypeError(("node_id must be an integer or None."))
+
+            if not (1 <= node_id <= 255):
+                raise ValueError(("node_id must lie between 1 and 255."))
+
+        rows = self.database.analytics_telemetry_rows(
+            sample_rate=self.config.audio.sample_rate,
+            session_id=session_id,
+            node_id=node_id,
+            start=start,
+            end=end,
         )
 
-        if (
-            node_id
-            is not None
-        ):
-
-            if (
-                isinstance(
-                    node_id,
-                    bool,
-                )
-                or not isinstance(
-                    node_id,
-                    int,
-                )
-            ):
-
-                raise TypeError(
-                    (
-                        "node_id must be an "
-                        "integer or None."
-                    )
-                )
-
-            if not (
-                1
-                <= node_id
-                <= 255
-            ):
-
-                raise ValueError(
-                    (
-                        "node_id must lie "
-                        "between 1 and 255."
-                    )
-                )
-
-        rows = (
-            self.database
-            .analytics_telemetry_rows(
-                sample_rate=
-                    self.config
-                    .audio
-                    .sample_rate,
-
-                session_id=
-                    session_id,
-
-                node_id=
-                    node_id,
-
-                start=
-                    start,
-
-                end=
-                    end,
-            )
-        )
-
-        return [
-            row_to_dict(
-                row
-            )
-
-            for row
-            in rows
-        ]
+        return [row_to_dict(row) for row in rows]
 
     # ==================================================================
     # ENVIRONMENTAL OBSERVATION BINS
@@ -918,88 +652,33 @@ class DashboardDataAccess:
             analytics.environmental
         """
 
-        session_id = (
-            _required_session_id(
-                session_id
-            )
+        session_id = _required_session_id(session_id)
+
+        if bucket_seconds is None:
+            bucket_seconds = self.config.analytics.bucket_seconds
+
+        if isinstance(
+            bucket_seconds,
+            bool,
+        ) or not isinstance(
+            bucket_seconds,
+            int,
+        ):
+            raise TypeError(("bucket_seconds must be an integer."))
+
+        if bucket_seconds <= 0:
+            raise ValueError(("bucket_seconds must be greater than 0."))
+
+        rows = self.database.analytics_environmental_bins(
+            session_id=session_id,
+            bucket_seconds=bucket_seconds,
+            sample_rate=self.config.audio.sample_rate,
+            node_id=self.config.analytics.environmental_node_id,
+            start=start,
+            end=end,
         )
 
-        if (
-            bucket_seconds
-            is None
-        ):
-
-            bucket_seconds = (
-                self.config
-                .analytics
-                .bucket_seconds
-            )
-
-        if (
-            isinstance(
-                bucket_seconds,
-                bool,
-            )
-            or not isinstance(
-                bucket_seconds,
-                int,
-            )
-        ):
-
-            raise TypeError(
-                (
-                    "bucket_seconds must "
-                    "be an integer."
-                )
-            )
-
-        if (
-            bucket_seconds
-            <= 0
-        ):
-
-            raise ValueError(
-                (
-                    "bucket_seconds must "
-                    "be greater than 0."
-                )
-            )
-
-        rows = (
-            self.database
-            .analytics_environmental_bins(
-                session_id=
-                    session_id,
-
-                bucket_seconds=
-                    bucket_seconds,
-
-                sample_rate=
-                    self.config
-                    .audio
-                    .sample_rate,
-
-                node_id=
-                    self.config
-                    .analytics
-                    .environmental_node_id,
-
-                start=
-                    start,
-
-                end=
-                    end,
-            )
-        )
-
-        return [
-            row_to_dict(
-                row
-            )
-
-            for row
-            in rows
-        ]
+        return [row_to_dict(row) for row in rows]
 
     # ==================================================================
     # ENVIRONMENTAL BINS ACROSS SESSIONS
@@ -1031,53 +710,22 @@ class DashboardDataAccess:
         continuous wildlife observation session.
         """
 
-        if (
-            bucket_seconds
-            is None
+        if bucket_seconds is None:
+            bucket_seconds = self.config.analytics.bucket_seconds
+
+        if isinstance(
+            bucket_seconds,
+            bool,
+        ) or not isinstance(
+            bucket_seconds,
+            int,
         ):
+            raise TypeError(("bucket_seconds must be an integer."))
 
-            bucket_seconds = (
-                self.config
-                .analytics
-                .bucket_seconds
-            )
+        if bucket_seconds <= 0:
+            raise ValueError(("bucket_seconds must be greater than 0."))
 
-        if (
-            isinstance(
-                bucket_seconds,
-                bool,
-            )
-            or not isinstance(
-                bucket_seconds,
-                int,
-            )
-        ):
-
-            raise TypeError(
-                (
-                    "bucket_seconds must "
-                    "be an integer."
-                )
-            )
-
-        if (
-            bucket_seconds
-            <= 0
-        ):
-
-            raise ValueError(
-                (
-                    "bucket_seconds must "
-                    "be greater than 0."
-                )
-            )
-
-        sessions = (
-            self.database.list_sessions(
-                limit=
-                    None
-            )
-        )
+        sessions = self.database.list_sessions(limit=None)
 
         result: list[
             dict[
@@ -1092,49 +740,21 @@ class DashboardDataAccess:
         # Reverse here so the returned bin collection is chronological.
         # --------------------------------------------------------------
 
-        for session_row in reversed(
-            sessions
-        ):
+        for session_row in reversed(sessions):
+            session = row_to_dict(session_row)
 
-            session = (
-                row_to_dict(
-                    session_row
-                )
+            session_id = _required_session_id(int(session["session_id"]))
+
+            bins = self.environmental_bins(
+                session_id=session_id,
+                start=start,
+                end=end,
+                bucket_seconds=bucket_seconds,
             )
 
-            session_id = (
-                _required_session_id(
-                    int(
-                        session[
-                            "session_id"
-                        ]
-                    )
-                )
-            )
+            result.extend(bins)
 
-            bins = (
-                self.environmental_bins(
-                    session_id=
-                        session_id,
-
-                    start=
-                        start,
-
-                    end=
-                        end,
-
-                    bucket_seconds=
-                        bucket_seconds,
-                )
-            )
-
-            result.extend(
-                bins
-            )
-
-        return (
-            result
-        )
+        return result
 
     # ==================================================================
     # COMPLETE RESEARCH REPORT
@@ -1195,55 +815,28 @@ class DashboardDataAccess:
         timing and is unrelated to these wall-clock timestamps.
         """
 
-        session_id = (
-            _required_session_id(
-                session_id
-            )
-        )
+        session_id = _required_session_id(session_id)
 
         if not isinstance(
             include_environment,
             bool,
         ):
+            raise TypeError(("include_environment must be bool."))
 
-            raise TypeError(
-                (
-                    "include_environment "
-                    "must be bool."
-                )
-            )
-
-        if (
-            generated_at
-            is not None
-            and not isinstance(
-                generated_at,
-                datetime,
-            )
+        if generated_at is not None and not isinstance(
+            generated_at,
+            datetime,
         ):
-
-            raise TypeError(
-                (
-                    "generated_at must be "
-                    "datetime or None."
-                )
-            )
+            raise TypeError(("generated_at must be datetime or None."))
 
         # ==================================================================
         # EVENTS
         # ==================================================================
 
-        event_rows = (
-            self.analytics_events(
-                session_id=
-                    session_id,
-
-                start=
-                    start,
-
-                end=
-                    end,
-            )
+        event_rows = self.analytics_events(
+            session_id=session_id,
+            start=start,
+            end=end,
         )
 
         # ==================================================================
@@ -1260,117 +853,40 @@ class DashboardDataAccess:
             | None
         )
 
-        if not (
-            include_environment
-        ):
-
-            environmental_rows = (
-                None
-            )
+        if not (include_environment):
+            environmental_rows = None
 
         else:
-
-            environmental_rows = (
-                self.environmental_bins(
-                    session_id=
-                        session_id,
-
-                    start=
-                        start,
-
-                    end=
-                        end,
-
-                    bucket_seconds=
-                        self.config
-                        .analytics
-                        .bucket_seconds,
-                )
+            environmental_rows = self.environmental_bins(
+                session_id=session_id,
+                start=start,
+                end=end,
+                bucket_seconds=self.config.analytics.bucket_seconds,
             )
 
         # ==================================================================
         # ANALYTICS SERVICE
         # ==================================================================
 
-        return (
-            build_research_analytics_report(
-                event_rows,
-
-                environmental_rows=
-                    environmental_rows,
-
-                sample_rate=
-                    self.config
-                    .audio
-                    .sample_rate,
-
-                timestamp_key=
-                    "event_time",
-
-                bucket_seconds=
-                    self.config
-                    .analytics
-                    .bucket_seconds,
-
-                start=
-                    start,
-
-                end=
-                    end,
-
-                cell_size_m=
-                    self.config
-                    .analytics
-                    .cell_size_m,
-
-                max_grid_cells=
-                    self.config
-                    .analytics
-                    .max_grid_cells,
-
-                max_transition_gap_s=
-                    self.config
-                    .analytics
-                    .max_transition_gap_s,
-
-                same_class_transitions_only=
-                    self.config
-                    .analytics
-                    .same_class_transitions_only,
-
-                alpha=
-                    self.config
-                    .analytics
-                    .environmental_alpha,
-
-                environmental_min_samples=
-                    self.config
-                    .analytics
-                    .environmental_min_samples,
-
-                neutral_threshold=
-                    self.config
-                    .analytics
-                    .neutral_threshold,
-
-                min_activity_events=
-                    self.config
-                    .analytics
-                    .min_activity_events,
-
-                min_localized_events=
-                    self.config
-                    .analytics
-                    .min_localized_events,
-
-                min_transitions=
-                    self.config
-                    .analytics
-                    .min_transitions,
-
-                generated_at=
-                    generated_at,
-            )
+        return build_research_analytics_report(
+            event_rows,
+            environmental_rows=environmental_rows,
+            sample_rate=self.config.audio.sample_rate,
+            timestamp_key="event_time",
+            bucket_seconds=self.config.analytics.bucket_seconds,
+            start=start,
+            end=end,
+            cell_size_m=self.config.analytics.cell_size_m,
+            max_grid_cells=self.config.analytics.max_grid_cells,
+            max_transition_gap_s=self.config.analytics.max_transition_gap_s,
+            same_class_transitions_only=self.config.analytics.same_class_transitions_only,
+            alpha=self.config.analytics.environmental_alpha,
+            environmental_min_samples=self.config.analytics.environmental_min_samples,
+            neutral_threshold=self.config.analytics.neutral_threshold,
+            min_activity_events=self.config.analytics.min_activity_events,
+            min_localized_events=self.config.analytics.min_localized_events,
+            min_transitions=self.config.analytics.min_transitions,
+            generated_at=generated_at,
         )
 
     # ==================================================================
@@ -1393,28 +909,15 @@ class DashboardDataAccess:
         Return one JSON/export-ready single-session research report.
         """
 
-        report = (
-            self.research_report(
-                session_id=
-                    session_id,
-
-                start=
-                    start,
-
-                end=
-                    end,
-
-                include_environment=
-                    include_environment,
-
-                generated_at=
-                    generated_at,
-            )
+        report = self.research_report(
+            session_id=session_id,
+            start=start,
+            end=end,
+            include_environment=include_environment,
+            generated_at=generated_at,
         )
 
-        return (
-            report.to_dict()
-        )
+        return report.to_dict()
 
     # ==================================================================
     # DASHBOARD SNAPSHOT
@@ -1435,59 +938,22 @@ class DashboardDataAccess:
         pipeline on every live refresh.
         """
 
-        sessions = (
-            self.sessions(
-                limit=
-                    1
-            )
+        sessions = self.sessions(limit=1)
+
+        events = self.recent_events(
+            limit=recent_limit,
         )
 
-        events = (
-            self.recent_events(
-                limit=
-                    recent_limit,
-            )
-        )
+        latest_session = sessions[0] if sessions else None
 
-        latest_session = (
-            sessions[
-                0
-            ]
-
-            if sessions
-
-            else None
-        )
-
-        latest_event = (
-            events[
-                0
-            ]
-
-            if events
-
-            else None
-        )
+        latest_event = events[0] if events else None
 
         return {
-            "database_path":
-                str(
-                    self.database_path
-                ),
-
-            "latest_session":
-                latest_session,
-
-            "latest_event":
-                latest_event,
-
-            "recent_events":
-                events,
-
-            "recent_event_count":
-                len(
-                    events
-                ),
+            "database_path": str(self.database_path),
+            "latest_session": latest_session,
+            "latest_event": latest_event,
+            "recent_events": events,
+            "recent_event_count": len(events),
         }
 
 
@@ -1507,9 +973,4 @@ def create_dashboard_data_access(
     caching straightforward.
     """
 
-    return (
-        DashboardDataAccess(
-            config=
-                config
-        )
-    )
+    return DashboardDataAccess(config=config)

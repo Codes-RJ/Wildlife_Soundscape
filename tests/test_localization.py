@@ -67,7 +67,6 @@ This module tests the orchestration layer that combines those pieces:
         LocalizationResult
 """
 
-
 from __future__ import annotations
 
 
@@ -129,19 +128,13 @@ from wildlife_soundscape.acquisition.stream_manager import (
 # ======================================================================
 
 
-SESSION_ID = (
-    0x12345678
-)
+SESSION_ID = 0x12345678
 
 
-SECOND_SESSION_ID = (
-    0x87654321
-)
+SECOND_SESSION_ID = 0x87654321
 
 
-SAMPLE_RATE = (
-    48_000
-)
+SAMPLE_RATE = 48_000
 
 
 TEST_NODE_POSITIONS = {
@@ -149,12 +142,10 @@ TEST_NODE_POSITIONS = {
         0.0,
         0.0,
     ),
-
     2: (
         0.5,
         0.8660254037844386,
     ),
-
     3: (
         1.0,
         0.0,
@@ -181,39 +172,18 @@ def make_localization_config(
     """
 
     defaults = {
-        "node_positions":
-            dict(
-                TEST_NODE_POSITIONS
-            ),
-
-        "window_samples":
-            1024,
-
-        "bandpass_enabled":
-            False,
-
-        "speed_of_sound_mps":
-            343.0,
-
-        "use_environmental_speed":
-            False,
-
-        "min_rms":
-            1.0,
-
-        "interpolation":
-            8,
-
-        "min_peak_ratio":
-            1.10,
-
-        "constrain_to_array_bounds":
-            False,
+        "node_positions": dict(TEST_NODE_POSITIONS),
+        "window_samples": 1024,
+        "bandpass_enabled": False,
+        "speed_of_sound_mps": 343.0,
+        "use_environmental_speed": False,
+        "min_rms": 1.0,
+        "interpolation": 8,
+        "min_peak_ratio": 1.10,
+        "constrain_to_array_bounds": False,
     }
 
-    defaults.update(
-        overrides
-    )
+    defaults.update(overrides)
 
     return replace(
         CONFIG.localization,
@@ -230,14 +200,8 @@ def activate_common_session(
     Put all registered node states into one common acquisition session.
     """
 
-    for state in (
-        streams.nodes.values()
-    ):
-
-        state.reset_stream_tracking(
-            session_id=
-                session_id
-        )
+    for state in streams.nodes.values():
+        state.reset_stream_tracking(session_id=session_id)
 
 
 def install_windows(
@@ -274,15 +238,9 @@ def install_windows(
             )
         )
 
-        signal = np.asarray(
-            windows[
-                node_id
-            ]
-        )
+        signal = np.asarray(windows[node_id])
 
-        return signal[
-            :length
-        ].copy()
+        return signal[:length].copy()
 
     monkeypatch.setattr(
         streams,
@@ -290,9 +248,7 @@ def install_windows(
         fake_get_window,
     )
 
-    return (
-        calls
-    )
+    return calls
 
 
 def install_no_environment(
@@ -306,8 +262,7 @@ def install_no_environment(
     monkeypatch.setattr(
         streams,
         "get_environment_near",
-        lambda sample_index:
-            None,
+        lambda sample_index: None,
     )
 
 
@@ -325,29 +280,14 @@ def make_solver_result(
     """
 
     return SimpleNamespace(
-        success=
-            success,
-
-        x=
-            x,
-
-        y=
-            y,
-
-        residual_rms_seconds=
-            0.0,
-
-        residual_rms_meters=
-            0.0,
-
-        cost=
-            0.0,
-
-        nfev=
-            1,
-
-        message=
-            "synthetic solver result",
+        success=success,
+        x=x,
+        y=y,
+        residual_rms_seconds=0.0,
+        residual_rms_meters=0.0,
+        cost=0.0,
+        nfev=1,
+        message="synthetic solver result",
     )
 
 
@@ -364,41 +304,15 @@ def make_gcc_result(
     consumed by LocalizationEngine.
     """
 
-    if (
-        delay_seconds
-        is None
-    ):
-
-        delay_seconds = (
-            float(
-                delay_samples
-            )
-            / SAMPLE_RATE
-        )
+    if delay_seconds is None:
+        delay_seconds = float(delay_samples) / SAMPLE_RATE
 
     return SimpleNamespace(
-        delay_samples=
-            float(
-                delay_samples
-            ),
-
-        delay_seconds=
-            float(
-                delay_seconds
-            ),
-
-        peak_ratio=
-            float(
-                peak_ratio
-            ),
-
-        valid=
-            bool(
-                valid
-            ),
-
-        reason=
-            reason,
+        delay_samples=float(delay_samples),
+        delay_seconds=float(delay_seconds),
+        peak_ratio=float(peak_ratio),
+        valid=bool(valid),
+        reason=reason,
     )
 
 
@@ -427,33 +341,14 @@ def install_successful_gcc(
 
         calls.append(
             {
-                "signal":
-                    np.asarray(
-                        signal
-                    ).copy(),
-
-                "reference":
-                    np.asarray(
-                        reference
-                    ).copy(),
-
-                "sample_rate":
-                    sample_rate,
-
-                "max_delay_seconds":
-                    max_delay_seconds,
-
-                "interpolation":
-                    interpolation,
-
-                "min_peak_ratio":
-                    min_peak_ratio,
-
-                "beta":
-                    beta,
-
-                "frequency_band_hz":
-                    frequency_band_hz,
+                "signal": np.asarray(signal).copy(),
+                "reference": np.asarray(reference).copy(),
+                "sample_rate": sample_rate,
+                "max_delay_seconds": max_delay_seconds,
+                "interpolation": interpolation,
+                "min_peak_ratio": min_peak_ratio,
+                "beta": beta,
+                "frequency_band_hz": frequency_band_hz,
             }
         )
 
@@ -465,9 +360,7 @@ def install_successful_gcc(
         fake_gcc_phat,
     )
 
-    return (
-        calls
-    )
+    return calls
 
 
 def install_solver(
@@ -483,14 +376,8 @@ def install_solver(
         (solver_calls, solver_result)
     """
 
-    if (
-        result
-        is None
-    ):
-
-        result = (
-            make_solver_result()
-        )
+    if result is None:
+        result = make_solver_result()
 
     calls = []
 
@@ -504,25 +391,14 @@ def install_solver(
 
         calls.append(
             {
-                "node_positions":
-                    node_positions,
-
-                "measurements":
-                    tuple(
-                        measurements
-                    ),
-
-                "speed_of_sound_mps":
-                    speed_of_sound_mps,
-
-                "bounds":
-                    bounds,
+                "node_positions": node_positions,
+                "measurements": tuple(measurements),
+                "speed_of_sound_mps": speed_of_sound_mps,
+                "bounds": bounds,
             }
         )
 
-        return (
-            result
-        )
+        return result
 
     monkeypatch.setattr(
         engine_module,
@@ -551,26 +427,21 @@ def make_standard_windows(
     """
 
     return {
-        1:
-            np.full(
-                length,
-                100.0,
-                dtype=np.float64,
-            ),
-
-        2:
-            np.full(
-                length,
-                200.0,
-                dtype=np.float64,
-            ),
-
-        3:
-            np.full(
-                length,
-                300.0,
-                dtype=np.float64,
-            ),
+        1: np.full(
+            length,
+            100.0,
+            dtype=np.float64,
+        ),
+        2: np.full(
+            length,
+            200.0,
+            dtype=np.float64,
+        ),
+        3: np.full(
+            length,
+            300.0,
+            dtype=np.float64,
+        ),
     }
 
 
@@ -582,76 +453,35 @@ def make_standard_windows(
 def test_localization_result_success_reflects_position_success() -> None:
 
     result = LocalizationResult(
-        position=
-            make_solver_result(
-                success=
-                    True
-            ),
-
-        measurements=
-            (),
-
-        window_start_sample=
-            100,
-
-        window_samples=
-            1024,
-
-        speed_of_sound_mps=
-            343.0,
-
+        position=make_solver_result(success=True),
+        measurements=(),
+        window_start_sample=100,
+        window_samples=1024,
+        speed_of_sound_mps=343.0,
         node_rms={
-            1:
-                100.0,
-
-            2:
-                100.0,
-
-            3:
-                100.0,
+            1: 100.0,
+            2: 100.0,
+            3: 100.0,
         },
-
-        environment_used=
-            None,
+        environment_used=None,
     )
 
-    assert (
-        result.success
-        is True
-    )
+    assert result.success is True
 
 
 def test_localization_result_failure_reflects_position_failure() -> None:
 
     result = LocalizationResult(
-        position=
-            make_solver_result(
-                success=
-                    False
-            ),
-
-        measurements=
-            (),
-
-        window_start_sample=
-            100,
-
-        window_samples=
-            1024,
-
-        speed_of_sound_mps=
-            343.0,
-
+        position=make_solver_result(success=False),
+        measurements=(),
+        window_start_sample=100,
+        window_samples=1024,
+        speed_of_sound_mps=343.0,
         node_rms={},
-
-        environment_used=
-            None,
+        environment_used=None,
     )
 
-    assert (
-        result.success
-        is False
-    )
+    assert result.success is False
 
 
 # ======================================================================
@@ -663,32 +493,21 @@ def test_engine_accepts_stream_manager_and_localization_config(
     stream_manager,
 ) -> None:
 
-    config = (
-        make_localization_config()
-    )
+    config = make_localization_config()
 
     engine = LocalizationEngine(
         stream_manager,
         config,
     )
 
-    assert (
-        engine.streams
-        is stream_manager
-    )
+    assert engine.streams is stream_manager
 
-    assert (
-        engine.config
-        is config
-    )
+    assert engine.config is config
 
 
 def test_engine_rejects_non_stream_manager() -> None:
 
-    with pytest.raises(
-        TypeError
-    ):
-
+    with pytest.raises(TypeError):
         LocalizationEngine(
             object(),
             make_localization_config(),
@@ -699,10 +518,7 @@ def test_engine_rejects_non_localization_config(
     stream_manager,
 ) -> None:
 
-    with pytest.raises(
-        TypeError
-    ):
-
+    with pytest.raises(TypeError):
         LocalizationEngine(
             stream_manager,
             object(),
@@ -718,22 +534,14 @@ def test_resolve_window_length_uses_configuration_default(
     stream_manager,
 ) -> None:
 
-    config = make_localization_config(
-        window_samples=
-            2048
-    )
+    config = make_localization_config(window_samples=2048)
 
     engine = LocalizationEngine(
         stream_manager,
         config,
     )
 
-    assert (
-        engine._resolve_window_length(
-            None
-        )
-        == 2048
-    )
+    assert engine._resolve_window_length(None) == 2048
 
 
 def test_resolve_window_length_accepts_valid_override(
@@ -745,12 +553,7 @@ def test_resolve_window_length_accepts_valid_override(
         make_localization_config(),
     )
 
-    assert (
-        engine._resolve_window_length(
-            512
-        )
-        == 512
-    )
+    assert engine._resolve_window_length(512) == 512
 
 
 @pytest.mark.parametrize(
@@ -772,13 +575,8 @@ def test_resolve_window_length_rejects_non_integer_override(
         make_localization_config(),
     )
 
-    with pytest.raises(
-        TypeError
-    ):
-
-        engine._resolve_window_length(
-            length
-        )
+    with pytest.raises(TypeError):
+        engine._resolve_window_length(length)
 
 
 @pytest.mark.parametrize(
@@ -787,8 +585,7 @@ def test_resolve_window_length_rejects_non_integer_override(
         0,
         1,
         32,
-        MIN_LOCALIZATION_WINDOW_SAMPLES
-        - 1,
+        MIN_LOCALIZATION_WINDOW_SAMPLES - 1,
     ],
 )
 def test_resolve_window_length_rejects_too_short_window(
@@ -801,13 +598,8 @@ def test_resolve_window_length_rejects_too_short_window(
         make_localization_config(),
     )
 
-    with pytest.raises(
-        ValueError
-    ):
-
-        engine._resolve_window_length(
-            length
-        )
+    with pytest.raises(ValueError):
+        engine._resolve_window_length(length)
 
 
 def test_minimum_localization_window_length_is_accepted(
@@ -820,9 +612,7 @@ def test_minimum_localization_window_length_is_accepted(
     )
 
     assert (
-        engine._resolve_window_length(
-            MIN_LOCALIZATION_WINDOW_SAMPLES
-        )
+        engine._resolve_window_length(MIN_LOCALIZATION_WINDOW_SAMPLES)
         == MIN_LOCALIZATION_WINDOW_SAMPLES
     )
 
@@ -844,13 +634,7 @@ def test_validate_start_sample_accepts_nonnegative_integer(
     start_sample: int,
 ) -> None:
 
-    assert (
-        LocalizationEngine
-        ._validate_start_sample(
-            start_sample
-        )
-        == start_sample
-    )
+    assert LocalizationEngine._validate_start_sample(start_sample) == start_sample
 
 
 @pytest.mark.parametrize(
@@ -866,24 +650,14 @@ def test_validate_start_sample_rejects_non_integer(
     start_sample,
 ) -> None:
 
-    with pytest.raises(
-        TypeError
-    ):
-
-        LocalizationEngine._validate_start_sample(
-            start_sample
-        )
+    with pytest.raises(TypeError):
+        LocalizationEngine._validate_start_sample(start_sample)
 
 
 def test_validate_start_sample_rejects_negative_value() -> None:
 
-    with pytest.raises(
-        ValueError
-    ):
-
-        LocalizationEngine._validate_start_sample(
-            -1
-        )
+    with pytest.raises(ValueError):
+        LocalizationEngine._validate_start_sample(-1)
 
 
 # ======================================================================
@@ -897,16 +671,10 @@ def test_bounds_returns_none_when_constraints_disabled(
 
     engine = LocalizationEngine(
         stream_manager,
-        make_localization_config(
-            constrain_to_array_bounds=
-                False
-        ),
+        make_localization_config(constrain_to_array_bounds=False),
     )
 
-    assert (
-        engine._bounds()
-        is None
-    )
+    assert engine._bounds() is None
 
 
 def test_bounds_are_derived_from_microphone_geometry(
@@ -914,11 +682,8 @@ def test_bounds_are_derived_from_microphone_geometry(
 ) -> None:
 
     config = make_localization_config(
-        constrain_to_array_bounds=
-            True,
-
-        bounds_margin_m=
-            0.25,
+        constrain_to_array_bounds=True,
+        bounds_margin_m=0.25,
     )
 
     engine = LocalizationEngine(
@@ -926,34 +691,15 @@ def test_bounds_are_derived_from_microphone_geometry(
         config,
     )
 
-    lower, upper = (
-        engine._bounds()
-    )
+    lower, upper = engine._bounds()
 
-    assert lower[
-        0
-    ] == pytest.approx(
-        -0.25
-    )
+    assert lower[0] == pytest.approx(-0.25)
 
-    assert lower[
-        1
-    ] == pytest.approx(
-        -0.25
-    )
+    assert lower[1] == pytest.approx(-0.25)
 
-    assert upper[
-        0
-    ] == pytest.approx(
-        1.25
-    )
+    assert upper[0] == pytest.approx(1.25)
 
-    assert upper[
-        1
-    ] == pytest.approx(
-        0.8660254037844386
-        + 0.25
-    )
+    assert upper[1] == pytest.approx(0.8660254037844386 + 0.25)
 
 
 # ======================================================================
@@ -965,19 +711,14 @@ def test_common_stream_session_returns_common_active_session(
     stream_manager,
 ) -> None:
 
-    activate_common_session(
-        stream_manager
-    )
+    activate_common_session(stream_manager)
 
     engine = LocalizationEngine(
         stream_manager,
         make_localization_config(),
     )
 
-    assert (
-        engine._common_stream_session()
-        == SESSION_ID
-    )
+    assert engine._common_stream_session() == SESSION_ID
 
 
 def test_common_stream_session_returns_none_without_active_session(
@@ -989,50 +730,34 @@ def test_common_stream_session_returns_none_without_active_session(
         make_localization_config(),
     )
 
-    assert (
-        engine._common_stream_session()
-        is None
-    )
+    assert engine._common_stream_session() is None
 
 
 def test_common_stream_session_returns_none_for_mixed_sessions(
     stream_manager,
 ) -> None:
 
-    activate_common_session(
-        stream_manager
-    )
+    activate_common_session(stream_manager)
 
-    stream_manager.nodes[
-        3
-    ].reset_stream_tracking(
-        session_id=
-            SECOND_SESSION_ID
-    )
+    stream_manager.nodes[3].reset_stream_tracking(session_id=SECOND_SESSION_ID)
 
     engine = LocalizationEngine(
         stream_manager,
         make_localization_config(),
     )
 
-    assert (
-        engine._common_stream_session()
-        is None
-    )
+    assert engine._common_stream_session() is None
 
 
 def test_common_stream_session_returns_none_when_configured_node_missing(
     stream_manager,
 ) -> None:
 
-    activate_common_session(
-        stream_manager
-    )
+    activate_common_session(stream_manager)
 
     config = make_localization_config(
         node_positions={
             **TEST_NODE_POSITIONS,
-
             4: (
                 2.0,
                 2.0,
@@ -1045,10 +770,7 @@ def test_common_stream_session_returns_none_when_configured_node_missing(
         config,
     )
 
-    assert (
-        engine._common_stream_session()
-        is None
-    )
+    assert engine._common_stream_session() is None
 
 
 # ======================================================================
@@ -1070,16 +792,10 @@ def test_validate_speed_of_sound_accepts_positive_finite_values(
 
     result = LocalizationEngine._validate_speed_of_sound(
         speed,
-        name=
-            "speed",
+        name="speed",
     )
 
-    assert (
-        result
-        == pytest.approx(
-            speed
-        )
-    )
+    assert result == pytest.approx(speed)
 
 
 @pytest.mark.parametrize(
@@ -1087,42 +803,28 @@ def test_validate_speed_of_sound_accepts_positive_finite_values(
     [
         0.0,
         -1.0,
-        float(
-            "nan"
-        ),
-        float(
-            "inf"
-        ),
-        float(
-            "-inf"
-        ),
+        float("nan"),
+        float("inf"),
+        float("-inf"),
     ],
 )
 def test_validate_speed_of_sound_rejects_invalid_value(
     speed: float,
 ) -> None:
 
-    with pytest.raises(
-        ValueError
-    ):
-
+    with pytest.raises(ValueError):
         LocalizationEngine._validate_speed_of_sound(
             speed,
-            name=
-                "speed",
+            name="speed",
         )
 
 
 def test_validate_speed_of_sound_rejects_non_numeric_value() -> None:
 
-    with pytest.raises(
-        TypeError
-    ):
-
+    with pytest.raises(TypeError):
         LocalizationEngine._validate_speed_of_sound(
             object(),
-            name=
-                "speed",
+            name="speed",
         )
 
 
@@ -1141,48 +843,28 @@ def test_explicit_speed_override_has_highest_priority(
     monkeypatch.setattr(
         stream_manager,
         "get_environment_near",
-        lambda sample_index:
-            environment_calls.append(
-                sample_index
-            ),
+        lambda sample_index: environment_calls.append(sample_index),
     )
 
     engine = LocalizationEngine(
         stream_manager,
         make_localization_config(
-            use_environmental_speed=
-                True,
-
-            speed_of_sound_mps=
-                340.0,
+            use_environmental_speed=True,
+            speed_of_sound_mps=340.0,
         ),
     )
 
     speed, environment_used = engine._resolve_speed(
-        sample_index=
-            5000,
-
-        speed_of_sound_mps=
-            350.0,
+        sample_index=5000,
+        speed_of_sound_mps=350.0,
     )
 
-    assert (
-        speed
-        == pytest.approx(
-            350.0
-        )
-    )
+    assert speed == pytest.approx(350.0)
 
-    assert (
-        environment_used
-        is None
-    )
+    assert environment_used is None
 
     # Explicit override bypasses telemetry entirely.
-    assert (
-        environment_calls
-        == []
-    )
+    assert environment_calls == []
 
 
 # ======================================================================
@@ -1204,52 +886,34 @@ def test_environmental_speed_is_used_when_enabled(
     monkeypatch.setattr(
         stream_manager,
         "get_environment_near",
-        lambda sample_index:
-            environment,
+        lambda sample_index: environment,
     )
 
     engine = LocalizationEngine(
         stream_manager,
         make_localization_config(
-            use_environmental_speed=
-                True,
-
-            speed_of_sound_mps=
-                330.0,
+            use_environmental_speed=True,
+            speed_of_sound_mps=330.0,
         ),
     )
 
     speed, environment_used = engine._resolve_speed(
-        sample_index=
-            12345,
-
-        speed_of_sound_mps=
-            None,
+        sample_index=12345,
+        speed_of_sound_mps=None,
     )
 
-    expected = (
-        engine_module
-        .calculate_speed_of_sound_mps(
-            25.0,
-            60.0,
-            1008.0,
-        )
+    expected = engine_module.calculate_speed_of_sound_mps(
+        25.0,
+        60.0,
+        1008.0,
     )
 
-    assert (
-        speed
-        == pytest.approx(
-            expected
-        )
-    )
+    assert speed == pytest.approx(expected)
 
-    assert (
-        environment_used
-        == (
-            25.0,
-            60.0,
-            1008.0,
-        )
+    assert environment_used == (
+        25.0,
+        60.0,
+        1008.0,
     )
 
 
@@ -1266,33 +930,19 @@ def test_missing_environment_uses_configured_fallback(
     engine = LocalizationEngine(
         stream_manager,
         make_localization_config(
-            use_environmental_speed=
-                True,
-
-            speed_of_sound_mps=
-                341.5,
+            use_environmental_speed=True,
+            speed_of_sound_mps=341.5,
         ),
     )
 
     speed, environment_used = engine._resolve_speed(
-        sample_index=
-            1000,
-
-        speed_of_sound_mps=
-            None,
+        sample_index=1000,
+        speed_of_sound_mps=None,
     )
 
-    assert (
-        speed
-        == pytest.approx(
-            341.5
-        )
-    )
+    assert speed == pytest.approx(341.5)
 
-    assert (
-        environment_used
-        is None
-    )
+    assert environment_used is None
 
 
 def test_invalid_environment_uses_configured_fallback(
@@ -1304,53 +954,33 @@ def test_invalid_environment_uses_configured_fallback(
     """
 
     invalid_environment = SimpleNamespace(
-        temperature_c=
-            25.0,
-
-        humidity_percent=
-            50.0,
-
-        pressure_hpa=
-            0.0,
+        temperature_c=25.0,
+        humidity_percent=50.0,
+        pressure_hpa=0.0,
     )
 
     monkeypatch.setattr(
         stream_manager,
         "get_environment_near",
-        lambda sample_index:
-            invalid_environment,
+        lambda sample_index: invalid_environment,
     )
 
     engine = LocalizationEngine(
         stream_manager,
         make_localization_config(
-            use_environmental_speed=
-                True,
-
-            speed_of_sound_mps=
-                342.0,
+            use_environmental_speed=True,
+            speed_of_sound_mps=342.0,
         ),
     )
 
     speed, environment_used = engine._resolve_speed(
-        sample_index=
-            1000,
-
-        speed_of_sound_mps=
-            None,
+        sample_index=1000,
+        speed_of_sound_mps=None,
     )
 
-    assert (
-        speed
-        == pytest.approx(
-            342.0
-        )
-    )
+    assert speed == pytest.approx(342.0)
 
-    assert (
-        environment_used
-        is None
-    )
+    assert environment_used is None
 
 
 # ======================================================================
@@ -1367,16 +997,10 @@ def test_locate_window_requires_common_active_session(
         make_localization_config(),
     )
 
-    with pytest.raises(
-        RuntimeError
-    ):
-
+    with pytest.raises(RuntimeError):
         engine.locate_window(
-            start_sample=
-                0,
-
-            length=
-                1024,
+            start_sample=0,
+            length=1024,
         )
 
 
@@ -1390,9 +1014,7 @@ def test_locate_window_looks_up_environment_at_window_center(
     stream_manager,
 ) -> None:
 
-    activate_common_session(
-        stream_manager
-    )
+    activate_common_session(stream_manager)
 
     windows = make_standard_windows()
 
@@ -1408,9 +1030,7 @@ def test_locate_window_looks_up_environment_at_window_center(
         sample_index: int,
     ) -> None:
 
-        lookup_samples.append(
-            sample_index
-        )
+        lookup_samples.append(sample_index)
 
         return None
 
@@ -1420,38 +1040,21 @@ def test_locate_window_looks_up_environment_at_window_center(
         get_environment_near,
     )
 
-    install_successful_gcc(
-        monkeypatch
-    )
+    install_successful_gcc(monkeypatch)
 
-    install_solver(
-        monkeypatch
-    )
+    install_solver(monkeypatch)
 
     engine = LocalizationEngine(
         stream_manager,
-        make_localization_config(
-            use_environmental_speed=
-                True
-        ),
+        make_localization_config(use_environmental_speed=True),
     )
 
     engine.locate_window(
-        start_sample=
-            10_000,
-
-        length=
-            1024,
+        start_sample=10_000,
+        length=1024,
     )
 
-    assert (
-        lookup_samples
-        == [
-            10_000
-            + 1024
-            // 2
-        ]
-    )
+    assert lookup_samples == [10_000 + 1024 // 2]
 
 
 # ======================================================================
@@ -1464,9 +1067,7 @@ def test_locate_window_requests_same_absolute_window_from_every_node(
     stream_manager,
 ) -> None:
 
-    activate_common_session(
-        stream_manager
-    )
+    activate_common_session(stream_manager)
 
     calls = install_windows(
         monkeypatch,
@@ -1479,13 +1080,9 @@ def test_locate_window_requests_same_absolute_window_from_every_node(
         stream_manager,
     )
 
-    install_successful_gcc(
-        monkeypatch
-    )
+    install_successful_gcc(monkeypatch)
 
-    install_solver(
-        monkeypatch
-    )
+    install_solver(monkeypatch)
 
     engine = LocalizationEngine(
         stream_manager,
@@ -1493,11 +1090,8 @@ def test_locate_window_requests_same_absolute_window_from_every_node(
     )
 
     engine.locate_window(
-        start_sample=
-            5000,
-
-        length=
-            1024,
+        start_sample=5000,
+        length=1024,
     )
 
     assert [
@@ -1506,14 +1100,12 @@ def test_locate_window_requests_same_absolute_window_from_every_node(
             start,
             length,
         )
-
         for (
             node_id,
             start,
             length,
             _fill,
-        )
-        in calls
+        ) in calls
     ] == [
         (
             1,
@@ -1543,9 +1135,7 @@ def test_locate_window_calculates_raw_pcm_rms_per_node(
     stream_manager,
 ) -> None:
 
-    activate_common_session(
-        stream_manager
-    )
+    activate_common_session(stream_manager)
 
     install_windows(
         monkeypatch,
@@ -1558,13 +1148,9 @@ def test_locate_window_calculates_raw_pcm_rms_per_node(
         stream_manager,
     )
 
-    install_successful_gcc(
-        monkeypatch
-    )
+    install_successful_gcc(monkeypatch)
 
-    install_solver(
-        monkeypatch
-    )
+    install_solver(monkeypatch)
 
     engine = LocalizationEngine(
         stream_manager,
@@ -1572,39 +1158,15 @@ def test_locate_window_calculates_raw_pcm_rms_per_node(
     )
 
     result = engine.locate_window(
-        start_sample=
-            0,
-
-        length=
-            1024,
+        start_sample=0,
+        length=1024,
     )
 
-    assert (
-        result.node_rms[
-            1
-        ]
-        == pytest.approx(
-            100.0
-        )
-    )
+    assert result.node_rms[1] == pytest.approx(100.0)
 
-    assert (
-        result.node_rms[
-            2
-        ]
-        == pytest.approx(
-            200.0
-        )
-    )
+    assert result.node_rms[2] == pytest.approx(200.0)
 
-    assert (
-        result.node_rms[
-            3
-        ]
-        == pytest.approx(
-            300.0
-        )
-    )
+    assert result.node_rms[3] == pytest.approx(300.0)
 
 
 # ======================================================================
@@ -1617,9 +1179,7 @@ def test_bandpass_is_applied_to_every_node_when_enabled(
     stream_manager,
 ) -> None:
 
-    activate_common_session(
-        stream_manager
-    )
+    activate_common_session(stream_manager)
 
     install_windows(
         monkeypatch,
@@ -1645,22 +1205,11 @@ def test_bandpass_is_applied_to_every_node_when_enabled(
 
         filter_calls.append(
             {
-                "signal":
-                    np.asarray(
-                        signal
-                    ).copy(),
-
-                "sample_rate":
-                    sample_rate,
-
-                "low_hz":
-                    low_hz,
-
-                "high_hz":
-                    high_hz,
-
-                "order":
-                    order,
+                "signal": np.asarray(signal).copy(),
+                "sample_rate": sample_rate,
+                "low_hz": low_hz,
+                "high_hz": high_hz,
+                "order": order,
             }
         )
 
@@ -1675,26 +1224,15 @@ def test_bandpass_is_applied_to_every_node_when_enabled(
         fake_bandpass,
     )
 
-    install_successful_gcc(
-        monkeypatch
-    )
+    install_successful_gcc(monkeypatch)
 
-    install_solver(
-        monkeypatch
-    )
+    install_solver(monkeypatch)
 
     config = make_localization_config(
-        bandpass_enabled=
-            True,
-
-        bandpass_low_hz=
-            250.0,
-
-        bandpass_high_hz=
-            10_000.0,
-
-        bandpass_order=
-            6,
+        bandpass_enabled=True,
+        bandpass_low_hz=250.0,
+        bandpass_high_hz=10_000.0,
+        bandpass_order=6,
     )
 
     engine = LocalizationEngine(
@@ -1703,57 +1241,20 @@ def test_bandpass_is_applied_to_every_node_when_enabled(
     )
 
     engine.locate_window(
-        start_sample=
-            0,
-
-        length=
-            1024,
+        start_sample=0,
+        length=1024,
     )
 
-    assert (
-        len(
-            filter_calls
-        )
-        == 3
-    )
+    assert len(filter_calls) == 3
 
-    for call in (
-        filter_calls
-    ):
+    for call in filter_calls:
+        assert call["sample_rate"] == pytest.approx(SAMPLE_RATE)
 
-        assert (
-            call[
-                "sample_rate"
-            ]
-            == pytest.approx(
-                SAMPLE_RATE
-            )
-        )
+        assert call["low_hz"] == pytest.approx(250.0)
 
-        assert (
-            call[
-                "low_hz"
-            ]
-            == pytest.approx(
-                250.0
-            )
-        )
+        assert call["high_hz"] == pytest.approx(10_000.0)
 
-        assert (
-            call[
-                "high_hz"
-            ]
-            == pytest.approx(
-                10_000.0
-            )
-        )
-
-        assert (
-            call[
-                "order"
-            ]
-            == 6
-        )
+        assert call["order"] == 6
 
 
 def test_bandpass_is_not_called_when_disabled(
@@ -1761,9 +1262,7 @@ def test_bandpass_is_not_called_when_disabled(
     stream_manager,
 ) -> None:
 
-    activate_common_session(
-        stream_manager
-    )
+    activate_common_session(stream_manager)
 
     install_windows(
         monkeypatch,
@@ -1781,9 +1280,7 @@ def test_bandpass_is_not_called_when_disabled(
         **kwargs,
     ):
 
-        raise AssertionError(
-            "bandpass_filter should not have been called"
-        )
+        raise AssertionError("bandpass_filter should not have been called")
 
     monkeypatch.setattr(
         engine_module,
@@ -1791,28 +1288,18 @@ def test_bandpass_is_not_called_when_disabled(
         unexpected_bandpass,
     )
 
-    install_successful_gcc(
-        monkeypatch
-    )
+    install_successful_gcc(monkeypatch)
 
-    install_solver(
-        monkeypatch
-    )
+    install_solver(monkeypatch)
 
     engine = LocalizationEngine(
         stream_manager,
-        make_localization_config(
-            bandpass_enabled=
-                False
-        ),
+        make_localization_config(bandpass_enabled=False),
     )
 
     engine.locate_window(
-        start_sample=
-            0,
-
-        length=
-            1024,
+        start_sample=0,
+        length=1024,
     )
 
 
@@ -1826,9 +1313,7 @@ def test_three_nodes_generate_three_pairwise_gcc_calls(
     stream_manager,
 ) -> None:
 
-    activate_common_session(
-        stream_manager
-    )
+    activate_common_session(stream_manager)
 
     install_windows(
         monkeypatch,
@@ -1841,15 +1326,9 @@ def test_three_nodes_generate_three_pairwise_gcc_calls(
         stream_manager,
     )
 
-    gcc_calls = (
-        install_successful_gcc(
-            monkeypatch
-        )
-    )
+    gcc_calls = install_successful_gcc(monkeypatch)
 
-    install_solver(
-        monkeypatch
-    )
+    install_solver(monkeypatch)
 
     engine = LocalizationEngine(
         stream_manager,
@@ -1857,34 +1336,20 @@ def test_three_nodes_generate_three_pairwise_gcc_calls(
     )
 
     result = engine.locate_window(
-        start_sample=
-            0,
-
-        length=
-            1024,
+        start_sample=0,
+        length=1024,
     )
 
-    assert (
-        len(
-            gcc_calls
-        )
-        == 3
-    )
+    assert len(gcc_calls) == 3
 
-    assert (
-        len(
-            result.measurements
-        )
-        == 3
-    )
+    assert len(result.measurements) == 3
 
     assert [
         (
             measurement.node_a,
             measurement.node_b,
         )
-        for measurement
-        in result.measurements
+        for measurement in result.measurements
     ] == [
         (
             1,
@@ -1927,9 +1392,7 @@ def test_gcc_receives_node_b_as_signal_and_node_a_as_reference(
     exactly matching TDOAMeasurement(A, B).
     """
 
-    activate_common_session(
-        stream_manager
-    )
+    activate_common_session(stream_manager)
 
     windows = make_standard_windows()
 
@@ -1944,15 +1407,9 @@ def test_gcc_receives_node_b_as_signal_and_node_a_as_reference(
         stream_manager,
     )
 
-    gcc_calls = (
-        install_successful_gcc(
-            monkeypatch
-        )
-    )
+    gcc_calls = install_successful_gcc(monkeypatch)
 
-    install_solver(
-        monkeypatch
-    )
+    install_solver(monkeypatch)
 
     engine = LocalizationEngine(
         stream_manager,
@@ -1960,36 +1417,21 @@ def test_gcc_receives_node_b_as_signal_and_node_a_as_reference(
     )
 
     engine.locate_window(
-        start_sample=
-            0,
-
-        length=
-            1024,
+        start_sample=0,
+        length=1024,
     )
 
     # First pair is (1, 2).
-    first_call = (
-        gcc_calls[
-            0
-        ]
+    first_call = gcc_calls[0]
+
+    np.testing.assert_array_equal(
+        first_call["signal"],
+        windows[2],
     )
 
     np.testing.assert_array_equal(
-        first_call[
-            "signal"
-        ],
-        windows[
-            2
-        ],
-    )
-
-    np.testing.assert_array_equal(
-        first_call[
-            "reference"
-        ],
-        windows[
-            1
-        ],
+        first_call["reference"],
+        windows[1],
     )
 
 
@@ -2003,9 +1445,7 @@ def test_gcc_receives_localization_configuration(
     stream_manager,
 ) -> None:
 
-    activate_common_session(
-        stream_manager
-    )
+    activate_common_session(stream_manager)
 
     install_windows(
         monkeypatch,
@@ -2018,31 +1458,18 @@ def test_gcc_receives_localization_configuration(
         stream_manager,
     )
 
-    gcc_calls = (
-        install_successful_gcc(
-            monkeypatch
-        )
-    )
+    gcc_calls = install_successful_gcc(monkeypatch)
 
-    install_solver(
-        monkeypatch
-    )
+    install_solver(monkeypatch)
 
     config = make_localization_config(
-        interpolation=
-            16,
-
-        min_peak_ratio=
-            1.35,
-
-        gcc_beta=
-            0.75,
-
-        gcc_frequency_band_hz=
-            (
-                1000.0,
-                8000.0,
-            ),
+        interpolation=16,
+        min_peak_ratio=1.35,
+        gcc_beta=0.75,
+        gcc_frequency_band_hz=(
+            1000.0,
+            8000.0,
+        ),
     )
 
     engine = LocalizationEngine(
@@ -2051,64 +1478,24 @@ def test_gcc_receives_localization_configuration(
     )
 
     engine.locate_window(
-        start_sample=
-            0,
-
-        length=
-            1024,
+        start_sample=0,
+        length=1024,
     )
 
     for call in gcc_calls:
+        assert call["sample_rate"] == pytest.approx(SAMPLE_RATE)
 
-        assert (
-            call[
-                "sample_rate"
-            ]
-            == pytest.approx(
-                SAMPLE_RATE
-            )
-        )
+        assert call["interpolation"] == 16
 
-        assert (
-            call[
-                "interpolation"
-            ]
-            == 16
-        )
+        assert call["min_peak_ratio"] == pytest.approx(1.35)
 
-        assert (
-            call[
-                "min_peak_ratio"
-            ]
-            == pytest.approx(
-                1.35
-            )
-        )
+        assert call["max_delay_seconds"] > 0.0
 
-        assert (
-            call[
-                "max_delay_seconds"
-            ]
-            > 0.0
-        )
+        assert call["beta"] == pytest.approx(0.75)
 
-        assert (
-            call[
-                "beta"
-            ]
-            == pytest.approx(
-                0.75
-            )
-        )
-
-        assert (
-            call[
-                "frequency_band_hz"
-            ]
-            == (
-                1000.0,
-                8000.0,
-            )
+        assert call["frequency_band_hz"] == (
+            1000.0,
+            8000.0,
         )
 
 
@@ -2122,31 +1509,24 @@ def test_low_energy_pair_is_marked_invalid_without_calling_gcc(
     stream_manager,
 ) -> None:
 
-    activate_common_session(
-        stream_manager
-    )
+    activate_common_session(stream_manager)
 
     windows = {
-        1:
-            np.full(
-                1024,
-                0.1,
-                dtype=np.float64,
-            ),
-
-        2:
-            np.full(
-                1024,
-                100.0,
-                dtype=np.float64,
-            ),
-
-        3:
-            np.full(
-                1024,
-                100.0,
-                dtype=np.float64,
-            ),
+        1: np.full(
+            1024,
+            0.1,
+            dtype=np.float64,
+        ),
+        2: np.full(
+            1024,
+            100.0,
+            dtype=np.float64,
+        ),
+        3: np.full(
+            1024,
+            100.0,
+            dtype=np.float64,
+        ),
     }
 
     install_windows(
@@ -2160,41 +1540,26 @@ def test_low_energy_pair_is_marked_invalid_without_calling_gcc(
         stream_manager,
     )
 
-    gcc_calls = (
-        install_successful_gcc(
-            monkeypatch
-        )
-    )
+    gcc_calls = install_successful_gcc(monkeypatch)
 
-    install_solver(
-        monkeypatch
-    )
+    install_solver(monkeypatch)
 
     engine = LocalizationEngine(
         stream_manager,
-        make_localization_config(
-            min_rms=
-                10.0
-        ),
+        make_localization_config(min_rms=10.0),
     )
 
     result = engine.locate_window(
-        start_sample=
-            0,
-
-        length=
-            1024,
+        start_sample=0,
+        length=1024,
     )
 
     measurements = {
         (
             measurement.node_a,
             measurement.node_b,
-        ):
-            measurement
-
-        for measurement
-        in result.measurements
+        ): measurement
+        for measurement in result.measurements
     }
 
     # Node 1 participates in two pairs and is below min_rms.
@@ -2227,12 +1592,7 @@ def test_low_energy_pair_is_marked_invalid_without_calling_gcc(
     )
 
     # Only pair 2-3 should reach GCC.
-    assert (
-        len(
-            gcc_calls
-        )
-        == 1
-    )
+    assert len(gcc_calls) == 1
 
 
 # ======================================================================
@@ -2245,9 +1605,7 @@ def test_invalid_gcc_result_produces_invalid_tdoa_measurement(
     stream_manager,
 ) -> None:
 
-    activate_common_session(
-        stream_manager
-    )
+    activate_common_session(stream_manager)
 
     install_windows(
         monkeypatch,
@@ -2266,17 +1624,10 @@ def test_invalid_gcc_result_produces_invalid_tdoa_measurement(
     ):
 
         return make_gcc_result(
-            delay_samples=
-                0.0,
-
-            peak_ratio=
-                1.01,
-
-            valid=
-                False,
-
-            reason=
-                "peak ratio below threshold",
+            delay_samples=0.0,
+            peak_ratio=1.01,
+            valid=False,
+            reason="peak ratio below threshold",
         )
 
     monkeypatch.setattr(
@@ -2285,9 +1636,7 @@ def test_invalid_gcc_result_produces_invalid_tdoa_measurement(
         fake_gcc,
     )
 
-    install_solver(
-        monkeypatch
-    )
+    install_solver(monkeypatch)
 
     engine = LocalizationEngine(
         stream_manager,
@@ -2295,28 +1644,15 @@ def test_invalid_gcc_result_produces_invalid_tdoa_measurement(
     )
 
     result = engine.locate_window(
-        start_sample=
-            0,
-
-        length=
-            1024,
+        start_sample=0,
+        length=1024,
     )
 
-    assert all(
-        not measurement.valid
-
-        for measurement
-        in result.measurements
-    )
+    assert all(not measurement.valid for measurement in result.measurements)
 
     assert all(
-        (
-            measurement.reason
-            == "peak ratio below threshold"
-        )
-
-        for measurement
-        in result.measurements
+        (measurement.reason == "peak ratio below threshold")
+        for measurement in result.measurements
     )
 
 
@@ -2334,9 +1670,7 @@ def test_delay_outside_physical_pair_limit_is_rejected(
     performs an additional defensive interface check.
     """
 
-    activate_common_session(
-        stream_manager
-    )
+    activate_common_session(stream_manager)
 
     install_windows(
         monkeypatch,
@@ -2362,25 +1696,11 @@ def test_delay_outside_physical_pair_limit_is_rejected(
     ):
 
         return make_gcc_result(
-            delay_seconds=
-                max_delay_seconds
-                * 2.0,
-
-            delay_samples=
-                (
-                    max_delay_seconds
-                    * 2.0
-                    * sample_rate
-                ),
-
-            peak_ratio=
-                5.0,
-
-            valid=
-                True,
-
-            reason=
-                "",
+            delay_seconds=max_delay_seconds * 2.0,
+            delay_samples=(max_delay_seconds * 2.0 * sample_rate),
+            peak_ratio=5.0,
+            valid=True,
+            reason="",
         )
 
     monkeypatch.setattr(
@@ -2389,9 +1709,7 @@ def test_delay_outside_physical_pair_limit_is_rejected(
         fake_gcc,
     )
 
-    install_solver(
-        monkeypatch
-    )
+    install_solver(monkeypatch)
 
     engine = LocalizationEngine(
         stream_manager,
@@ -2399,28 +1717,15 @@ def test_delay_outside_physical_pair_limit_is_rejected(
     )
 
     result = engine.locate_window(
-        start_sample=
-            0,
-
-        length=
-            1024,
+        start_sample=0,
+        length=1024,
     )
 
-    assert all(
-        not measurement.valid
-
-        for measurement
-        in result.measurements
-    )
+    assert all(not measurement.valid for measurement in result.measurements)
 
     assert all(
-        (
-            measurement.reason
-            == "delay outside physical pair limit"
-        )
-
-        for measurement
-        in result.measurements
+        (measurement.reason == "delay outside physical pair limit")
+        for measurement in result.measurements
     )
 
 
@@ -2434,9 +1739,7 @@ def test_infinite_gcc_peak_ratio_is_stored_as_large_finite_value(
     stream_manager,
 ) -> None:
 
-    activate_common_session(
-        stream_manager
-    )
+    activate_common_session(stream_manager)
 
     install_windows(
         monkeypatch,
@@ -2454,12 +1757,7 @@ def test_infinite_gcc_peak_ratio_is_stored_as_large_finite_value(
         **kwargs,
     ):
 
-        return make_gcc_result(
-            peak_ratio=
-                float(
-                    "inf"
-                )
-        )
+        return make_gcc_result(peak_ratio=float("inf"))
 
     monkeypatch.setattr(
         engine_module,
@@ -2467,9 +1765,7 @@ def test_infinite_gcc_peak_ratio_is_stored_as_large_finite_value(
         fake_gcc,
     )
 
-    install_solver(
-        monkeypatch
-    )
+    install_solver(monkeypatch)
 
     engine = LocalizationEngine(
         stream_manager,
@@ -2477,27 +1773,14 @@ def test_infinite_gcc_peak_ratio_is_stored_as_large_finite_value(
     )
 
     result = engine.locate_window(
-        start_sample=
-            0,
-
-        length=
-            1024,
+        start_sample=0,
+        length=1024,
     )
 
-    for measurement in (
-        result.measurements
-    ):
+    for measurement in result.measurements:
+        assert math.isfinite(measurement.peak_ratio)
 
-        assert math.isfinite(
-            measurement.peak_ratio
-        )
-
-        assert (
-            measurement.peak_ratio
-            == np.finfo(
-                np.float64
-            ).max
-        )
+        assert measurement.peak_ratio == np.finfo(np.float64).max
 
 
 # ======================================================================
@@ -2510,9 +1793,7 @@ def test_solver_receives_geometry_measurements_speed_and_bounds(
     stream_manager,
 ) -> None:
 
-    activate_common_session(
-        stream_manager
-    )
+    activate_common_session(stream_manager)
 
     install_windows(
         monkeypatch,
@@ -2525,23 +1806,14 @@ def test_solver_receives_geometry_measurements_speed_and_bounds(
         stream_manager,
     )
 
-    install_successful_gcc(
-        monkeypatch
-    )
+    install_successful_gcc(monkeypatch)
 
-    solver_calls, _ = install_solver(
-        monkeypatch
-    )
+    solver_calls, _ = install_solver(monkeypatch)
 
     config = make_localization_config(
-        speed_of_sound_mps=
-            345.0,
-
-        constrain_to_array_bounds=
-            True,
-
-        bounds_margin_m=
-            0.2,
+        speed_of_sound_mps=345.0,
+        constrain_to_array_bounds=True,
+        bounds_margin_m=0.2,
     )
 
     engine = LocalizationEngine(
@@ -2550,67 +1822,24 @@ def test_solver_receives_geometry_measurements_speed_and_bounds(
     )
 
     result = engine.locate_window(
-        start_sample=
-            2000,
-
-        length=
-            1024,
-
-        speed_of_sound_mps=
-            345.0,
+        start_sample=2000,
+        length=1024,
+        speed_of_sound_mps=345.0,
     )
 
-    assert (
-        len(
-            solver_calls
-        )
-        == 1
-    )
+    assert len(solver_calls) == 1
 
-    call = (
-        solver_calls[
-            0
-        ]
-    )
+    call = solver_calls[0]
 
-    assert (
-        call[
-            "node_positions"
-        ]
-        == config.node_positions
-    )
+    assert call["node_positions"] == config.node_positions
 
-    assert (
-        len(
-            call[
-                "measurements"
-            ]
-        )
-        == 3
-    )
+    assert len(call["measurements"]) == 3
 
-    assert (
-        call[
-            "speed_of_sound_mps"
-        ]
-        == pytest.approx(
-            345.0
-        )
-    )
+    assert call["speed_of_sound_mps"] == pytest.approx(345.0)
 
-    assert (
-        call[
-            "bounds"
-        ]
-        == engine._bounds()
-    )
+    assert call["bounds"] == engine._bounds()
 
-    assert (
-        result.speed_of_sound_mps
-        == pytest.approx(
-            345.0
-        )
-    )
+    assert result.speed_of_sound_mps == pytest.approx(345.0)
 
 
 # ======================================================================
@@ -2623,17 +1852,12 @@ def test_localization_result_records_window_metadata(
     stream_manager,
 ) -> None:
 
-    activate_common_session(
-        stream_manager
-    )
+    activate_common_session(stream_manager)
 
     install_windows(
         monkeypatch,
         stream_manager,
-        make_standard_windows(
-            length=
-                512
-        ),
+        make_standard_windows(length=512),
     )
 
     install_no_environment(
@@ -2641,13 +1865,9 @@ def test_localization_result_records_window_metadata(
         stream_manager,
     )
 
-    install_successful_gcc(
-        monkeypatch
-    )
+    install_successful_gcc(monkeypatch)
 
-    install_solver(
-        monkeypatch
-    )
+    install_solver(monkeypatch)
 
     engine = LocalizationEngine(
         stream_manager,
@@ -2655,22 +1875,13 @@ def test_localization_result_records_window_metadata(
     )
 
     result = engine.locate_window(
-        start_sample=
-            7777,
-
-        length=
-            512,
+        start_sample=7777,
+        length=512,
     )
 
-    assert (
-        result.window_start_sample
-        == 7777
-    )
+    assert result.window_start_sample == 7777
 
-    assert (
-        result.window_samples
-        == 512
-    )
+    assert result.window_samples == 512
 
 
 # ======================================================================
@@ -2683,9 +1894,7 @@ def test_result_records_environment_used(
     stream_manager,
 ) -> None:
 
-    activate_common_session(
-        stream_manager
-    )
+    activate_common_session(stream_manager)
 
     install_windows(
         monkeypatch,
@@ -2702,41 +1911,27 @@ def test_result_records_environment_used(
     monkeypatch.setattr(
         stream_manager,
         "get_environment_near",
-        lambda sample_index:
-            environment,
+        lambda sample_index: environment,
     )
 
-    install_successful_gcc(
-        monkeypatch
-    )
+    install_successful_gcc(monkeypatch)
 
-    install_solver(
-        monkeypatch
-    )
+    install_solver(monkeypatch)
 
     engine = LocalizationEngine(
         stream_manager,
-        make_localization_config(
-            use_environmental_speed=
-                True
-        ),
+        make_localization_config(use_environmental_speed=True),
     )
 
     result = engine.locate_window(
-        start_sample=
-            0,
-
-        length=
-            1024,
+        start_sample=0,
+        length=1024,
     )
 
-    assert (
-        result.environment_used
-        == (
-            26.0,
-            70.0,
-            1005.0,
-        )
+    assert result.environment_used == (
+        26.0,
+        70.0,
+        1005.0,
     )
 
 
@@ -2745,9 +1940,7 @@ def test_explicit_speed_override_records_no_environment(
     stream_manager,
 ) -> None:
 
-    activate_common_session(
-        stream_manager
-    )
+    activate_common_session(stream_manager)
 
     install_windows(
         monkeypatch,
@@ -2755,44 +1948,24 @@ def test_explicit_speed_override_records_no_environment(
         make_standard_windows(),
     )
 
-    install_successful_gcc(
-        monkeypatch
-    )
+    install_successful_gcc(monkeypatch)
 
-    install_solver(
-        monkeypatch
-    )
+    install_solver(monkeypatch)
 
     engine = LocalizationEngine(
         stream_manager,
-        make_localization_config(
-            use_environmental_speed=
-                True
-        ),
+        make_localization_config(use_environmental_speed=True),
     )
 
     result = engine.locate_window(
-        start_sample=
-            0,
-
-        length=
-            1024,
-
-        speed_of_sound_mps=
-            350.0,
+        start_sample=0,
+        length=1024,
+        speed_of_sound_mps=350.0,
     )
 
-    assert (
-        result.speed_of_sound_mps
-        == pytest.approx(
-            350.0
-        )
-    )
+    assert result.speed_of_sound_mps == pytest.approx(350.0)
 
-    assert (
-        result.environment_used
-        is None
-    )
+    assert result.environment_used is None
 
 
 # ======================================================================
@@ -2805,15 +1978,11 @@ def test_locate_window_rejects_short_node_window(
     stream_manager,
 ) -> None:
 
-    activate_common_session(
-        stream_manager
-    )
+    activate_common_session(stream_manager)
 
     windows = make_standard_windows()
 
-    windows[
-        2
-    ] = np.zeros(
+    windows[2] = np.zeros(
         1023,
         dtype=np.float64,
     )
@@ -2834,16 +2003,10 @@ def test_locate_window_rejects_short_node_window(
         make_localization_config(),
     )
 
-    with pytest.raises(
-        RuntimeError
-    ):
-
+    with pytest.raises(RuntimeError):
         engine.locate_window(
-            start_sample=
-                0,
-
-            length=
-                1024,
+            start_sample=0,
+            length=1024,
         )
 
 
@@ -2852,15 +2015,11 @@ def test_locate_window_rejects_multidimensional_node_window(
     stream_manager,
 ) -> None:
 
-    activate_common_session(
-        stream_manager
-    )
+    activate_common_session(stream_manager)
 
     windows = make_standard_windows()
 
-    windows[
-        2
-    ] = np.zeros(
+    windows[2] = np.zeros(
         (
             1024,
             1,
@@ -2884,16 +2043,10 @@ def test_locate_window_rejects_multidimensional_node_window(
         make_localization_config(),
     )
 
-    with pytest.raises(
-        RuntimeError
-    ):
-
+    with pytest.raises(RuntimeError):
         engine.locate_window(
-            start_sample=
-                0,
-
-            length=
-                1024,
+            start_sample=0,
+            length=1024,
         )
 
 
@@ -2907,19 +2060,11 @@ def test_locate_window_rejects_nonfinite_samples(
     stream_manager,
 ) -> None:
 
-    activate_common_session(
-        stream_manager
-    )
+    activate_common_session(stream_manager)
 
     windows = make_standard_windows()
 
-    windows[
-        2
-    ][
-        100
-    ] = (
-        np.nan
-    )
+    windows[2][100] = np.nan
 
     install_windows(
         monkeypatch,
@@ -2937,16 +2082,10 @@ def test_locate_window_rejects_nonfinite_samples(
         make_localization_config(),
     )
 
-    with pytest.raises(
-        ValueError
-    ):
-
+    with pytest.raises(ValueError):
         engine.locate_window(
-            start_sample=
-                0,
-
-            length=
-                1024,
+            start_sample=0,
+            length=1024,
         )
 
 
@@ -2960,9 +2099,7 @@ def test_locate_window_rejects_invalid_bandpass_output_shape(
     stream_manager,
 ) -> None:
 
-    activate_common_session(
-        stream_manager
-    )
+    activate_common_session(stream_manager)
 
     install_windows(
         monkeypatch,
@@ -2978,33 +2115,21 @@ def test_locate_window_rejects_invalid_bandpass_output_shape(
     monkeypatch.setattr(
         engine_module,
         "bandpass_filter",
-        lambda signal, **kwargs:
-            np.asarray(
-                signal[
-                    :-1
-                ],
-                dtype=np.float64,
-            ),
+        lambda signal, **kwargs: np.asarray(
+            signal[:-1],
+            dtype=np.float64,
+        ),
     )
 
     engine = LocalizationEngine(
         stream_manager,
-        make_localization_config(
-            bandpass_enabled=
-                True
-        ),
+        make_localization_config(bandpass_enabled=True),
     )
 
-    with pytest.raises(
-        RuntimeError
-    ):
-
+    with pytest.raises(RuntimeError):
         engine.locate_window(
-            start_sample=
-                0,
-
-            length=
-                1024,
+            start_sample=0,
+            length=1024,
         )
 
 
@@ -3021,13 +2146,9 @@ def test_session_change_during_window_assembly_is_rejected(
     sampleIndex values from two acquisition sessions must never be mixed.
     """
 
-    activate_common_session(
-        stream_manager
-    )
+    activate_common_session(stream_manager)
 
-    windows = (
-        make_standard_windows()
-    )
+    windows = make_standard_windows()
 
     def fake_get_window(
         node_id: int,
@@ -3037,32 +2158,15 @@ def test_session_change_during_window_assembly_is_rejected(
         fill_value: int = 0,
     ):
 
-        result = (
-            windows[
-                node_id
-            ][
-                :length
-            ].copy()
-        )
+        result = windows[node_id][:length].copy()
 
         # Node 3 passed the pre-extraction session check, but the
         # acquisition changes immediately afterward. The final global
         # session recheck must detect this.
-        if (
-            node_id
-            == 3
-        ):
+        if node_id == 3:
+            stream_manager.nodes[3].reset_stream_tracking(session_id=SECOND_SESSION_ID)
 
-            stream_manager.nodes[
-                3
-            ].reset_stream_tracking(
-                session_id=
-                    SECOND_SESSION_ID
-            )
-
-        return (
-            result
-        )
+        return result
 
     monkeypatch.setattr(
         stream_manager,
@@ -3080,16 +2184,10 @@ def test_session_change_during_window_assembly_is_rejected(
         make_localization_config(),
     )
 
-    with pytest.raises(
-        RuntimeError
-    ):
-
+    with pytest.raises(RuntimeError):
         engine.locate_window(
-            start_sample=
-                0,
-
-            length=
-                1024,
+            start_sample=0,
+            length=1024,
         )
 
 
@@ -3107,10 +2205,7 @@ def test_locate_latest_returns_none_without_common_session(
         make_localization_config(),
     )
 
-    assert (
-        engine.locate_latest()
-        is None
-    )
+    assert engine.locate_latest() is None
 
 
 # ======================================================================
@@ -3122,19 +2217,14 @@ def test_locate_latest_returns_none_when_node_has_no_audio(
     stream_manager,
 ) -> None:
 
-    activate_common_session(
-        stream_manager
-    )
+    activate_common_session(stream_manager)
 
     engine = LocalizationEngine(
         stream_manager,
         make_localization_config(),
     )
 
-    assert (
-        engine.locate_latest()
-        is None
-    )
+    assert engine.locate_latest() is None
 
 
 # ======================================================================
@@ -3164,56 +2254,30 @@ def test_locate_latest_uses_least_advanced_node_end(
         start = 1128
     """
 
-    activate_common_session(
-        stream_manager
-    )
+    activate_common_session(stream_manager)
 
-    block_length = (
-        256
-    )
+    block_length = 256
 
     starts = {
-        1:
-            1000,
-
-        2:
-            1100,
-
-        3:
-            1050,
+        1: 1000,
+        2: 1100,
+        3: 1050,
     }
 
-    for node_id, start in (
-        starts.items()
-    ):
-
+    for node_id, start in starts.items():
         block = make_audio_block(
-            node_id=
-                node_id,
-
-            session_id=
-                SESSION_ID,
-
-            sample_index=
-                start,
-
-            samples=
-                np.zeros(
-                    block_length,
-                    dtype=np.int16,
-                ),
+            node_id=node_id,
+            session_id=SESSION_ID,
+            sample_index=start,
+            samples=np.zeros(
+                block_length,
+                dtype=np.int16,
+            ),
         )
 
-        stream_manager.nodes[
-            node_id
-        ].audio_blocks.append(
-            block
-        )
+        stream_manager.nodes[node_id].audio_blocks.append(block)
 
-    config = make_localization_config(
-        window_samples=
-            128
-    )
+    config = make_localization_config(window_samples=128)
 
     engine = LocalizationEngine(
         stream_manager,
@@ -3239,9 +2303,7 @@ def test_locate_latest_uses_least_advanced_node_end(
             )
         )
 
-        return (
-            sentinel
-        )
+        return sentinel
 
     monkeypatch.setattr(
         engine,
@@ -3249,26 +2311,17 @@ def test_locate_latest_uses_least_advanced_node_end(
         fake_locate_window,
     )
 
-    result = engine.locate_latest(
-        length=
-            128
-    )
+    result = engine.locate_latest(length=128)
 
-    assert (
-        result
-        is sentinel
-    )
+    assert result is sentinel
 
-    assert (
-        calls
-        == [
-            (
-                1128,
-                128,
-                None,
-            )
-        ]
-    )
+    assert calls == [
+        (
+            1128,
+            128,
+            None,
+        )
+    ]
 
 
 # ======================================================================
@@ -3281,52 +2334,31 @@ def test_locate_latest_returns_none_when_common_end_is_too_small(
     make_audio_block,
 ) -> None:
 
-    activate_common_session(
-        stream_manager
-    )
+    activate_common_session(stream_manager)
 
     for node_id in (
         1,
         2,
         3,
     ):
-
-        stream_manager.nodes[
-            node_id
-        ].audio_blocks.append(
+        stream_manager.nodes[node_id].audio_blocks.append(
             make_audio_block(
-                node_id=
-                    node_id,
-
-                session_id=
-                    SESSION_ID,
-
-                sample_index=
-                    0,
-
-                samples=
-                    np.zeros(
-                        64,
-                        dtype=np.int16,
-                    ),
+                node_id=node_id,
+                session_id=SESSION_ID,
+                sample_index=0,
+                samples=np.zeros(
+                    64,
+                    dtype=np.int16,
+                ),
             )
         )
 
     engine = LocalizationEngine(
         stream_manager,
-        make_localization_config(
-            window_samples=
-                128
-        ),
+        make_localization_config(window_samples=128),
     )
 
-    assert (
-        engine.locate_latest(
-            length=
-                128
-        )
-        is None
-    )
+    assert engine.locate_latest(length=128) is None
 
 
 # ======================================================================
@@ -3339,42 +2371,25 @@ def test_locate_latest_rejects_latest_block_from_wrong_session(
     make_audio_block,
 ) -> None:
 
-    activate_common_session(
-        stream_manager
-    )
+    activate_common_session(stream_manager)
 
     for node_id in (
         1,
         2,
     ):
-
-        stream_manager.nodes[
-            node_id
-        ].audio_blocks.append(
+        stream_manager.nodes[node_id].audio_blocks.append(
             make_audio_block(
-                node_id=
-                    node_id,
-
-                session_id=
-                    SESSION_ID,
-
-                sample_index=
-                    1000,
+                node_id=node_id,
+                session_id=SESSION_ID,
+                sample_index=1000,
             )
         )
 
-    stream_manager.nodes[
-        3
-    ].audio_blocks.append(
+    stream_manager.nodes[3].audio_blocks.append(
         make_audio_block(
-            node_id=
-                3,
-
-            session_id=
-                SECOND_SESSION_ID,
-
-            sample_index=
-                1000,
+            node_id=3,
+            session_id=SECOND_SESSION_ID,
+            sample_index=1000,
         )
     )
 
@@ -3383,10 +2398,7 @@ def test_locate_latest_rejects_latest_block_from_wrong_session(
         make_localization_config(),
     )
 
-    assert (
-        engine.locate_latest()
-        is None
-    )
+    assert engine.locate_latest() is None
 
 
 # ======================================================================
@@ -3399,9 +2411,7 @@ def test_localization_result_wraps_exact_solver_result_object(
     stream_manager,
 ) -> None:
 
-    activate_common_session(
-        stream_manager
-    )
+    activate_common_session(stream_manager)
 
     install_windows(
         monkeypatch,
@@ -3414,25 +2424,17 @@ def test_localization_result_wraps_exact_solver_result_object(
         stream_manager,
     )
 
-    install_successful_gcc(
-        monkeypatch
-    )
+    install_successful_gcc(monkeypatch)
 
     solver_result = make_solver_result(
-        success=
-            True,
-
-        x=
-            0.4,
-
-        y=
-            0.3,
+        success=True,
+        x=0.4,
+        y=0.3,
     )
 
     install_solver(
         monkeypatch,
-        result=
-            solver_result,
+        result=solver_result,
     )
 
     engine = LocalizationEngine(
@@ -3441,19 +2443,10 @@ def test_localization_result_wraps_exact_solver_result_object(
     )
 
     result = engine.locate_window(
-        start_sample=
-            0,
-
-        length=
-            1024,
+        start_sample=0,
+        length=1024,
     )
 
-    assert (
-        result.position
-        is solver_result
-    )
+    assert result.position is solver_result
 
-    assert (
-        result.success
-        is True
-    )
+    assert result.success is True

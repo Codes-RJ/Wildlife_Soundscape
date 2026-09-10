@@ -71,6 +71,16 @@ def test_benchmark_entry_point_delegates(monkeypatch) -> None:
     assert calls == ["benchmark"]
 
 
+def test_dataset_validator_entry_point_returns_status(monkeypatch) -> None:
+    monkeypatch.setitem(
+        sys.modules,
+        "wildlife_soundscape.tools.validate_dataset",
+        SimpleNamespace(main=lambda: 5),
+    )
+
+    assert cli.validate_dataset() == 5
+
+
 def test_receiver_parser_supports_automatic_acquisition() -> None:
     args = receiver_main.build_argument_parser().parse_args(
         ["--auto-start", "--session-label", "demo"]
@@ -91,9 +101,7 @@ def test_automatic_acquisition_starts_after_nodes_are_ready() -> None:
         start_acquisition=AsyncMock(return_value=0x1234),
     )
 
-    session_id = asyncio.run(
-        receiver_main.start_acquisition_when_ready(server, "demo")
-    )
+    session_id = asyncio.run(receiver_main.start_acquisition_when_ready(server, "demo"))
 
     assert session_id == 0x1234
     server.start_acquisition.assert_awaited_once_with("demo")

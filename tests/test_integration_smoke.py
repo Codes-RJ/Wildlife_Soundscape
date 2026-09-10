@@ -46,7 +46,6 @@ Those require their dedicated unit, calibration and physical-hardware
 tests.
 """
 
-
 from __future__ import annotations
 
 
@@ -97,9 +96,7 @@ from wildlife_soundscape.runtime.simulator import (
 # ======================================================================
 
 
-TEST_HOST = (
-    "127.0.0.1"
-)
+TEST_HOST = "127.0.0.1"
 
 
 EXPECTED_NODE_IDS = (
@@ -131,7 +128,6 @@ def find_available_tcp_port() -> int:
         socket.AF_INET,
         socket.SOCK_STREAM,
     ) as temporary_socket:
-
         temporary_socket.bind(
             (
                 TEST_HOST,
@@ -139,15 +135,9 @@ def find_available_tcp_port() -> int:
             )
         )
 
-        port = int(
-            temporary_socket.getsockname()[
-                1
-            ]
-        )
+        port = int(temporary_socket.getsockname()[1])
 
-    return (
-        port
-    )
+    return port
 
 
 # ======================================================================
@@ -172,40 +162,18 @@ async def wait_until(
     may schedule asyncio/TCP tasks at different speeds.
     """
 
-    loop = (
-        asyncio.get_running_loop()
-    )
+    loop = asyncio.get_running_loop()
 
-    deadline = (
-        loop.time()
-        + float(
-            timeout_s
-        )
-    )
+    deadline = loop.time() + float(timeout_s)
 
     while True:
-
-        if (
-            predicate()
-        ):
-
+        if predicate():
             return
 
-        if (
-            loop.time()
-            >= deadline
-        ):
+        if loop.time() >= deadline:
+            raise AssertionError((f"Timed out waiting for {description}"))
 
-            raise AssertionError(
-                (
-                    "Timed out waiting for "
-                    f"{description}"
-                )
-            )
-
-        await asyncio.sleep(
-            interval_s
-        )
+        await asyncio.sleep(interval_s)
 
 
 # ======================================================================
@@ -245,12 +213,8 @@ def make_integration_config(
 
     network = replace(
         CONFIG.network,
-
-        host=
-            TEST_HOST,
-
-        port=
-            port,
+        host=TEST_HOST,
+        port=port,
     )
 
     # ==============================================================
@@ -264,9 +228,7 @@ def make_integration_config(
 
     audio = replace(
         CONFIG.audio,
-
-        record_wav=
-            False,
+        record_wav=False,
     )
 
     # ==============================================================
@@ -275,18 +237,9 @@ def make_integration_config(
 
     persistence = replace(
         CONFIG.persistence,
-
-        database_path=
-            tmp_path
-            / "database"
-            / "events.db",
-
-        events_dir=
-            tmp_path
-            / "events",
-
-        save_event_wav=
-            False,
+        database_path=tmp_path / "database" / "events.db",
+        events_dir=tmp_path / "events",
+        save_event_wav=False,
     )
 
     # ==============================================================
@@ -295,23 +248,12 @@ def make_integration_config(
 
     return replace(
         CONFIG,
-
-        network=
-            network,
-
-        audio=
-            audio,
-
-        persistence=
-            persistence,
-
-        recordings_dir=
-            tmp_path
-            / "recordings",
-
+        network=network,
+        audio=audio,
+        persistence=persistence,
+        recordings_dir=tmp_path / "recordings",
         # Status printing is irrelevant during pytest.
-        print_status_every_s=
-            60.0,
+        print_status_every_s=60.0,
     )
 
 
@@ -328,34 +270,15 @@ def every_expected_node_has_audio(
     """
 
     for node_id in EXPECTED_NODE_IDS:
+        connection = server.connections.get(node_id)
 
-        connection = (
-            server.connections.get(
-                node_id
-            )
-        )
+        if connection is None:
+            return False
 
-        if (
-            connection
-            is None
-        ):
+        if connection.state.audio_packets_received <= 0:
+            return False
 
-            return (
-                False
-            )
-
-        if (
-            connection.state.audio_packets_received
-            <= 0
-        ):
-
-            return (
-                False
-            )
-
-    return (
-        True
-    )
+    return True
 
 
 def every_expected_node_uses_session(
@@ -368,60 +291,29 @@ def every_expected_node_uses_session(
     """
 
     for node_id in EXPECTED_NODE_IDS:
+        connection = server.connections.get(node_id)
 
-        connection = (
-            server.connections.get(
-                node_id
-            )
-        )
+        if connection is None:
+            return False
 
-        if (
-            connection
-            is None
-        ):
+        if connection.state.session_id != session_id:
+            return False
 
-            return (
-                False
-            )
-
-        if (
-            connection.state.session_id
-            != session_id
-        ):
-
-            return (
-                False
-            )
-
-    return (
-        True
-    )
+    return True
 
 
 def simulator_is_fully_stopped(
     shared: SharedSimulation,
-    nodes: list[
-        FakeNode
-    ],
+    nodes: list[FakeNode],
 ) -> bool:
     """
     Whether the simulator has processed all STOP commands.
     """
 
     return (
-        shared.clock_session_id
-        is None
-
-        and not (
-            shared.armed_session
-        )
-
-        and all(
-            not node.streaming
-
-            for node
-            in nodes
-        )
+        shared.clock_session_id is None
+        and not (shared.armed_session)
+        and all(not node.streaming for node in nodes)
     )
 
 
@@ -444,16 +336,9 @@ def assert_session_was_closed_in_database(
     Detailed database behavior is covered by test_database.py.
     """
 
-    assert (
-        database_path.exists()
-    )
+    assert database_path.exists()
 
-    with contextlib.closing(
-        sqlite3.connect(
-            database_path
-        )
-    ) as connection:
-
+    with contextlib.closing(sqlite3.connect(database_path)) as connection:
         row = connection.execute(
             """
             SELECT
@@ -464,44 +349,25 @@ def assert_session_was_closed_in_database(
             FROM sessions
             WHERE session_id = ?
             """,
-            (
-                session_id,
-            ),
+            (session_id,),
         ).fetchone()
 
-    assert (
-        row
-        is not None
-    )
+    assert row is not None
 
     (
         stored_session_id,
         stored_label,
         started_at,
         stopped_at,
-    ) = (
-        row
-    )
+    ) = row
 
-    assert (
-        stored_session_id
-        == session_id
-    )
+    assert stored_session_id == session_id
 
-    assert (
-        stored_label
-        == expected_label
-    )
+    assert stored_label == expected_label
 
-    assert (
-        started_at
-        is not None
-    )
+    assert started_at is not None
 
-    assert (
-        stopped_at
-        is not None
-    )
+    assert stopped_at is not None
 
 
 # ======================================================================
@@ -520,64 +386,42 @@ async def run_smoke_scenario(
     # ISOLATED CONFIGURATION
     # ==============================================================
 
-    port = (
-        find_available_tcp_port()
-    )
+    port = find_available_tcp_port()
 
     config = make_integration_config(
         tmp_path,
-        port=
-            port,
+        port=port,
     )
 
     # ==============================================================
     # REAL RECEIVER SERVER
     # ==============================================================
 
-    server = ReceiverServer(
-        config
-    )
+    server = ReceiverServer(config)
 
     # ==============================================================
     # REAL THREE-NODE SIMULATOR
     # ==============================================================
 
-    shared = (
-        SharedSimulation()
-    )
+    shared = SharedSimulation()
 
     nodes = [
         FakeNode(
-            node_id=
-                node_id,
-
-            host=
-                TEST_HOST,
-
-            port=
-                port,
-
-            shared=
-                shared,
+            node_id=node_id,
+            host=TEST_HOST,
+            port=port,
+            shared=shared,
         )
-
-        for node_id
-        in EXPECTED_NODE_IDS
+        for node_id in EXPECTED_NODE_IDS
     ]
 
-    node_tasks: list[
-        asyncio.Task
-    ] = []
+    node_tasks: list[asyncio.Task] = []
 
     # Session ID remains available for the persistence assertion after
     # the asynchronous network lifecycle has been shut down.
-    session_id: (
-        int
-        | None
-    ) = None
+    session_id: int | None = None
 
     try:
-
         # ==========================================================
         # START RECEIVER
         # ==========================================================
@@ -591,171 +435,86 @@ async def run_smoke_scenario(
         node_tasks = [
             asyncio.create_task(
                 node.run(),
-                name=
-                    f"simulator-node-{node.node_id}",
+                name=f"simulator-node-{node.node_id}",
             )
-
-            for node
-            in nodes
+            for node in nodes
         ]
 
         # ==========================================================
         # WAIT FOR PROTOCOL-v4 HELLO HANDSHAKES
         # ==========================================================
 
-        await server.wait_for_nodes(
-            timeout=
-                5.0
-        )
+        await server.wait_for_nodes(timeout=5.0)
 
-        assert (
-            server.all_expected_nodes_connected()
-        )
+        assert server.all_expected_nodes_connected()
 
-        assert (
-            set(
-                server.connections
-            )
-            == set(
-                EXPECTED_NODE_IDS
-            )
-        )
+        assert set(server.connections) == set(EXPECTED_NODE_IDS)
 
         # ==========================================================
         # VERIFY NODE ROLES FROM REAL HELLO PAYLOADS
         # ==========================================================
 
-        node_1_hello = (
-            server.connections[
-                1
-            ].state.hello
-        )
+        node_1_hello = server.connections[1].state.hello
 
-        node_2_hello = (
-            server.connections[
-                2
-            ].state.hello
-        )
+        node_2_hello = server.connections[2].state.hello
 
-        node_3_hello = (
-            server.connections[
-                3
-            ].state.hello
-        )
+        node_3_hello = server.connections[3].state.hello
 
-        assert (
-            node_1_hello
-            is not None
-        )
+        assert node_1_hello is not None
 
-        assert (
-            node_2_hello
-            is not None
-        )
+        assert node_2_hello is not None
 
-        assert (
-            node_3_hello
-            is not None
-        )
+        assert node_3_hello is not None
 
-        assert (
-            node_1_hello.master_node
-            is True
-        )
+        assert node_1_hello.master_node is True
 
-        assert (
-            node_2_hello.master_node
-            is False
-        )
+        assert node_2_hello.master_node is False
 
-        assert (
-            node_3_hello.master_node
-            is False
-        )
+        assert node_3_hello.master_node is False
 
-        assert (
-            node_1_hello.sample_rate
-            == config.audio.sample_rate
-        )
+        assert node_1_hello.sample_rate == config.audio.sample_rate
 
-        assert (
-            node_2_hello.sample_rate
-            == config.audio.sample_rate
-        )
+        assert node_2_hello.sample_rate == config.audio.sample_rate
 
-        assert (
-            node_3_hello.sample_rate
-            == config.audio.sample_rate
-        )
+        assert node_3_hello.sample_rate == config.audio.sample_rate
 
         # ==========================================================
         # START SYNCHRONIZED ACQUISITION
         # ==========================================================
 
-        session_id = (
-            await server.start_acquisition(
-                "smoke"
-            )
-        )
+        session_id = await server.start_acquisition("smoke")
 
         assert isinstance(
             session_id,
             int,
         )
 
-        assert (
-            1
-            <= session_id
-            <= 0xFFFFFFFF
-        )
+        assert 1 <= session_id <= 0xFFFFFFFF
 
-        assert (
-            server.active_session_id
-            == session_id
-        )
+        assert server.active_session_id == session_id
 
-        assert (
-            server.events.active_session_id
-            == session_id
-        )
+        assert server.events.active_session_id == session_id
 
         # ==========================================================
         # SIMULATED MASTER CLOCK
         # ==========================================================
 
         await wait_until(
-            lambda:
-                (
-                    shared.clock_session_id
-                    == session_id
-                ),
-
-            timeout_s=
-                2.0,
-
-            description=
-                "Node 1 simulated shared audio clock",
+            lambda: shared.clock_session_id == session_id,
+            timeout_s=2.0,
+            description="Node 1 simulated shared audio clock",
         )
 
-        assert (
-            shared.clock_event.is_set()
-        )
+        assert shared.clock_event.is_set()
 
         # ==========================================================
         # RECEIVE AUDIO FROM ALL NODES
         # ==========================================================
 
         await wait_until(
-            lambda:
-                every_expected_node_has_audio(
-                    server
-                ),
-
-            timeout_s=
-                5.0,
-
-            description=
-                "AUDIO packets from all three simulated nodes",
+            lambda: every_expected_node_has_audio(server),
+            timeout_s=5.0,
+            description="AUDIO packets from all three simulated nodes",
         )
 
         # ==========================================================
@@ -763,17 +522,12 @@ async def run_smoke_scenario(
         # ==========================================================
 
         await wait_until(
-            lambda:
-                every_expected_node_uses_session(
-                    server,
-                    session_id,
-                ),
-
-            timeout_s=
-                2.0,
-
-            description=
-                "common acquisition session on all node states",
+            lambda: every_expected_node_uses_session(
+                server,
+                session_id,
+            ),
+            timeout_s=2.0,
+            description="common acquisition session on all node states",
         )
 
         # ==========================================================
@@ -781,88 +535,40 @@ async def run_smoke_scenario(
         # ==========================================================
 
         for node_id in EXPECTED_NODE_IDS:
+            state = server.connections[node_id].state
 
-            state = (
-                server.connections[
-                    node_id
-                ].state
-            )
+            assert state.audio_packets_received > 0
 
-            assert (
-                state.audio_packets_received
-                > 0
-            )
+            assert state.session_id == session_id
 
-            assert (
-                state.session_id
-                == session_id
-            )
+            assert state.sequence_gaps == 0
 
-            assert (
-                state.sequence_gaps
-                == 0
-            )
-
-            assert (
-                state.sample_gaps
-                == 0
-            )
+            assert state.sample_gaps == 0
 
         # ==========================================================
         # COARSE THREE-NODE ALIGNMENT
         # ==========================================================
 
-        aligned = (
-            None
-        )
+        aligned = None
 
         async def wait_for_alignment() -> None:
 
             nonlocal aligned
 
-            loop = (
-                asyncio.get_running_loop()
-            )
+            loop = asyncio.get_running_loop()
 
-            deadline = (
-                loop.time()
-                + 5.0
-            )
+            deadline = loop.time() + 5.0
 
-            while (
-                aligned
-                is None
-            ):
+            while aligned is None:
+                aligned = server.streams.latest_aligned_blocks()
 
-                aligned = (
-                    server.streams
-                    .latest_aligned_blocks()
-                )
-
-                if (
-                    aligned
-                    is not None
-                ):
-
+                if aligned is not None:
                     return
 
-                if (
-                    loop.time()
-                    >= deadline
-                ):
-
+                if loop.time() >= deadline:
                     last_indices = {
-                        node_id:
-                            (
-                                server.connections[
-                                    node_id
-                                ]
-                                .state
-                                .last_sample_index
-                            )
-
-                        for node_id
-                        in EXPECTED_NODE_IDS
+                        node_id: (server.connections[node_id].state.last_sample_index)
+                        for node_id in EXPECTED_NODE_IDS
                     }
 
                     raise AssertionError(
@@ -873,34 +579,15 @@ async def run_smoke_scenario(
                         )
                     )
 
-                await asyncio.sleep(
-                    0.02
-                )
+                await asyncio.sleep(0.02)
 
         await wait_for_alignment()
 
-        assert (
-            aligned
-            is not None
-        )
+        assert aligned is not None
 
-        assert (
-            set(
-                aligned.blocks
-            )
-            == set(
-                EXPECTED_NODE_IDS
-            )
-        )
+        assert set(aligned.blocks) == set(EXPECTED_NODE_IDS)
 
-        assert (
-            set(
-                aligned.offsets
-            )
-            == set(
-                EXPECTED_NODE_IDS
-            )
-        )
+        assert set(aligned.offsets) == set(EXPECTED_NODE_IDS)
 
         # ----------------------------------------------------------
         # Every selected aligned block must belong to this one common
@@ -908,13 +595,7 @@ async def run_smoke_scenario(
         # ----------------------------------------------------------
 
         assert all(
-            (
-                block.session_id
-                == session_id
-            )
-
-            for block
-            in aligned.blocks.values()
+            (block.session_id == session_id) for block in aligned.blocks.values()
         )
 
         # ----------------------------------------------------------
@@ -924,15 +605,8 @@ async def run_smoke_scenario(
         # ----------------------------------------------------------
 
         assert all(
-            (
-                abs(
-                    offset
-                )
-                <= config.audio.sync_tolerance_samples
-            )
-
-            for offset
-            in aligned.offsets.values()
+            (abs(offset) <= config.audio.sync_tolerance_samples)
+            for offset in aligned.offsets.values()
         )
 
         # ==========================================================
@@ -941,49 +615,30 @@ async def run_smoke_scenario(
 
         await server.stop_acquisition()
 
-        assert (
-            server.active_session_id
-            is None
-        )
+        assert server.active_session_id is None
 
-        assert (
-            server.events.active_session_id
-            is None
-        )
+        assert server.events.active_session_id is None
 
         # ==========================================================
         # VERIFY SIMULATOR PROCESSED STOP
         # ==========================================================
 
         await wait_until(
-            lambda:
-                simulator_is_fully_stopped(
-                    shared,
-                    nodes,
-                ),
-
-            timeout_s=
-                2.0,
-
-            description=
-                "all simulator nodes to process STOP",
+            lambda: simulator_is_fully_stopped(
+                shared,
+                nodes,
+            ),
+            timeout_s=2.0,
+            description="all simulator nodes to process STOP",
         )
 
     finally:
-
         # ==========================================================
         # BEST-EFFORT ACTIVE SESSION SHUTDOWN
         # ==========================================================
 
-        if (
-            server.active_session_id
-            is not None
-        ):
-
-            with contextlib.suppress(
-                Exception
-            ):
-
+        if server.active_session_id is not None:
+            with contextlib.suppress(Exception):
                 await server.stop_acquisition()
 
         # ==========================================================
@@ -991,15 +646,12 @@ async def run_smoke_scenario(
         # ==========================================================
 
         for task in node_tasks:
-
             task.cancel()
 
         if node_tasks:
-
             await asyncio.gather(
                 *node_tasks,
-                return_exceptions=
-                    True,
+                return_exceptions=True,
             )
 
         # ==========================================================
@@ -1016,19 +668,12 @@ async def run_smoke_scenario(
     # stopped_at timestamp.
     # ==================================================================
 
-    assert (
-        session_id
-        is not None
-    )
+    assert session_id is not None
 
     assert_session_was_closed_in_database(
         config.persistence.database_path,
-
-        session_id=
-            session_id,
-
-        expected_label=
-            "smoke",
+        session_id=session_id,
+        expected_label="smoke",
     )
 
 
@@ -1047,8 +692,4 @@ def test_receiver_and_three_node_simulator_smoke(
     additional pytest-asyncio dependency just for this integration test.
     """
 
-    asyncio.run(
-        run_smoke_scenario(
-            tmp_path
-        )
-    )
+    asyncio.run(run_smoke_scenario(tmp_path))

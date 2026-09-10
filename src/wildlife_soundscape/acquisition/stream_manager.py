@@ -29,29 +29,19 @@ from wildlife_soundscape.acquisition.node import (
 # ======================================================================
 
 
-PCM16_MIN = (
-    -32768
-)
+PCM16_MIN = -32768
 
-PCM16_MAX = (
-    32767
-)
+PCM16_MAX = 32767
 
 
-UINT8_MAX = (
-    0xFF
-)
+UINT8_MAX = 0xFF
 
-UINT64_MAX = (
-    0xFFFFFFFFFFFFFFFF
-)
+UINT64_MAX = 0xFFFFFFFFFFFFFFFF
 
 
 # Silence is emitted in bounded chunks so a large sampleIndex gap does
 # not require one correspondingly huge temporary NumPy allocation.
-WAV_SILENCE_CHUNK_SAMPLES = (
-    65_536
-)
+WAV_SILENCE_CHUNK_SAMPLES = 65_536
 
 
 # ======================================================================
@@ -74,23 +64,15 @@ def _require_integer(
         value,
         bool,
     ):
-
-        raise TypeError(
-            f"{name} must be an integer"
-        )
+        raise TypeError(f"{name} must be an integer")
 
     if not isinstance(
         value,
         int,
     ):
+        raise TypeError(f"{name} must be an integer")
 
-        raise TypeError(
-            f"{name} must be an integer"
-        )
-
-    return int(
-        value
-    )
+    return int(value)
 
 
 def _require_node_id(
@@ -100,26 +82,13 @@ def _require_node_id(
     Validate one Protocol-v4 node identifier.
     """
 
-    value = (
-        _require_integer(
-            value,
-            name=
-                "node_id",
-        )
+    value = _require_integer(
+        value,
+        name="node_id",
     )
 
-    if not (
-        1
-        <= value
-        <= UINT8_MAX
-    ):
-
-        raise ValueError(
-            (
-                "node_id must lie between "
-                "1 and 255"
-            )
-        )
+    if not (1 <= value <= UINT8_MAX):
+        raise ValueError(("node_id must lie between 1 and 255"))
 
     return value
 
@@ -133,25 +102,13 @@ def _require_uint64(
     Validate one unsigned 64-bit sample-index value.
     """
 
-    value = (
-        _require_integer(
-            value,
-            name=name,
-        )
+    value = _require_integer(
+        value,
+        name=name,
     )
 
-    if not (
-        0
-        <= value
-        <= UINT64_MAX
-    ):
-
-        raise ValueError(
-            (
-                f"{name} must lie in "
-                "the uint64 range"
-            )
-        )
+    if not (0 <= value <= UINT64_MAX):
+        raise ValueError((f"{name} must lie in the uint64 range"))
 
     return value
 
@@ -253,17 +210,9 @@ class StreamManager:
             audio_config,
             AudioConfig,
         ):
+            raise TypeError(("audio_config must be an AudioConfig instance"))
 
-            raise TypeError(
-                (
-                    "audio_config must be "
-                    "an AudioConfig instance"
-                )
-            )
-
-        self.audio_config = (
-            audio_config
-        )
+        self.audio_config = audio_config
 
         self.nodes: dict[
             int,
@@ -288,19 +237,9 @@ class StreamManager:
             state,
             NodeState,
         ):
+            raise TypeError(("state must be a NodeState instance"))
 
-            raise TypeError(
-                (
-                    "state must be "
-                    "a NodeState instance"
-                )
-            )
-
-        node_id = (
-            _require_node_id(
-                state.node_id
-            )
-        )
+        node_id = _require_node_id(state.node_id)
 
         # --------------------------------------------------------------
         # AUDIO CONTRACT
@@ -310,24 +249,12 @@ class StreamManager:
         # StreamManager that owns it.
         # --------------------------------------------------------------
 
-        if (
-            state.audio_config.sample_rate
-            != self.audio_config.sample_rate
-        ):
-
+        if state.audio_config.sample_rate != self.audio_config.sample_rate:
             raise ValueError(
-                (
-                    f"node {node_id} AudioConfig "
-                    "sample_rate does not match "
-                    "StreamManager"
-                )
+                (f"node {node_id} AudioConfig sample_rate does not match StreamManager")
             )
 
-        if (
-            state.audio_config.frames_per_block
-            != self.audio_config.frames_per_block
-        ):
-
+        if state.audio_config.frames_per_block != self.audio_config.frames_per_block:
             raise ValueError(
                 (
                     f"node {node_id} AudioConfig "
@@ -336,24 +263,15 @@ class StreamManager:
                 )
             )
 
-        if (
-            state.audio_config.channels
-            != self.audio_config.channels
-        ):
-
+        if state.audio_config.channels != self.audio_config.channels:
             raise ValueError(
-                (
-                    f"node {node_id} AudioConfig "
-                    "channels do not match "
-                    "StreamManager"
-                )
+                (f"node {node_id} AudioConfig channels do not match StreamManager")
             )
 
         if (
             state.audio_config.sample_width_bytes
             != self.audio_config.sample_width_bytes
         ):
-
             raise ValueError(
                 (
                     f"node {node_id} AudioConfig "
@@ -362,9 +280,7 @@ class StreamManager:
                 )
             )
 
-        self.nodes[
-            node_id
-        ] = state
+        self.nodes[node_id] = state
 
     # ==================================================================
     # AUDIO-TIMELINE RESET
@@ -398,23 +314,14 @@ class StreamManager:
         session transition because it carries its own session IDs.
         """
 
-        for state in (
-            self.nodes.values()
-        ):
-
+        for state in self.nodes.values():
             state.audio_blocks.clear()
 
-            state.expected_next_audio_sample = (
-                None
-            )
+            state.expected_next_audio_sample = None
 
-            state.last_sample_index = (
-                None
-            )
+            state.last_sample_index = None
 
-            state.latest_sync = (
-                None
-            )
+            state.latest_sync = None
 
     # ==================================================================
     # AUDIO INGESTION
@@ -432,32 +339,14 @@ class StreamManager:
             block,
             AudioBlock,
         ):
+            raise TypeError(("block must be an AudioBlock instance"))
 
-            raise TypeError(
-                (
-                    "block must be "
-                    "an AudioBlock instance"
-                )
-            )
-
-        state = (
-            self.nodes.get(
-                block.node_id
-            )
-        )
+        state = self.nodes.get(block.node_id)
 
         if state is None:
+            raise KeyError((f"node {block.node_id} is not registered"))
 
-            raise KeyError(
-                (
-                    f"node {block.node_id} "
-                    "is not registered"
-                )
-            )
-
-        state.add_audio(
-            block
-        )
+        state.add_audio(block)
 
     # ==================================================================
     # NODE-ID NORMALIZATION
@@ -472,54 +361,18 @@ class StreamManager:
         """
 
         try:
-
-            raw_nodes = tuple(
-                node_ids
-            )
+            raw_nodes = tuple(node_ids)
 
         except TypeError as exc:
-
-            raise TypeError(
-                (
-                    "node_ids must be "
-                    "an iterable of integers"
-                )
-            ) from exc
+            raise TypeError(("node_ids must be an iterable of integers")) from exc
 
         if not raw_nodes:
+            raise ValueError(("At least one node_id is required"))
 
-            raise ValueError(
-                (
-                    "At least one node_id "
-                    "is required"
-                )
-            )
+        normalized = tuple(_require_node_id(node_id) for node_id in raw_nodes)
 
-        normalized = tuple(
-            _require_node_id(
-                node_id
-            )
-            for node_id
-            in raw_nodes
-        )
-
-        if (
-            len(
-                set(
-                    normalized
-                )
-            )
-            != len(
-                normalized
-            )
-        ):
-
-            raise ValueError(
-                (
-                    "node_ids cannot "
-                    "contain duplicates"
-                )
-            )
+        if len(set(normalized)) != len(normalized):
+            raise ValueError(("node_ids cannot contain duplicates"))
 
         return normalized
 
@@ -569,47 +422,23 @@ class StreamManager:
         This operation never compensates acoustic propagation delay.
         """
 
-        requested_nodes = (
-            self._normalize_node_ids(
-                node_ids
-            )
-        )
+        requested_nodes = self._normalize_node_ids(node_ids)
 
         # ==============================================================
         # TOLERANCE
         # ==============================================================
 
-        if (
-            tolerance_samples
-            is None
-        ):
-
-            tolerance = (
-                self.audio_config
-                .sync_tolerance_samples
-            )
+        if tolerance_samples is None:
+            tolerance = self.audio_config.sync_tolerance_samples
 
         else:
-
-            tolerance = (
-                _require_integer(
-                    tolerance_samples,
-                    name=
-                        "tolerance_samples",
-                )
+            tolerance = _require_integer(
+                tolerance_samples,
+                name="tolerance_samples",
             )
 
-        if (
-            tolerance
-            < 0
-        ):
-
-            raise ValueError(
-                (
-                    "tolerance_samples "
-                    "cannot be negative"
-                )
-            )
+        if tolerance < 0:
+            raise ValueError(("tolerance_samples cannot be negative"))
 
         # ==============================================================
         # SNAPSHOT AVAILABLE BLOCKS
@@ -623,31 +452,18 @@ class StreamManager:
             ],
         ] = {}
 
-        for node_id in (
-            requested_nodes
-        ):
-
-            state = (
-                self.nodes.get(
-                    node_id
-                )
-            )
+        for node_id in requested_nodes:
+            state = self.nodes.get(node_id)
 
             if state is None:
-
                 return None
 
-            blocks = tuple(
-                state.audio_blocks
-            )
+            blocks = tuple(state.audio_blocks)
 
             if not blocks:
-
                 return None
 
-            available[
-                node_id
-            ] = blocks
+            available[node_id] = blocks
 
         # ==============================================================
         # COMMON TARGET
@@ -657,15 +473,7 @@ class StreamManager:
         # block-start region all requested nodes may currently share.
         # ==============================================================
 
-        target = min(
-            int(
-                blocks[
-                    -1
-                ].sample_index
-            )
-            for blocks
-            in available.values()
-        )
+        target = min(int(blocks[-1].sample_index) for blocks in available.values())
 
         # ==============================================================
         # SELECT NEAREST BLOCK
@@ -684,94 +492,41 @@ class StreamManager:
         for (
             node_id,
             blocks,
-        ) in (
-            available.items()
-        ):
-
+        ) in available.items():
             nearest = min(
                 blocks,
-                key=lambda block:
-                    abs(
-                        int(
-                            block.sample_index
-                        )
-                        - target
-                    ),
+                key=lambda block: abs(int(block.sample_index) - target),
             )
 
-            offset = (
-                int(
-                    nearest.sample_index
-                )
-                - target
-            )
+            offset = int(nearest.sample_index) - target
 
-            if (
-                abs(
-                    offset
-                )
-                > tolerance
-            ):
-
+            if abs(offset) > tolerance:
                 return None
 
-            selected[
-                node_id
-            ] = nearest
+            selected[node_id] = nearest
 
-            offsets[
-                node_id
-            ] = int(
-                offset
-            )
+            offsets[node_id] = int(offset)
 
         # ==============================================================
         # SESSION CONSISTENCY
         # ==============================================================
 
-        session_ids = {
-            int(
-                block.session_id
-            )
-            for block
-            in selected.values()
-        }
+        session_ids = {int(block.session_id) for block in selected.values()}
 
-        if (
-            len(
-                session_ids
-            )
-            != 1
-        ):
-
+        if len(session_ids) != 1:
             return None
 
-        session_id = next(
-            iter(
-                session_ids
-            )
-        )
+        session_id = next(iter(session_ids))
 
         # AUDIO packets from acquisition should always use a non-zero
         # session ID.
-        if (
-            session_id
-            == 0
-        ):
-
+        if session_id == 0:
             return None
 
         return AlignedBlocks(
-            target_sample_index=
-                int(
-                    target
-                ),
-
-            blocks=
-                selected,
-
-            offsets=
-                offsets,
+            target_sample_index=int(target),
+            blocks=selected,
+            offsets=offsets,
         )
 
     # ==================================================================
@@ -792,43 +547,25 @@ class StreamManager:
         """
 
         try:
-
-            sample_index = (
-                _require_uint64(
-                    sample_index,
-                    name=
-                        "sample_index",
-                )
+            sample_index = _require_uint64(
+                sample_index,
+                name="sample_index",
             )
 
-            preferred_node = (
-                _require_node_id(
-                    preferred_node
-                )
-            )
+            preferred_node = _require_node_id(preferred_node)
 
         except (
             TypeError,
             ValueError,
         ):
-
             return None
 
-        state = (
-            self.nodes.get(
-                preferred_node
-            )
-        )
+        state = self.nodes.get(preferred_node)
 
         if state is None:
-
             return None
 
-        return (
-            state.environment_near(
-                sample_index
-            )
-        )
+        return state.environment_near(sample_index)
 
     # ==================================================================
     # SAMPLE-INDEXED PCM WINDOW
@@ -875,96 +612,47 @@ class StreamManager:
         # VALIDATION
         # ==============================================================
 
-        node_id = (
-            _require_node_id(
-                node_id
-            )
+        node_id = _require_node_id(node_id)
+
+        start_sample = _require_uint64(
+            start_sample,
+            name="start_sample",
         )
 
-        start_sample = (
-            _require_uint64(
-                start_sample,
-                name=
-                    "start_sample",
-            )
+        length = _require_integer(
+            length,
+            name="length",
         )
 
-        length = (
-            _require_integer(
-                length,
-                name=
-                    "length",
-            )
+        fill_value = _require_integer(
+            fill_value,
+            name="fill_value",
         )
 
-        fill_value = (
-            _require_integer(
-                fill_value,
-                name=
-                    "fill_value",
-            )
-        )
-
-        if (
-            length
-            <= 0
-        ):
-
+        if length <= 0:
             return np.empty(
                 0,
                 dtype=np.int16,
             )
 
-        if not (
-            PCM16_MIN
-            <= fill_value
-            <= PCM16_MAX
-        ):
+        if not (PCM16_MIN <= fill_value <= PCM16_MAX):
+            raise ValueError(("fill_value must fit signed PCM16"))
 
+        if start_sample + length > UINT64_MAX + 1:
             raise ValueError(
-                (
-                    "fill_value must fit "
-                    "signed PCM16"
-                )
-            )
-
-        if (
-            start_sample
-            + length
-            > UINT64_MAX
-            + 1
-        ):
-
-            raise ValueError(
-                (
-                    "requested audio window "
-                    "exceeds uint64 sampleIndex space"
-                )
+                ("requested audio window exceeds uint64 sampleIndex space")
             )
 
         # ==============================================================
         # NODE
         # ==============================================================
 
-        state = (
-            self.nodes.get(
-                node_id
-            )
-        )
+        state = self.nodes.get(node_id)
 
         if state is None:
+            raise KeyError((f"node {node_id} is not registered"))
 
-            raise KeyError(
-                (
-                    f"node {node_id} "
-                    "is not registered"
-                )
-            )
-
-        end_sample = (
-            start_sample
-            + length
-        )
+        end_sample = start_sample + length
 
         # ==============================================================
         # OUTPUT TIMELINE
@@ -977,12 +665,9 @@ class StreamManager:
         )
 
         # Snapshot the deque before reconstruction.
-        blocks = tuple(
-            state.audio_blocks
-        )
+        blocks = tuple(state.audio_blocks)
 
         if not blocks:
-
             return output
 
         # ==============================================================
@@ -995,26 +680,11 @@ class StreamManager:
         # timeline from being silently reconstructed.
         # ==============================================================
 
-        session_ids = {
-            int(
-                block.session_id
-            )
-            for block
-            in blocks
-        }
+        session_ids = {int(block.session_id) for block in blocks}
 
-        if (
-            len(
-                session_ids
-            )
-            > 1
-        ):
-
+        if len(session_ids) > 1:
             raise RuntimeError(
-                (
-                    f"node {node_id} audio buffer "
-                    "contains multiple session IDs"
-                )
+                (f"node {node_id} audio buffer contains multiple session IDs")
             )
 
         # ==============================================================
@@ -1022,35 +692,22 @@ class StreamManager:
         # ==============================================================
 
         for block in blocks:
+            block_start = int(block.sample_index)
 
-            block_start = int(
-                block.sample_index
-            )
-
-            block_end = int(
-                block.end_sample
-            )
+            block_end = int(block.end_sample)
 
             # ----------------------------------------------------------
             # BLOCK COMPLETELY BEFORE WINDOW
             # ----------------------------------------------------------
 
-            if (
-                block_end
-                <= start_sample
-            ):
-
+            if block_end <= start_sample:
                 continue
 
             # ----------------------------------------------------------
             # BLOCK COMPLETELY AFTER WINDOW
             # ----------------------------------------------------------
 
-            if (
-                block_start
-                >= end_sample
-            ):
-
+            if block_start >= end_sample:
                 continue
 
             # ----------------------------------------------------------
@@ -1067,63 +724,30 @@ class StreamManager:
                 block_end,
             )
 
-            if (
-                overlap_start
-                >= overlap_end
-            ):
-
+            if overlap_start >= overlap_end:
                 continue
 
-            src_start = (
-                overlap_start
-                - block_start
-            )
+            src_start = overlap_start - block_start
 
-            dst_start = (
-                overlap_start
-                - start_sample
-            )
+            dst_start = overlap_start - start_sample
 
-            count = (
-                overlap_end
-                - overlap_start
-            )
+            count = overlap_end - overlap_start
 
-            source = (
-                block.samples[
-                    src_start:
-                    src_start
-                    + count
-                ]
-            )
+            source = block.samples[src_start : src_start + count]
 
             # ----------------------------------------------------------
             # DEFENSIVE SIZE LIMIT
             # ----------------------------------------------------------
 
             actual_count = min(
-                int(
-                    source.size
-                ),
-                int(
-                    count
-                ),
+                int(source.size),
+                int(count),
             )
 
-            if (
-                actual_count
-                <= 0
-            ):
-
+            if actual_count <= 0:
                 continue
 
-            output[
-                dst_start:
-                dst_start
-                + actual_count
-            ] = source[
-                :actual_count
-            ]
+            output[dst_start : dst_start + actual_count] = source[:actual_count]
 
         return output
 
@@ -1158,10 +782,7 @@ class WavRecorder:
 
     def __init__(
         self,
-        root_dir: (
-            str
-            | os.PathLike[str]
-        ),
+        root_dir: (str | os.PathLike[str]),
         audio_config: AudioConfig,
     ) -> None:
 
@@ -1169,23 +790,11 @@ class WavRecorder:
             audio_config,
             AudioConfig,
         ):
+            raise TypeError(("audio_config must be an AudioConfig instance"))
 
-            raise TypeError(
-                (
-                    "audio_config must be "
-                    "an AudioConfig instance"
-                )
-            )
+        self.root = Path(root_dir)
 
-        self.root = (
-            Path(
-                root_dir
-            )
-        )
-
-        self.audio_config = (
-            audio_config
-        )
+        self.audio_config = audio_config
 
         self._files: dict[
             int,
@@ -1197,10 +806,7 @@ class WavRecorder:
             int,
         ] = {}
 
-        self._session_label: (
-            str
-            | None
-        ) = None
+        self._session_label: str | None = None
 
     # ==================================================================
     # RECORDING STATE
@@ -1214,9 +820,7 @@ class WavRecorder:
         Whether at least one per-node WAV file is currently open.
         """
 
-        return bool(
-            self._files
-        )
+        return bool(self._files)
 
     # ==================================================================
     # SESSION LABEL
@@ -1237,52 +841,25 @@ class WavRecorder:
             session_label,
             str,
         ):
+            raise TypeError(("session_label must be a string"))
 
-            raise TypeError(
-                (
-                    "session_label must "
-                    "be a string"
-                )
-            )
-
-        label = (
-            session_label.strip()
-        )
+        label = session_label.strip()
 
         if not label:
+            raise ValueError(("session_label cannot be empty"))
 
-            raise ValueError(
-                (
-                    "session_label "
-                    "cannot be empty"
-                )
-            )
-
-        path = (
-            Path(
-                label
-            )
-        )
+        path = Path(label)
 
         if (
             path.is_absolute()
-            or len(
-                path.parts
-            )
-            != 1
+            or len(path.parts) != 1
             or label
             in {
                 ".",
                 "..",
             }
         ):
-
-            raise ValueError(
-                (
-                    "session_label must be "
-                    "a single directory name"
-                )
-            )
+            raise ValueError(("session_label must be a single directory name"))
 
         return label
 
@@ -1304,18 +881,9 @@ class WavRecorder:
         for this attempted recording session are closed.
         """
 
-        label = (
-            self._validate_session_label(
-                session_label
-            )
-        )
+        label = self._validate_session_label(session_label)
 
-        nodes = (
-            StreamManager
-            ._normalize_node_ids(
-                node_ids
-            )
-        )
+        nodes = StreamManager._normalize_node_ids(node_ids)
 
         # ==============================================================
         # CLOSE PREVIOUS RECORDING
@@ -1327,10 +895,7 @@ class WavRecorder:
         # SESSION DIRECTORY
         # ==============================================================
 
-        session_dir = (
-            self.root
-            / label
-        )
+        session_dir = self.root / label
 
         session_dir.mkdir(
             parents=True,
@@ -1342,56 +907,34 @@ class WavRecorder:
         # ==============================================================
 
         try:
-
-            for node_id in (
-                nodes
-            ):
-
-                path = (
-                    session_dir
-                    / f"node_{node_id}.wav"
-                )
+            for node_id in nodes:
+                path = session_dir / f"node_{node_id}.wav"
 
                 wav = wave.open(
-                    str(
-                        path
-                    ),
+                    str(path),
                     "wb",
                 )
 
-                wav.setnchannels(
-                    self.audio_config.channels
-                )
+                wav.setnchannels(self.audio_config.channels)
 
-                wav.setsampwidth(
-                    self.audio_config.sample_width_bytes
-                )
+                wav.setsampwidth(self.audio_config.sample_width_bytes)
 
-                wav.setframerate(
-                    self.audio_config.sample_rate
-                )
+                wav.setframerate(self.audio_config.sample_rate)
 
-                self._files[
-                    node_id
-                ] = wav
+                self._files[node_id] = wav
 
                 # ------------------------------------------------------
                 # Every START begins sampleIndex at zero.
                 # ------------------------------------------------------
 
-                self._expected_sample[
-                    node_id
-                ] = 0
+                self._expected_sample[node_id] = 0
 
         except Exception:
-
             self.stop()
 
             raise
 
-        self._session_label = (
-            label
-        )
+        self._session_label = label
 
     # ==================================================================
     # DIGITAL-SILENCE WRITER
@@ -1406,15 +949,9 @@ class WavRecorder:
         Write PCM16 digital silence using bounded memory.
         """
 
-        remaining = int(
-            sample_count
-        )
+        remaining = int(sample_count)
 
-        if (
-            remaining
-            <= 0
-        ):
-
+        if remaining <= 0:
             return
 
         chunk_size = min(
@@ -1427,27 +964,15 @@ class WavRecorder:
             dtype="<i2",
         )
 
-        while (
-            remaining
-            > 0
-        ):
-
+        while remaining > 0:
             count = min(
                 remaining,
-                int(
-                    chunk.size
-                ),
+                int(chunk.size),
             )
 
-            wav.writeframesraw(
-                chunk[
-                    :count
-                ].tobytes()
-            )
+            wav.writeframesraw(chunk[:count].tobytes())
 
-            remaining -= (
-                count
-            )
+            remaining -= count
 
     # ==================================================================
     # WRITE AUDIO BLOCK
@@ -1483,40 +1008,21 @@ class WavRecorder:
             block,
             AudioBlock,
         ):
+            raise TypeError(("block must be an AudioBlock instance"))
 
-            raise TypeError(
-                (
-                    "block must be "
-                    "an AudioBlock instance"
-                )
-            )
-
-        wav = (
-            self._files.get(
-                block.node_id
-            )
-        )
+        wav = self._files.get(block.node_id)
 
         if wav is None:
-
             return
 
-        expected = (
-            self._expected_sample.get(
-                block.node_id
-            )
-        )
+        expected = self._expected_sample.get(block.node_id)
 
         if expected is None:
-
             return
 
-        block_start = (
-            _require_uint64(
-                block.sample_index,
-                name=
-                    "AudioBlock sample_index",
-            )
+        block_start = _require_uint64(
+            block.sample_index,
+            name="AudioBlock sample_index",
         )
 
         samples = np.asarray(
@@ -1524,96 +1030,48 @@ class WavRecorder:
             dtype="<i2",
         )
 
-        if (
-            samples.ndim
-            != 1
-        ):
+        if samples.ndim != 1:
+            raise ValueError(("WAV recorder expects mono 1-D PCM"))
 
-            raise ValueError(
-                (
-                    "WAV recorder expects "
-                    "mono 1-D PCM"
-                )
-            )
-
-        if (
-            samples.size
-            == 0
-        ):
-
+        if samples.size == 0:
             return
 
         # ==============================================================
         # GAP
         # ==============================================================
 
-        if (
-            block_start
-            > expected
-        ):
-
-            gap = (
-                block_start
-                - expected
-            )
+        if block_start > expected:
+            gap = block_start - expected
 
             self._write_silence(
                 wav,
                 gap,
             )
 
-            expected = (
-                block_start
-            )
+            expected = block_start
 
         # ==============================================================
         # OVERLAP / DUPLICATE
         # ==============================================================
 
-        elif (
-            block_start
-            < expected
-        ):
-
-            overlap = (
-                expected
-                - block_start
-            )
+        elif block_start < expected:
+            overlap = expected - block_start
 
             # Entire AUDIO packet is already represented in the file.
-            if (
-                overlap
-                >= samples.size
-            ):
-
+            if overlap >= samples.size:
                 return
 
-            samples = (
-                samples[
-                    overlap:
-                ]
-            )
+            samples = samples[overlap:]
 
-            block_start = (
-                expected
-            )
+            block_start = expected
 
         # ==============================================================
         # WRITE PCM
         # ==============================================================
 
-        wav.writeframesraw(
-            samples.tobytes()
-        )
+        wav.writeframesraw(samples.tobytes())
 
-        self._expected_sample[
-            block.node_id
-        ] = (
-            block_start
-            + int(
-                samples.size
-            )
-        )
+        self._expected_sample[block.node_id] = block_start + int(samples.size)
 
     # ==================================================================
     # STOP RECORDING
@@ -1629,9 +1087,7 @@ class WavRecorder:
         filesystem close cannot leave the object logically recording.
         """
 
-        files = list(
-            self._files.values()
-        )
+        files = list(self._files.values())
 
         # ==============================================================
         # CLEAR LOGICAL STATE FIRST
@@ -1641,22 +1097,17 @@ class WavRecorder:
 
         self._expected_sample.clear()
 
-        self._session_label = (
-            None
-        )
+        self._session_label = None
 
         # ==============================================================
         # FINALIZE FILES
         # ==============================================================
 
         for wav in files:
-
             try:
-
                 wav.close()
 
             except Exception:
-
                 # Recorder shutdown must not prevent the rest of the
                 # acquisition stack from closing.
                 pass

@@ -85,6 +85,7 @@ TAXON_TO_ACOUSTIC_CLASS: Mapping[str, AcousticClass] = {
 # TAXONOMY ADAPTER
 # ======================================================================
 
+
 class BirdNETTaxonomy:
     """
     Structured taxonomy registry mapping BirdNET species labels to their
@@ -201,6 +202,7 @@ class BirdNETTaxonomy:
 # GEOGRAPHIC / TEMPORAL CONTEXT
 # ======================================================================
 
+
 @dataclass(frozen=True, slots=True)
 class BirdNETGeoContext:
     """
@@ -223,14 +225,18 @@ class BirdNETGeoContext:
             if self.longitude is None or not math.isfinite(self.longitude):
                 raise ValueError("GeoContext enabled requires finite longitude.")
             if not (-180.0 <= self.longitude <= 180.0):
-                raise ValueError(f"Longitude must be in [-180, 180], got {self.longitude}.")
+                raise ValueError(
+                    f"Longitude must be in [-180, 180], got {self.longitude}."
+                )
 
             if self.week is not None:
                 if not (1 <= self.week <= 48):
                     raise ValueError(f"Week must be in [1, 48], got {self.week}.")
 
             if not math.isfinite(self.min_confidence) or self.min_confidence < 0.0:
-                raise ValueError(f"min_confidence must be non-negative, got {self.min_confidence}.")
+                raise ValueError(
+                    f"min_confidence must be non-negative, got {self.min_confidence}."
+                )
 
     def query_geo_prior(
         self,
@@ -265,22 +271,28 @@ class BirdNETGeoContext:
                     return {
                         str(k): float(v)
                         for k, v in predictions.items()
-                        if math.isfinite(float(v))
-                        and float(v) >= self.min_confidence
+                        if math.isfinite(float(v)) and float(v) >= self.min_confidence
                     }
                 elif isinstance(predictions, (list, tuple)):
                     res: dict[str, float] = {}
                     for item in predictions:
-                        if hasattr(item, "species_name") and hasattr(item, "confidence"):
+                        if hasattr(item, "species_name") and hasattr(
+                            item, "confidence"
+                        ):
                             confidence = float(item.confidence)
-                            if math.isfinite(confidence) and confidence >= self.min_confidence:
+                            if (
+                                math.isfinite(confidence)
+                                and confidence >= self.min_confidence
+                            ):
                                 res[str(item.species_name)] = confidence
                     return res
 
                 # Official BirdNET GeoPredictionResult exposes to_csv().
                 to_csv = getattr(predictions, "to_csv", None)
                 if callable(to_csv):
-                    with tempfile.TemporaryDirectory(prefix="wildlife-birdnet-geo-") as directory:
+                    with tempfile.TemporaryDirectory(
+                        prefix="wildlife-birdnet-geo-"
+                    ) as directory:
                         csv_path = Path(directory) / "geo_predictions.csv"
                         try:
                             to_csv(str(csv_path))
@@ -288,7 +300,9 @@ class BirdNETGeoContext:
                             to_csv(csv_path)
 
                         result: dict[str, float] = {}
-                        with csv_path.open("r", encoding="utf-8-sig", newline="") as handle:
+                        with csv_path.open(
+                            "r", encoding="utf-8-sig", newline=""
+                        ) as handle:
                             for row in csv.DictReader(handle):
                                 species_name = str(row.get("species_name", "")).strip()
                                 confidence = float(row.get("confidence", "nan"))

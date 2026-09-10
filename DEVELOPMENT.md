@@ -1,5 +1,10 @@
 # Development Guide
 
+This file is the concise contributor entry point retained from V1. The
+authoritative data policy, current package map, and release roadmap are in
+[`docs/DEVELOPMENT_DATA.md`](docs/DEVELOPMENT_DATA.md); operational and field
+procedures are in [`docs/OPERATIONS.md`](docs/OPERATIONS.md).
+
 ## Environments
 
 Create and activate a local environment on Windows:
@@ -26,7 +31,7 @@ The requirement files remain compatibility inputs for environments that do not
 yet install from `pyproject.toml`.
 
 `scripts\setup_windows.bat` performs the development installation and runs the
-test suite automatically.
+complete validation gate automatically. It requires Python 3.13.
 
 ## Validation
 
@@ -106,4 +111,5 @@ streamlit run src/wildlife_soundscape/dashboard/app.py
 - `scripts/` contains all Windows setup, launch, and validation scripts.
 - `src/wildlife_soundscape/` is the single canonical Python package namespace.
 
-See `docs/roadmap.md` for the staged package and module-boundary migration.
+See `docs/roadmap.md` for completed V1-to-V2 work and the remaining physical and
+model-validation priorities.

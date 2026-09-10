@@ -28,7 +28,6 @@ No acoustic DSP, classification, localization or database processing
 is performed in this module.
 """
 
-
 from __future__ import annotations
 
 
@@ -71,31 +70,18 @@ def _require_finite(
     """
 
     try:
-
-        result = float(
-            value
-        )
+        result = float(value)
 
     except (
         TypeError,
         ValueError,
     ) as exc:
+        raise TypeError(f"{name} must be numeric.") from exc
 
-        raise TypeError(
-            f"{name} must be numeric."
-        ) from exc
+    if not math.isfinite(result):
+        raise ValueError(f"{name} must be finite.")
 
-    if not math.isfinite(
-        result
-    ):
-
-        raise ValueError(
-            f"{name} must be finite."
-        )
-
-    return (
-        result
-    )
+    return result
 
 
 def _require_nonnegative_finite(
@@ -109,22 +95,13 @@ def _require_nonnegative_finite(
 
     result = _require_finite(
         value,
-        name=
-            name,
+        name=name,
     )
 
-    if (
-        result
-        < 0.0
-    ):
+    if result < 0.0:
+        raise ValueError(f"{name} cannot be negative.")
 
-        raise ValueError(
-            f"{name} cannot be negative."
-        )
-
-    return (
-        result
-    )
+    return result
 
 
 def _require_probability(
@@ -138,23 +115,13 @@ def _require_probability(
 
     result = _require_finite(
         value,
-        name=
-            name,
+        name=name,
     )
 
-    if not (
-        0.0
-        <= result
-        <= 1.0
-    ):
+    if not (0.0 <= result <= 1.0):
+        raise ValueError(f"{name} must be in [0, 1].")
 
-        raise ValueError(
-            f"{name} must be in [0, 1]."
-        )
-
-    return (
-        result
-    )
+    return result
 
 
 def _require_nonnegative_int(
@@ -168,35 +135,19 @@ def _require_nonnegative_int(
     bool is explicitly rejected even though bool subclasses int.
     """
 
-    if (
-        isinstance(
-            value,
-            bool,
-        )
-        or not isinstance(
-            value,
-            int,
-        )
+    if isinstance(
+        value,
+        bool,
+    ) or not isinstance(
+        value,
+        int,
     ):
+        raise TypeError(f"{name} must be an integer.")
 
-        raise TypeError(
-            f"{name} must be an integer."
-        )
+    if value < 0:
+        raise ValueError(f"{name} cannot be negative.")
 
-    if (
-        value
-        < 0
-    ):
-
-        raise ValueError(
-            f"{name} cannot be negative."
-        )
-
-    return (
-        int(
-            value
-        )
-    )
+    return int(value)
 
 
 def _require_nonempty_string(
@@ -212,26 +163,14 @@ def _require_nonempty_string(
         value,
         str,
     ):
+        raise TypeError(f"{name} must be a string.")
 
-        raise TypeError(
-            f"{name} must be a string."
-        )
+    result = value.strip()
 
-    result = (
-        value.strip()
-    )
+    if not (result):
+        raise ValueError(f"{name} cannot be empty.")
 
-    if not (
-        result
-    ):
-
-        raise ValueError(
-            f"{name} cannot be empty."
-        )
-
-    return (
-        result
-    )
+    return result
 
 
 def _serialize_datetime(
@@ -241,27 +180,16 @@ def _serialize_datetime(
     Convert datetime to ISO-8601 for JSON/export compatibility.
     """
 
-    if (
-        value
-        is None
-    ):
-
-        return (
-            None
-        )
+    if value is None:
+        return None
 
     if not isinstance(
         value,
         datetime,
     ):
+        raise TypeError("Expected datetime value.")
 
-        raise TypeError(
-            "Expected datetime value."
-        )
-
-    return (
-        value.isoformat()
-    )
+    return value.isoformat()
 
 
 # ======================================================================
@@ -281,17 +209,11 @@ class AssociationDirection(
     They do not imply causation.
     """
 
-    POSITIVE = (
-        "positive"
-    )
+    POSITIVE = "positive"
 
-    NEGATIVE = (
-        "negative"
-    )
+    NEGATIVE = "negative"
 
-    NEUTRAL = (
-        "neutral"
-    )
+    NEUTRAL = "neutral"
 
 
 # ======================================================================
@@ -307,25 +229,15 @@ class AssociationStrength(
     Descriptive magnitude category for an observed association.
     """
 
-    NEGLIGIBLE = (
-        "negligible"
-    )
+    NEGLIGIBLE = "negligible"
 
-    WEAK = (
-        "weak"
-    )
+    WEAK = "weak"
 
-    MODERATE = (
-        "moderate"
-    )
+    MODERATE = "moderate"
 
-    STRONG = (
-        "strong"
-    )
+    STRONG = "strong"
 
-    VERY_STRONG = (
-        "very_strong"
-    )
+    VERY_STRONG = "very_strong"
 
 
 # ======================================================================
@@ -344,21 +256,13 @@ class BehaviorIndicatorStatus(
     biological ground-truth label.
     """
 
-    INSUFFICIENT_DATA = (
-        "insufficient_data"
-    )
+    INSUFFICIENT_DATA = "insufficient_data"
 
-    LOW = (
-        "low"
-    )
+    LOW = "low"
 
-    MODERATE = (
-        "moderate"
-    )
+    MODERATE = "moderate"
 
-    HIGH = (
-        "high"
-    )
+    HIGH = "high"
 
 
 # ======================================================================
@@ -396,48 +300,23 @@ class AnalyticsTimeWindow:
 
         _require_nonnegative_int(
             self.event_count,
-            name=
-                "event_count",
+            name="event_count",
         )
 
-        if (
-            self.start
-            is not None
-            and not isinstance(
-                self.start,
-                datetime,
-            )
+        if self.start is not None and not isinstance(
+            self.start,
+            datetime,
         ):
+            raise TypeError("start must be datetime or None.")
 
-            raise TypeError(
-                "start must be datetime or None."
-            )
-
-        if (
-            self.end
-            is not None
-            and not isinstance(
-                self.end,
-                datetime,
-            )
+        if self.end is not None and not isinstance(
+            self.end,
+            datetime,
         ):
+            raise TypeError("end must be datetime or None.")
 
-            raise TypeError(
-                "end must be datetime or None."
-            )
-
-        if (
-            self.start
-            is not None
-            and self.end
-            is not None
-            and self.end
-            < self.start
-        ):
-
-            raise ValueError(
-                "end cannot be earlier than start."
-            )
+        if self.start is not None and self.end is not None and self.end < self.start:
+            raise ValueError("end cannot be earlier than start.")
 
     def to_dict(
         self,
@@ -447,18 +326,9 @@ class AnalyticsTimeWindow:
     ]:
 
         return {
-            "start":
-                _serialize_datetime(
-                    self.start
-                ),
-
-            "end":
-                _serialize_datetime(
-                    self.end
-                ),
-
-            "event_count":
-                self.event_count,
+            "start": _serialize_datetime(self.start),
+            "end": _serialize_datetime(self.end),
+            "event_count": self.event_count,
         }
 
 
@@ -506,64 +376,37 @@ class ActivityBin:
             self.bucket_start,
             datetime,
         ):
-
-            raise TypeError(
-                "bucket_start must be datetime."
-            )
+            raise TypeError("bucket_start must be datetime.")
 
         if not isinstance(
             self.bucket_end,
             datetime,
         ):
+            raise TypeError("bucket_end must be datetime.")
 
-            raise TypeError(
-                "bucket_end must be datetime."
-            )
-
-        if (
-            self.bucket_end
-            <= self.bucket_start
-        ):
-
-            raise ValueError(
-                (
-                    "bucket_end must be later "
-                    "than bucket_start."
-                )
-            )
+        if self.bucket_end <= self.bucket_start:
+            raise ValueError(("bucket_end must be later than bucket_start."))
 
         _require_nonnegative_int(
             self.event_count,
-            name=
-                "event_count",
+            name="event_count",
         )
 
         _require_nonnegative_finite(
             self.active_duration_s,
-            name=
-                "active_duration_s",
+            name="active_duration_s",
         )
 
-        if (
-            self.mean_confidence
-            is not None
-        ):
-
+        if self.mean_confidence is not None:
             _require_probability(
                 self.mean_confidence,
-                name=
-                    "mean_confidence",
+                name="mean_confidence",
             )
 
-        if (
-            self.dominant_class
-            is not None
-        ):
-
+        if self.dominant_class is not None:
             _require_nonempty_string(
                 self.dominant_class,
-                name=
-                    "dominant_class",
+                name="dominant_class",
             )
 
     @property
@@ -574,12 +417,7 @@ class ActivityBin:
         Width of this temporal bin in seconds.
         """
 
-        return float(
-            (
-                self.bucket_end
-                - self.bucket_start
-            ).total_seconds()
-        )
+        return float((self.bucket_end - self.bucket_start).total_seconds())
 
     @property
     def activity_fraction(
@@ -593,23 +431,14 @@ class ActivityBin:
         summed event duration exceed the wall-clock bin duration.
         """
 
-        duration = (
-            self.bucket_duration_s
-        )
+        duration = self.bucket_duration_s
 
-        if (
-            duration
-            <= 0.0
-        ):
-
-            return (
-                0.0
-            )
+        if duration <= 0.0:
+            return 0.0
 
         return min(
             1.0,
-            self.active_duration_s
-            / duration,
+            self.active_duration_s / duration,
         )
 
     def to_dict(
@@ -620,29 +449,14 @@ class ActivityBin:
     ]:
 
         return {
-            "bucket_start":
-                self.bucket_start.isoformat(),
-
-            "bucket_end":
-                self.bucket_end.isoformat(),
-
-            "event_count":
-                self.event_count,
-
-            "active_duration_s":
-                self.active_duration_s,
-
-            "bucket_duration_s":
-                self.bucket_duration_s,
-
-            "activity_fraction":
-                self.activity_fraction,
-
-            "mean_confidence":
-                self.mean_confidence,
-
-            "dominant_class":
-                self.dominant_class,
+            "bucket_start": self.bucket_start.isoformat(),
+            "bucket_end": self.bucket_end.isoformat(),
+            "event_count": self.event_count,
+            "active_duration_s": self.active_duration_s,
+            "bucket_duration_s": self.bucket_duration_s,
+            "activity_fraction": self.activity_fraction,
+            "mean_confidence": self.mean_confidence,
+            "dominant_class": self.dominant_class,
         }
 
 
@@ -676,37 +490,28 @@ class ClassActivitySummary:
 
         _require_nonempty_string(
             self.class_label,
-            name=
-                "class_label",
+            name="class_label",
         )
 
         _require_nonnegative_int(
             self.event_count,
-            name=
-                "event_count",
+            name="event_count",
         )
 
         _require_nonnegative_finite(
             self.total_duration_s,
-            name=
-                "total_duration_s",
+            name="total_duration_s",
         )
 
-        if (
-            self.mean_confidence
-            is not None
-        ):
-
+        if self.mean_confidence is not None:
             _require_probability(
                 self.mean_confidence,
-                name=
-                    "mean_confidence",
+                name="mean_confidence",
             )
 
         _require_probability(
             self.proportion_of_events,
-            name=
-                "proportion_of_events",
+            name="proportion_of_events",
         )
 
     def to_dict(
@@ -717,20 +522,11 @@ class ClassActivitySummary:
     ]:
 
         return {
-            "class_label":
-                self.class_label,
-
-            "event_count":
-                self.event_count,
-
-            "total_duration_s":
-                self.total_duration_s,
-
-            "mean_confidence":
-                self.mean_confidence,
-
-            "proportion_of_events":
-                self.proportion_of_events,
+            "class_label": self.class_label,
+            "event_count": self.event_count,
+            "total_duration_s": self.total_duration_s,
+            "mean_confidence": self.mean_confidence,
+            "proportion_of_events": self.proportion_of_events,
         }
 
 
@@ -771,91 +567,49 @@ class ActivitySummary:
             self.window,
             AnalyticsTimeWindow,
         ):
-
-            raise TypeError(
-                (
-                    "window must be an "
-                    "AnalyticsTimeWindow."
-                )
-            )
+            raise TypeError(("window must be an AnalyticsTimeWindow."))
 
         _require_nonnegative_int(
             self.total_events,
-            name=
-                "total_events",
+            name="total_events",
         )
 
         _require_nonnegative_finite(
             self.total_active_duration_s,
-            name=
-                "total_active_duration_s",
+            name="total_active_duration_s",
         )
 
         _require_nonnegative_finite(
             self.mean_event_duration_s,
-            name=
-                "mean_event_duration_s",
+            name="mean_event_duration_s",
         )
 
-        if (
-            self.peak_activity_hour
-            is not None
-        ):
-
-            if (
-                isinstance(
-                    self.peak_activity_hour,
-                    bool,
-                )
-                or not isinstance(
-                    self.peak_activity_hour,
-                    int,
-                )
+        if self.peak_activity_hour is not None:
+            if isinstance(
+                self.peak_activity_hour,
+                bool,
+            ) or not isinstance(
+                self.peak_activity_hour,
+                int,
             ):
+                raise TypeError(("peak_activity_hour must be an integer or None."))
 
-                raise TypeError(
-                    (
-                        "peak_activity_hour must "
-                        "be an integer or None."
-                    )
-                )
-
-            if not (
-                0
-                <= self.peak_activity_hour
-                <= 23
-            ):
-
-                raise ValueError(
-                    (
-                        "peak_activity_hour must "
-                        "be between 0 and 23."
-                    )
-                )
+            if not (0 <= self.peak_activity_hour <= 23):
+                raise ValueError(("peak_activity_hour must be between 0 and 23."))
 
         if not isinstance(
             self.class_summaries,
             tuple,
         ):
+            raise TypeError("class_summaries must be a tuple.")
 
-            raise TypeError(
-                "class_summaries must be a tuple."
-            )
-
-        for summary in (
-            self.class_summaries
-        ):
-
+        for summary in self.class_summaries:
             if not isinstance(
                 summary,
                 ClassActivitySummary,
             ):
-
                 raise TypeError(
-                    (
-                        "class_summaries must contain "
-                        "ClassActivitySummary objects."
-                    )
+                    ("class_summaries must contain ClassActivitySummary objects.")
                 )
 
     def to_dict(
@@ -866,28 +620,12 @@ class ActivitySummary:
     ]:
 
         return {
-            "window":
-                self.window.to_dict(),
-
-            "total_events":
-                self.total_events,
-
-            "total_active_duration_s":
-                self.total_active_duration_s,
-
-            "mean_event_duration_s":
-                self.mean_event_duration_s,
-
-            "peak_activity_hour":
-                self.peak_activity_hour,
-
-            "class_summaries":
-                [
-                    summary.to_dict()
-
-                    for summary
-                    in self.class_summaries
-                ],
+            "window": self.window.to_dict(),
+            "total_events": self.total_events,
+            "total_active_duration_s": self.total_active_duration_s,
+            "mean_event_duration_s": self.mean_event_duration_s,
+            "peak_activity_hour": self.peak_activity_hour,
+            "class_summaries": [summary.to_dict() for summary in self.class_summaries],
         }
 
 
@@ -928,9 +666,7 @@ class EnvironmentalAssociation:
 
     statistically_significant: bool
 
-    method: str = (
-        "spearman"
-    )
+    method: str = "spearman"
 
     def __post_init__(
         self,
@@ -938,97 +674,55 @@ class EnvironmentalAssociation:
 
         _require_nonempty_string(
             self.environmental_variable,
-            name=
-                "environmental_variable",
+            name="environmental_variable",
         )
 
         _require_nonempty_string(
             self.response_variable,
-            name=
-                "response_variable",
+            name="response_variable",
         )
 
         _require_nonnegative_int(
             self.sample_count,
-            name=
-                "sample_count",
+            name="sample_count",
         )
 
-        if (
-            self.coefficient
-            is not None
-        ):
-
+        if self.coefficient is not None:
             coefficient = _require_finite(
                 self.coefficient,
-                name=
-                    "coefficient",
+                name="coefficient",
             )
 
-            if not (
-                -1.0
-                <= coefficient
-                <= 1.0
-            ):
+            if not (-1.0 <= coefficient <= 1.0):
+                raise ValueError(("correlation coefficient must be in [-1, 1]."))
 
-                raise ValueError(
-                    (
-                        "correlation coefficient "
-                        "must be in [-1, 1]."
-                    )
-                )
-
-        if (
-            self.p_value
-            is not None
-        ):
-
+        if self.p_value is not None:
             _require_probability(
                 self.p_value,
-                name=
-                    "p_value",
+                name="p_value",
             )
 
         if not isinstance(
             self.direction,
             AssociationDirection,
         ):
-
-            raise TypeError(
-                (
-                    "direction must be an "
-                    "AssociationDirection."
-                )
-            )
+            raise TypeError(("direction must be an AssociationDirection."))
 
         if not isinstance(
             self.strength,
             AssociationStrength,
         ):
-
-            raise TypeError(
-                (
-                    "strength must be an "
-                    "AssociationStrength."
-                )
-            )
+            raise TypeError(("strength must be an AssociationStrength."))
 
         if not isinstance(
             self.statistically_significant,
             bool,
         ):
-
-            raise TypeError(
-                (
-                    "statistically_significant "
-                    "must be bool."
-                )
-            )
+            raise TypeError(("statistically_significant must be bool."))
 
         _require_nonempty_string(
             self.method,
-            name=
-                "method",
+            name="method",
         )
 
     def to_dict(
@@ -1039,32 +733,15 @@ class EnvironmentalAssociation:
     ]:
 
         return {
-            "environmental_variable":
-                self.environmental_variable,
-
-            "response_variable":
-                self.response_variable,
-
-            "sample_count":
-                self.sample_count,
-
-            "coefficient":
-                self.coefficient,
-
-            "p_value":
-                self.p_value,
-
-            "direction":
-                self.direction.value,
-
-            "strength":
-                self.strength.value,
-
-            "statistically_significant":
-                self.statistically_significant,
-
-            "method":
-                self.method,
+            "environmental_variable": self.environmental_variable,
+            "response_variable": self.response_variable,
+            "sample_count": self.sample_count,
+            "coefficient": self.coefficient,
+            "p_value": self.p_value,
+            "direction": self.direction.value,
+            "strength": self.strength.value,
+            "statistically_significant": self.statistically_significant,
+            "method": self.method,
         }
 
 
@@ -1105,67 +782,44 @@ class SpatialCell:
 
         _require_nonempty_string(
             self.cell_id,
-            name=
-                "cell_id",
+            name="cell_id",
         )
 
         x_min = _require_finite(
             self.x_min_m,
-            name=
-                "x_min_m",
+            name="x_min_m",
         )
 
         x_max = _require_finite(
             self.x_max_m,
-            name=
-                "x_max_m",
+            name="x_max_m",
         )
 
         y_min = _require_finite(
             self.y_min_m,
-            name=
-                "y_min_m",
+            name="y_min_m",
         )
 
         y_max = _require_finite(
             self.y_max_m,
-            name=
-                "y_max_m",
+            name="y_max_m",
         )
 
-        if (
-            x_max
-            <= x_min
-        ):
+        if x_max <= x_min:
+            raise ValueError("x_max_m must exceed x_min_m.")
 
-            raise ValueError(
-                "x_max_m must exceed x_min_m."
-            )
-
-        if (
-            y_max
-            <= y_min
-        ):
-
-            raise ValueError(
-                "y_max_m must exceed y_min_m."
-            )
+        if y_max <= y_min:
+            raise ValueError("y_max_m must exceed y_min_m.")
 
         _require_nonnegative_int(
             self.event_count,
-            name=
-                "event_count",
+            name="event_count",
         )
 
-        if (
-            self.mean_confidence
-            is not None
-        ):
-
+        if self.mean_confidence is not None:
             _require_probability(
                 self.mean_confidence,
-                name=
-                    "mean_confidence",
+                name="mean_confidence",
             )
 
     @property
@@ -1173,36 +827,21 @@ class SpatialCell:
         self,
     ) -> float:
 
-        return (
-            self.x_min_m
-            + self.x_max_m
-        ) / 2.0
+        return (self.x_min_m + self.x_max_m) / 2.0
 
     @property
     def center_y_m(
         self,
     ) -> float:
 
-        return (
-            self.y_min_m
-            + self.y_max_m
-        ) / 2.0
+        return (self.y_min_m + self.y_max_m) / 2.0
 
     @property
     def area_m2(
         self,
     ) -> float:
 
-        return (
-            (
-                self.x_max_m
-                - self.x_min_m
-            )
-            * (
-                self.y_max_m
-                - self.y_min_m
-            )
-        )
+        return (self.x_max_m - self.x_min_m) * (self.y_max_m - self.y_min_m)
 
     def to_dict(
         self,
@@ -1212,35 +851,16 @@ class SpatialCell:
     ]:
 
         return {
-            "cell_id":
-                self.cell_id,
-
-            "x_min_m":
-                self.x_min_m,
-
-            "x_max_m":
-                self.x_max_m,
-
-            "y_min_m":
-                self.y_min_m,
-
-            "y_max_m":
-                self.y_max_m,
-
-            "center_x_m":
-                self.center_x_m,
-
-            "center_y_m":
-                self.center_y_m,
-
-            "area_m2":
-                self.area_m2,
-
-            "event_count":
-                self.event_count,
-
-            "mean_confidence":
-                self.mean_confidence,
+            "cell_id": self.cell_id,
+            "x_min_m": self.x_min_m,
+            "x_max_m": self.x_max_m,
+            "y_min_m": self.y_min_m,
+            "y_max_m": self.y_max_m,
+            "center_x_m": self.center_x_m,
+            "center_y_m": self.center_y_m,
+            "area_m2": self.area_m2,
+            "event_count": self.event_count,
+            "mean_confidence": self.mean_confidence,
         }
 
 
@@ -1275,26 +895,22 @@ class SpatialTransition:
 
         _require_nonempty_string(
             self.source_cell_id,
-            name=
-                "source_cell_id",
+            name="source_cell_id",
         )
 
         _require_nonempty_string(
             self.destination_cell_id,
-            name=
-                "destination_cell_id",
+            name="destination_cell_id",
         )
 
         _require_nonnegative_int(
             self.transition_count,
-            name=
-                "transition_count",
+            name="transition_count",
         )
 
         _require_probability(
             self.probability,
-            name=
-                "probability",
+            name="probability",
         )
 
     def to_dict(
@@ -1305,17 +921,10 @@ class SpatialTransition:
     ]:
 
         return {
-            "source_cell_id":
-                self.source_cell_id,
-
-            "destination_cell_id":
-                self.destination_cell_id,
-
-            "transition_count":
-                self.transition_count,
-
-            "probability":
-                self.probability,
+            "source_cell_id": self.source_cell_id,
+            "destination_cell_id": self.destination_cell_id,
+            "transition_count": self.transition_count,
+            "probability": self.probability,
         }
 
 
@@ -1357,93 +966,52 @@ class SpatialSummary:
 
         _require_nonnegative_int(
             self.localized_event_count,
-            name=
-                "localized_event_count",
+            name="localized_event_count",
         )
 
         _require_nonnegative_int(
             self.total_event_count,
-            name=
-                "total_event_count",
+            name="total_event_count",
         )
 
-        if (
-            self.localized_event_count
-            > self.total_event_count
-        ):
-
-            raise ValueError(
-                (
-                    "localized_event_count cannot "
-                    "exceed total_event_count."
-                )
-            )
+        if self.localized_event_count > self.total_event_count:
+            raise ValueError(("localized_event_count cannot exceed total_event_count."))
 
         _require_probability(
             self.localization_coverage,
-            name=
-                "localization_coverage",
+            name="localization_coverage",
         )
 
         if not isinstance(
             self.cells,
             tuple,
         ):
-
-            raise TypeError(
-                "cells must be a tuple."
-            )
+            raise TypeError("cells must be a tuple.")
 
         if not isinstance(
             self.transitions,
             tuple,
         ):
+            raise TypeError("transitions must be a tuple.")
 
-            raise TypeError(
-                "transitions must be a tuple."
-            )
-
-        for cell in (
-            self.cells
-        ):
-
+        for cell in self.cells:
             if not isinstance(
                 cell,
                 SpatialCell,
             ):
+                raise TypeError(("cells must contain SpatialCell objects."))
 
-                raise TypeError(
-                    (
-                        "cells must contain "
-                        "SpatialCell objects."
-                    )
-                )
-
-        for transition in (
-            self.transitions
-        ):
-
+        for transition in self.transitions:
             if not isinstance(
                 transition,
                 SpatialTransition,
             ):
+                raise TypeError(("transitions must contain SpatialTransition objects."))
 
-                raise TypeError(
-                    (
-                        "transitions must contain "
-                        "SpatialTransition objects."
-                    )
-                )
-
-        if (
-            self.hotspot_cell_id
-            is not None
-        ):
-
+        if self.hotspot_cell_id is not None:
             _require_nonempty_string(
                 self.hotspot_cell_id,
-                name=
-                    "hotspot_cell_id",
+                name="hotspot_cell_id",
             )
 
     def to_dict(
@@ -1454,33 +1022,12 @@ class SpatialSummary:
     ]:
 
         return {
-            "localized_event_count":
-                self.localized_event_count,
-
-            "total_event_count":
-                self.total_event_count,
-
-            "localization_coverage":
-                self.localization_coverage,
-
-            "hotspot_cell_id":
-                self.hotspot_cell_id,
-
-            "cells":
-                [
-                    cell.to_dict()
-
-                    for cell
-                    in self.cells
-                ],
-
-            "transitions":
-                [
-                    transition.to_dict()
-
-                    for transition
-                    in self.transitions
-                ],
+            "localized_event_count": self.localized_event_count,
+            "total_event_count": self.total_event_count,
+            "localization_coverage": self.localization_coverage,
+            "hotspot_cell_id": self.hotspot_cell_id,
+            "cells": [cell.to_dict() for cell in self.cells],
+            "transitions": [transition.to_dict() for transition in self.transitions],
         }
 
 
@@ -1526,62 +1073,41 @@ class BehaviorIndicator:
 
         _require_nonempty_string(
             self.name,
-            name=
-                "name",
+            name="name",
         )
 
         if not isinstance(
             self.status,
             BehaviorIndicatorStatus,
         ):
+            raise TypeError(("status must be a BehaviorIndicatorStatus."))
 
-            raise TypeError(
-                (
-                    "status must be a "
-                    "BehaviorIndicatorStatus."
-                )
-            )
-
-        if (
-            self.score
-            is not None
-        ):
-
+        if self.score is not None:
             _require_probability(
                 self.score,
-                name=
-                    "score",
+                name="score",
             )
 
         _require_nonnegative_int(
             self.supporting_event_count,
-            name=
-                "supporting_event_count",
+            name="supporting_event_count",
         )
 
         _require_nonempty_string(
             self.description,
-            name=
-                "description",
+            name="description",
         )
 
         if not isinstance(
             self.evidence,
             tuple,
         ):
+            raise TypeError("evidence must be a tuple.")
 
-            raise TypeError(
-                "evidence must be a tuple."
-            )
-
-        for entry in (
-            self.evidence
-        ):
-
+        for entry in self.evidence:
             _require_nonempty_string(
                 entry,
-                name=
-                    "evidence entry",
+                name="evidence entry",
             )
 
     def to_dict(
@@ -1592,25 +1118,12 @@ class BehaviorIndicator:
     ]:
 
         return {
-            "name":
-                self.name,
-
-            "status":
-                self.status.value,
-
-            "score":
-                self.score,
-
-            "supporting_event_count":
-                self.supporting_event_count,
-
-            "description":
-                self.description,
-
-            "evidence":
-                list(
-                    self.evidence
-                ),
+            "name": self.name,
+            "status": self.status.value,
+            "score": self.score,
+            "supporting_event_count": self.supporting_event_count,
+            "description": self.description,
+            "evidence": list(self.evidence),
         }
 
 
@@ -1662,60 +1175,31 @@ class ResearchAnalyticsReport:
             self.generated_at,
             datetime,
         ):
-
-            raise TypeError(
-                "generated_at must be datetime."
-            )
+            raise TypeError("generated_at must be datetime.")
 
         if not isinstance(
             self.window,
             AnalyticsTimeWindow,
         ):
+            raise TypeError(("window must be an AnalyticsTimeWindow."))
 
-            raise TypeError(
-                (
-                    "window must be an "
-                    "AnalyticsTimeWindow."
-                )
-            )
-
-        if (
-            self.activity
-            is not None
-            and not isinstance(
-                self.activity,
-                ActivitySummary,
-            )
+        if self.activity is not None and not isinstance(
+            self.activity,
+            ActivitySummary,
         ):
-
-            raise TypeError(
-                (
-                    "activity must be an "
-                    "ActivitySummary or None."
-                )
-            )
+            raise TypeError(("activity must be an ActivitySummary or None."))
 
         if not isinstance(
             self.environmental_associations,
             tuple,
         ):
+            raise TypeError(("environmental_associations must be a tuple."))
 
-            raise TypeError(
-                (
-                    "environmental_associations "
-                    "must be a tuple."
-                )
-            )
-
-        for association in (
-            self.environmental_associations
-        ):
-
+        for association in self.environmental_associations:
             if not isinstance(
                 association,
                 EnvironmentalAssociation,
             ):
-
                 raise TypeError(
                     (
                         "environmental_associations "
@@ -1725,68 +1209,37 @@ class ResearchAnalyticsReport:
                     )
                 )
 
-        if (
-            self.spatial
-            is not None
-            and not isinstance(
-                self.spatial,
-                SpatialSummary,
-            )
+        if self.spatial is not None and not isinstance(
+            self.spatial,
+            SpatialSummary,
         ):
-
-            raise TypeError(
-                (
-                    "spatial must be a "
-                    "SpatialSummary or None."
-                )
-            )
+            raise TypeError(("spatial must be a SpatialSummary or None."))
 
         if not isinstance(
             self.behavior_indicators,
             tuple,
         ):
+            raise TypeError(("behavior_indicators must be a tuple."))
 
-            raise TypeError(
-                (
-                    "behavior_indicators "
-                    "must be a tuple."
-                )
-            )
-
-        for indicator in (
-            self.behavior_indicators
-        ):
-
+        for indicator in self.behavior_indicators:
             if not isinstance(
                 indicator,
                 BehaviorIndicator,
             ):
-
                 raise TypeError(
-                    (
-                        "behavior_indicators must "
-                        "contain BehaviorIndicator "
-                        "objects."
-                    )
+                    ("behavior_indicators must contain BehaviorIndicator objects.")
                 )
 
         if not isinstance(
             self.warnings,
             tuple,
         ):
+            raise TypeError("warnings must be a tuple.")
 
-            raise TypeError(
-                "warnings must be a tuple."
-            )
-
-        for warning in (
-            self.warnings
-        ):
-
+        for warning in self.warnings:
             _require_nonempty_string(
                 warning,
-                name=
-                    "warning",
+                name="warning",
             )
 
     def to_dict(
@@ -1797,50 +1250,17 @@ class ResearchAnalyticsReport:
     ]:
 
         return {
-            "generated_at":
-                self.generated_at.isoformat(),
-
-            "window":
-                self.window.to_dict(),
-
-            "activity":
-                (
-                    self.activity.to_dict()
-
-                    if self.activity
-                    is not None
-
-                    else None
-                ),
-
-            "environmental_associations":
-                [
-                    association.to_dict()
-
-                    for association
-                    in self.environmental_associations
-                ],
-
-            "spatial":
-                (
-                    self.spatial.to_dict()
-
-                    if self.spatial
-                    is not None
-
-                    else None
-                ),
-
-            "behavior_indicators":
-                [
-                    indicator.to_dict()
-
-                    for indicator
-                    in self.behavior_indicators
-                ],
-
-            "warnings":
-                list(
-                    self.warnings
-                ),
+            "generated_at": self.generated_at.isoformat(),
+            "window": self.window.to_dict(),
+            "activity": (
+                self.activity.to_dict() if self.activity is not None else None
+            ),
+            "environmental_associations": [
+                association.to_dict() for association in self.environmental_associations
+            ],
+            "spatial": (self.spatial.to_dict() if self.spatial is not None else None),
+            "behavior_indicators": [
+                indicator.to_dict() for indicator in self.behavior_indicators
+            ],
+            "warnings": list(self.warnings),
         }

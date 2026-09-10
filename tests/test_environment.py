@@ -27,7 +27,6 @@ These tests verify software behaviour and physical plausibility.
 They do not claim laboratory-grade atmospheric acoustics accuracy.
 """
 
-
 from __future__ import annotations
 
 
@@ -62,9 +61,7 @@ from wildlife_soundscape.core.environment import (
 # ======================================================================
 
 
-STANDARD_PRESSURE_HPA = (
-    1013.25
-)
+STANDARD_PRESSURE_HPA = 1013.25
 
 
 # ======================================================================
@@ -86,22 +83,11 @@ def test_speed_of_sound_increases_with_temperature() -> None:
         STANDARD_PRESSURE_HPA,
     )
 
-    assert (
-        warm
-        > cold
-    )
+    assert warm > cold
 
-    assert (
-        330.0
-        < cold
-        < 350.0
-    )
+    assert 330.0 < cold < 350.0
 
-    assert (
-        345.0
-        < warm
-        < 360.0
-    )
+    assert 345.0 < warm < 360.0
 
 
 def test_temperature_change_has_meaningful_effect() -> None:
@@ -122,11 +108,7 @@ def test_temperature_change_has_meaningful_effect() -> None:
         STANDARD_PRESSURE_HPA,
     )
 
-    assert (
-        high
-        - low
-        > 10.0
-    )
+    assert high - low > 10.0
 
 
 # ======================================================================
@@ -148,50 +130,34 @@ def test_humidity_has_small_positive_effect() -> None:
         STANDARD_PRESSURE_HPA,
     )
 
-    assert (
-        humid
-        > dry
-    )
+    assert humid > dry
 
-    assert (
-        humid
-        - dry
-        < 3.0
-    )
+    assert humid - dry < 3.0
 
 
 def test_humidity_effect_is_smaller_than_large_temperature_change() -> None:
 
-    humidity_effect = (
-        calculate_speed_of_sound_mps(
-            25.0,
-            90.0,
-            STANDARD_PRESSURE_HPA,
-        )
-        - calculate_speed_of_sound_mps(
-            25.0,
-            10.0,
-            STANDARD_PRESSURE_HPA,
-        )
+    humidity_effect = calculate_speed_of_sound_mps(
+        25.0,
+        90.0,
+        STANDARD_PRESSURE_HPA,
+    ) - calculate_speed_of_sound_mps(
+        25.0,
+        10.0,
+        STANDARD_PRESSURE_HPA,
     )
 
-    temperature_effect = (
-        calculate_speed_of_sound_mps(
-            35.0,
-            50.0,
-            STANDARD_PRESSURE_HPA,
-        )
-        - calculate_speed_of_sound_mps(
-            15.0,
-            50.0,
-            STANDARD_PRESSURE_HPA,
-        )
+    temperature_effect = calculate_speed_of_sound_mps(
+        35.0,
+        50.0,
+        STANDARD_PRESSURE_HPA,
+    ) - calculate_speed_of_sound_mps(
+        15.0,
+        50.0,
+        STANDARD_PRESSURE_HPA,
     )
 
-    assert (
-        temperature_effect
-        > humidity_effect
-    )
+    assert temperature_effect > humidity_effect
 
 
 # ======================================================================
@@ -218,15 +184,10 @@ def test_humidity_below_zero_is_clamped_to_zero() -> None:
         STANDARD_PRESSURE_HPA,
     )
 
-    assert (
-        below_zero
-        == pytest.approx(
-            zero,
-            rel=
-                1e-12,
-            abs=
-                1e-12,
-        )
+    assert below_zero == pytest.approx(
+        zero,
+        rel=1e-12,
+        abs=1e-12,
     )
 
 
@@ -244,15 +205,10 @@ def test_humidity_above_one_hundred_is_clamped_to_one_hundred() -> None:
         STANDARD_PRESSURE_HPA,
     )
 
-    assert (
-        above
-        == pytest.approx(
-            hundred,
-            rel=
-                1e-12,
-            abs=
-                1e-12,
-        )
+    assert above == pytest.approx(
+        hundred,
+        rel=1e-12,
+        abs=1e-12,
     )
 
 
@@ -307,16 +263,9 @@ def test_representative_environment_returns_finite_positive_speed(
         pressure_hpa,
     )
 
-    assert (
-        math.isfinite(
-            result
-        )
-    )
+    assert math.isfinite(result)
 
-    assert (
-        result
-        > 0.0
-    )
+    assert result > 0.0
 
 
 def test_typical_room_condition_is_physically_reasonable() -> None:
@@ -329,11 +278,7 @@ def test_typical_room_condition_is_physically_reasonable() -> None:
 
     # Broad engineering sanity range rather than pinning the test to one
     # exact atmospheric formula.
-    assert (
-        335.0
-        < result
-        < 350.0
-    )
+    assert 335.0 < result < 350.0
 
 
 # ======================================================================
@@ -353,10 +298,7 @@ def test_rejects_nonpositive_pressure(
     pressure_hpa: float,
 ) -> None:
 
-    with pytest.raises(
-        ValueError
-    ):
-
+    with pytest.raises(ValueError):
         calculate_speed_of_sound_mps(
             25.0,
             50.0,
@@ -396,17 +338,9 @@ def test_different_positive_pressures_produce_valid_results() -> None:
         standard_pressure,
         high_pressure,
     ):
+        assert math.isfinite(value)
 
-        assert (
-            math.isfinite(
-                value
-            )
-        )
-
-        assert (
-            value
-            > 0.0
-        )
+        assert value > 0.0
 
 
 # ======================================================================
@@ -417,25 +351,16 @@ def test_different_positive_pressures_produce_valid_results() -> None:
 @pytest.mark.parametrize(
     "temperature_c",
     [
-        float(
-            "nan"
-        ),
-        float(
-            "inf"
-        ),
-        float(
-            "-inf"
-        ),
+        float("nan"),
+        float("inf"),
+        float("-inf"),
     ],
 )
 def test_rejects_non_finite_temperature(
     temperature_c: float,
 ) -> None:
 
-    with pytest.raises(
-        ValueError
-    ):
-
+    with pytest.raises(ValueError):
         calculate_speed_of_sound_mps(
             temperature_c,
             50.0,
@@ -451,25 +376,16 @@ def test_rejects_non_finite_temperature(
 @pytest.mark.parametrize(
     "humidity_percent",
     [
-        float(
-            "nan"
-        ),
-        float(
-            "inf"
-        ),
-        float(
-            "-inf"
-        ),
+        float("nan"),
+        float("inf"),
+        float("-inf"),
     ],
 )
 def test_rejects_non_finite_humidity(
     humidity_percent: float,
 ) -> None:
 
-    with pytest.raises(
-        ValueError
-    ):
-
+    with pytest.raises(ValueError):
         calculate_speed_of_sound_mps(
             25.0,
             humidity_percent,
@@ -485,25 +401,16 @@ def test_rejects_non_finite_humidity(
 @pytest.mark.parametrize(
     "pressure_hpa",
     [
-        float(
-            "nan"
-        ),
-        float(
-            "inf"
-        ),
-        float(
-            "-inf"
-        ),
+        float("nan"),
+        float("inf"),
+        float("-inf"),
     ],
 )
 def test_rejects_non_finite_pressure(
     pressure_hpa: float,
 ) -> None:
 
-    with pytest.raises(
-        ValueError
-    ):
-
+    with pytest.raises(ValueError):
         calculate_speed_of_sound_mps(
             25.0,
             50.0,
@@ -530,10 +437,7 @@ def test_speed_of_sound_calculation_is_deterministic() -> None:
         1007.5,
     )
 
-    assert (
-        first
-        == second
-    )
+    assert first == second
 
 
 # ======================================================================
@@ -555,10 +459,4 @@ def test_environmental_speed_is_close_to_nominal_localization_value() -> None:
         STANDARD_PRESSURE_HPA,
     )
 
-    assert (
-        abs(
-            result
-            - 343.0
-        )
-        < 10.0
-    )
+    assert abs(result - 343.0) < 10.0

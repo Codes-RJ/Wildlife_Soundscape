@@ -25,14 +25,10 @@ from .classifier import (
 # ======================================================================
 
 
-UINT8_MAX = (
-    0xFF
-)
+UINT8_MAX = 0xFF
 
 
-UINT32_MAX = (
-    0xFFFFFFFF
-)
+UINT32_MAX = 0xFFFFFFFF
 
 
 # ======================================================================
@@ -51,23 +47,14 @@ def _require_integer(
     bool is deliberately rejected even though bool is a subclass of int.
     """
 
-    if (
-        isinstance(
-            value,
-            bool,
-        )
-        or not isinstance(
-            value,
-            int,
-        )
+    if isinstance(
+        value,
+        bool,
+    ) or not isinstance(
+        value,
+        int,
     ):
-
-        raise TypeError(
-            (
-                f"{name} must be "
-                "an integer."
-            )
-        )
+        raise TypeError((f"{name} must be an integer."))
 
     return value
 
@@ -81,25 +68,13 @@ def _require_positive_integer(
     Require one integer greater than zero.
     """
 
-    value = (
-        _require_integer(
-            value,
-            name=
-                name,
-        )
+    value = _require_integer(
+        value,
+        name=name,
     )
 
-    if (
-        value
-        <= 0
-    ):
-
-        raise ValueError(
-            (
-                f"{name} must be "
-                "greater than zero."
-            )
-        )
+    if value <= 0:
+        raise ValueError((f"{name} must be greater than zero."))
 
     return value
 
@@ -116,26 +91,13 @@ def _require_uint8_node_id(
     acoustic-node identifier in this project.
     """
 
-    value = (
-        _require_integer(
-            value,
-            name=
-                name,
-        )
+    value = _require_integer(
+        value,
+        name=name,
     )
 
-    if not (
-        1
-        <= value
-        <= UINT8_MAX
-    ):
-
-        raise ValueError(
-            (
-                f"{name} must lie "
-                "between 1 and 255."
-            )
-        )
+    if not (1 <= value <= UINT8_MAX):
+        raise ValueError((f"{name} must lie between 1 and 255."))
 
     return value
 
@@ -150,41 +112,18 @@ def _require_uint32(
     Validate one unsigned 32-bit identifier.
     """
 
-    value = (
-        _require_integer(
-            value,
-            name=
-                name,
-        )
+    value = _require_integer(
+        value,
+        name=name,
     )
 
-    minimum = (
-        0
-        if allow_zero
-        else 1
-    )
+    minimum = 0 if allow_zero else 1
 
-    if not (
-        minimum
-        <= value
-        <= UINT32_MAX
-    ):
-
+    if not (minimum <= value <= UINT32_MAX):
         if allow_zero:
+            raise ValueError((f"{name} must lie between 0 and 4294967295."))
 
-            raise ValueError(
-                (
-                    f"{name} must lie between "
-                    "0 and 4294967295."
-                )
-            )
-
-        raise ValueError(
-            (
-                f"{name} must lie between "
-                "1 and 4294967295."
-            )
-        )
+        raise ValueError((f"{name} must lie between 1 and 4294967295."))
 
     return value
 
@@ -252,10 +191,7 @@ class ClassificationInput:
     # extraction is unavailable.
     # ==================================================================
 
-    features: (
-        AcousticFeatures
-        | None
-    )
+    features: AcousticFeatures | None
 
     # ==================================================================
     # AUDIO INFORMATION
@@ -263,29 +199,17 @@ class ClassificationInput:
 
     sample_rate: int
 
-    model_audio: (
-        np.ndarray
-        | None
-    ) = None
+    model_audio: np.ndarray | None = None
 
     # ==================================================================
     # EVENT CONTEXT
     # ==================================================================
 
-    source_node_id: (
-        int
-        | None
-    ) = None
+    source_node_id: int | None = None
 
-    detector_event_id: (
-        int
-        | None
-    ) = None
+    detector_event_id: int | None = None
 
-    session_id: (
-        int
-        | None
-    ) = None
+    session_id: int | None = None
 
     # ==================================================================
     # VALIDATION
@@ -307,44 +231,27 @@ class ClassificationInput:
 
         _require_positive_integer(
             self.sample_rate,
-            name=
-                "sample_rate",
+            name="sample_rate",
         )
 
         # ==============================================================
         # FEATURES
         # ==============================================================
 
-        if (
-            self.features
-            is not None
-            and not isinstance(
-                self.features,
-                AcousticFeatures,
-            )
+        if self.features is not None and not isinstance(
+            self.features,
+            AcousticFeatures,
         ):
-
-            raise TypeError(
-                (
-                    "features must be an "
-                    "AcousticFeatures instance "
-                    "or None."
-                )
-            )
+            raise TypeError(("features must be an AcousticFeatures instance or None."))
 
         # ==============================================================
         # SOURCE NODE
         # ==============================================================
 
-        if (
-            self.source_node_id
-            is not None
-        ):
-
+        if self.source_node_id is not None:
             _require_uint8_node_id(
                 self.source_node_id,
-                name=
-                    "source_node_id",
+                name="source_node_id",
             )
 
         # ==============================================================
@@ -358,17 +265,11 @@ class ClassificationInput:
         # use zero as their first local event index.
         # ==============================================================
 
-        if (
-            self.detector_event_id
-            is not None
-        ):
-
+        if self.detector_event_id is not None:
             _require_uint32(
                 self.detector_event_id,
-                name=
-                    "detector_event_id",
-                allow_zero=
-                    True,
+                name="detector_event_id",
+                allow_zero=True,
             )
 
         # ==============================================================
@@ -380,28 +281,18 @@ class ClassificationInput:
         # None means no acquisition-session context was supplied.
         # ==============================================================
 
-        if (
-            self.session_id
-            is not None
-        ):
-
+        if self.session_id is not None:
             _require_uint32(
                 self.session_id,
-                name=
-                    "session_id",
-                allow_zero=
-                    False,
+                name="session_id",
+                allow_zero=False,
             )
 
         # ==============================================================
         # MODEL AUDIO
         # ==============================================================
 
-        if (
-            self.model_audio
-            is not None
-        ):
-
+        if self.model_audio is not None:
             # ----------------------------------------------------------
             # REQUIRE NDARRAY
             # ----------------------------------------------------------
@@ -417,49 +308,23 @@ class ClassificationInput:
                 self.model_audio,
                 np.ndarray,
             ):
+                raise TypeError(("model_audio must be a NumPy ndarray or None."))
 
-                raise TypeError(
-                    (
-                        "model_audio must be a "
-                        "NumPy ndarray or None."
-                    )
-                )
-
-            audio = (
-                self.model_audio
-            )
+            audio = self.model_audio
 
             # ----------------------------------------------------------
             # MONO
             # ----------------------------------------------------------
 
-            if (
-                audio.ndim
-                != 1
-            ):
-
-                raise ValueError(
-                    (
-                        "model_audio must be "
-                        "a mono 1-D waveform."
-                    )
-                )
+            if audio.ndim != 1:
+                raise ValueError(("model_audio must be a mono 1-D waveform."))
 
             # ----------------------------------------------------------
             # NON-EMPTY
             # ----------------------------------------------------------
 
-            if (
-                audio.size
-                == 0
-            ):
-
-                raise ValueError(
-                    (
-                        "model_audio "
-                        "cannot be empty."
-                    )
-                )
+            if audio.size == 0:
+                raise ValueError(("model_audio cannot be empty."))
 
             # ----------------------------------------------------------
             # NUMERIC
@@ -469,13 +334,7 @@ class ClassificationInput:
                 audio.dtype,
                 np.number,
             ):
-
-                raise TypeError(
-                    (
-                        "model_audio must "
-                        "contain numeric samples."
-                    )
-                )
+                raise TypeError(("model_audio must contain numeric samples."))
 
             # ----------------------------------------------------------
             # REAL-VALUED
@@ -485,30 +344,14 @@ class ClassificationInput:
                 audio.dtype,
                 np.complexfloating,
             ):
-
-                raise TypeError(
-                    (
-                        "model_audio must contain "
-                        "real-valued samples."
-                    )
-                )
+                raise TypeError(("model_audio must contain real-valued samples."))
 
             # ----------------------------------------------------------
             # FINITE
             # ----------------------------------------------------------
 
-            if not np.all(
-                np.isfinite(
-                    audio
-                )
-            ):
-
-                raise ValueError(
-                    (
-                        "model_audio contains "
-                        "NaN or infinite samples."
-                    )
-                )
+            if not np.all(np.isfinite(audio)):
+                raise ValueError(("model_audio contains NaN or infinite samples."))
 
     # ==================================================================
     # AVAILABILITY HELPERS
@@ -522,10 +365,7 @@ class ClassificationInput:
         Whether handcrafted acoustic features are available.
         """
 
-        return (
-            self.features
-            is not None
-        )
+        return self.features is not None
 
     @property
     def has_audio(
@@ -535,10 +375,7 @@ class ClassificationInput:
         Whether processed waveform audio is available.
         """
 
-        return (
-            self.model_audio
-            is not None
-        )
+        return self.model_audio is not None
 
 
 # ======================================================================
@@ -546,9 +383,7 @@ class ClassificationInput:
 # ======================================================================
 
 
-class ClassifierBackend(
-    ABC
-):
+class ClassifierBackend(ABC):
     """
     Abstract interface implemented by acoustic-classification backends.
 
@@ -664,46 +499,26 @@ class ClassifierBackend(
             classification_input,
             ClassificationInput,
         ):
-
             raise TypeError(
-                (
-                    "classification_input must be "
-                    "a ClassificationInput instance."
-                )
+                ("classification_input must be a ClassificationInput instance.")
             )
 
         # ==============================================================
         # AUDIO REQUIREMENT
         # ==============================================================
 
-        if (
-            self.requires_audio
-            and not classification_input.has_audio
-        ):
-
+        if self.requires_audio and not classification_input.has_audio:
             raise ValueError(
-                (
-                    f"classifier backend "
-                    f"'{self.name}' requires "
-                    "model_audio."
-                )
+                (f"classifier backend '{self.name}' requires model_audio.")
             )
 
         # ==============================================================
         # FEATURE REQUIREMENT
         # ==============================================================
 
-        if (
-            self.requires_features
-            and not classification_input.has_features
-        ):
-
+        if self.requires_features and not classification_input.has_features:
             raise ValueError(
-                (
-                    f"classifier backend "
-                    f"'{self.name}' requires "
-                    "acoustic features."
-                )
+                (f"classifier backend '{self.name}' requires acoustic features.")
             )
 
     # ==================================================================

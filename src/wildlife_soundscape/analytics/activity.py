@@ -83,7 +83,6 @@ If duration_s is unavailable, duration is reconstructed from:
     (end_sample - start_sample) / sample_rate
 """
 
-
 from __future__ import annotations
 
 
@@ -132,29 +131,19 @@ from .models import (
 # ======================================================================
 
 
-DEFAULT_SAMPLE_RATE = (
-    48_000
-)
+DEFAULT_SAMPLE_RATE = 48_000
 
 
-DEFAULT_BUCKET_SECONDS = (
-    3600
-)
+DEFAULT_BUCKET_SECONDS = 3600
 
 
-DEFAULT_TIMESTAMP_KEY = (
-    "event_time"
-)
+DEFAULT_TIMESTAMP_KEY = "event_time"
 
 
-UNCLASSIFIED_LABEL = (
-    "unclassified"
-)
+UNCLASSIFIED_LABEL = "unclassified"
 
 
-UTC_SUFFIX = (
-    "Z"
-)
+UTC_SUFFIX = "Z"
 
 
 # ======================================================================
@@ -193,13 +182,7 @@ class _ActivityEvent:
         Acoustic-event end time derived from timestamp + duration.
         """
 
-        return (
-            self.timestamp
-            + timedelta(
-                seconds=
-                    self.duration_s
-            )
-        )
+        return self.timestamp + timedelta(seconds=self.duration_s)
 
 
 # ======================================================================
@@ -233,12 +216,8 @@ def _row_value(
         None,
     )
 
-    if callable(
-        getter
-    ):
-
+    if callable(getter):
         try:
-
             return getter(
                 key,
                 default,
@@ -248,7 +227,6 @@ def _row_value(
             KeyError,
             TypeError,
         ):
-
             pass
 
     # ==============================================================
@@ -256,20 +234,14 @@ def _row_value(
     # ==============================================================
 
     try:
-
-        return row[
-            key
-        ]
+        return row[key]
 
     except (
         KeyError,
         IndexError,
         TypeError,
     ):
-
-        return (
-            default
-        )
+        return default
 
 
 # ======================================================================
@@ -304,69 +276,34 @@ def _parse_datetime(
         value,
         datetime,
     ):
-
-        return (
-            value
-        )
+        return value
 
     if not isinstance(
         value,
         str,
     ):
+        raise TypeError((f"{name} must be datetime or ISO-8601 string."))
 
-        raise TypeError(
-            (
-                f"{name} must be datetime "
-                "or ISO-8601 string."
-            )
-        )
+    text = value.strip()
 
-    text = (
-        value.strip()
-    )
-
-    if not (
-        text
-    ):
-
-        raise ValueError(
-            f"{name} cannot be empty."
-        )
+    if not (text):
+        raise ValueError(f"{name} cannot be empty.")
 
     # --------------------------------------------------------------
     # Python's fromisoformat historically accepts +00:00 more
     # consistently than a trailing Z, so normalize it explicitly.
     # --------------------------------------------------------------
 
-    if text.endswith(
-        UTC_SUFFIX
-    ):
-
-        text = (
-            text[
-                :-1
-            ]
-            + "+00:00"
-        )
+    if text.endswith(UTC_SUFFIX):
+        text = text[:-1] + "+00:00"
 
     try:
-
-        result = datetime.fromisoformat(
-            text
-        )
+        result = datetime.fromisoformat(text)
 
     except ValueError as exc:
+        raise ValueError((f"{name} is not a valid ISO-8601 datetime.")) from exc
 
-        raise ValueError(
-            (
-                f"{name} is not a valid "
-                "ISO-8601 datetime."
-            )
-        ) from exc
-
-    return (
-        result
-    )
+    return result
 
 
 # ======================================================================
@@ -381,18 +318,11 @@ def _is_timezone_aware(
     Return whether one datetime contains effective timezone information.
     """
 
-    return (
-        value.tzinfo
-        is not None
-        and value.utcoffset()
-        is not None
-    )
+    return value.tzinfo is not None and value.utcoffset() is not None
 
 
 def _validate_datetime_compatibility(
-    values: Iterable[
-        datetime
-    ],
+    values: Iterable[datetime],
 ) -> None:
     """
     Reject mixtures of timezone-aware and timezone-naive datetimes.
@@ -400,22 +330,9 @@ def _validate_datetime_compatibility(
     Mixing them would make ordering and subtraction ambiguous.
     """
 
-    awareness = {
-        _is_timezone_aware(
-            value
-        )
+    awareness = {_is_timezone_aware(value) for value in values}
 
-        for value
-        in values
-    }
-
-    if (
-        len(
-            awareness
-        )
-        > 1
-    ):
-
+    if len(awareness) > 1:
         raise ValueError(
             (
                 "Activity timestamps cannot mix "
@@ -439,35 +356,19 @@ def _require_positive_int(
     Require a positive Python integer.
     """
 
-    if (
-        isinstance(
-            value,
-            bool,
-        )
-        or not isinstance(
-            value,
-            int,
-        )
+    if isinstance(
+        value,
+        bool,
+    ) or not isinstance(
+        value,
+        int,
     ):
+        raise TypeError(f"{name} must be an integer.")
 
-        raise TypeError(
-            f"{name} must be an integer."
-        )
+    if value <= 0:
+        raise ValueError(f"{name} must be greater than 0.")
 
-    if (
-        value
-        <= 0
-    ):
-
-        raise ValueError(
-            f"{name} must be greater than 0."
-        )
-
-    return (
-        int(
-            value
-        )
-    )
+    return int(value)
 
 
 def _finite_nonnegative_or_none(
@@ -481,45 +382,22 @@ def _finite_nonnegative_or_none(
     This is useful for optional database-derived fields.
     """
 
-    if (
-        value
-        is None
-    ):
-
-        return (
-            None
-        )
+    if value is None:
+        return None
 
     try:
-
-        result = float(
-            value
-        )
+        result = float(value)
 
     except (
         TypeError,
         ValueError,
     ):
+        return None
 
-        return (
-            None
-        )
+    if not math.isfinite(result) or result < 0.0:
+        return None
 
-    if (
-        not math.isfinite(
-            result
-        )
-        or result
-        < 0.0
-    ):
-
-        return (
-            None
-        )
-
-    return (
-        result
-    )
+    return result
 
 
 def _confidence_or_none(
@@ -532,33 +410,15 @@ def _confidence_or_none(
     corrupting an otherwise usable activity event.
     """
 
-    result = (
-        _finite_nonnegative_or_none(
-            value
-        )
-    )
+    result = _finite_nonnegative_or_none(value)
 
-    if (
-        result
-        is None
-    ):
+    if result is None:
+        return None
 
-        return (
-            None
-        )
+    if result > 1.0:
+        return None
 
-    if (
-        result
-        > 1.0
-    ):
-
-        return (
-            None
-        )
-
-    return (
-        result
-    )
+    return result
 
 
 # ======================================================================
@@ -588,92 +448,48 @@ def _resolve_event_duration_s(
     # DSP DURATION
     # ==============================================================
 
-    duration = (
-        _finite_nonnegative_or_none(
-            _row_value(
-                row,
-                "duration_s",
-            )
+    duration = _finite_nonnegative_or_none(
+        _row_value(
+            row,
+            "duration_s",
         )
     )
 
-    if (
-        duration
-        is not None
-    ):
-
-        return (
-            duration
-        )
+    if duration is not None:
+        return duration
 
     # ==============================================================
     # SAMPLE-INDEX DURATION
     # ==============================================================
 
-    start_sample = (
-        _row_value(
-            row,
-            "start_sample",
-        )
+    start_sample = _row_value(
+        row,
+        "start_sample",
     )
 
-    end_sample = (
-        _row_value(
-            row,
-            "end_sample",
-        )
+    end_sample = _row_value(
+        row,
+        "end_sample",
     )
 
-    if (
-        start_sample
-        is None
-        or end_sample
-        is None
-    ):
-
-        return (
-            0.0
-        )
+    if start_sample is None or end_sample is None:
+        return 0.0
 
     try:
+        start_sample = int(start_sample)
 
-        start_sample = int(
-            start_sample
-        )
-
-        end_sample = int(
-            end_sample
-        )
+        end_sample = int(end_sample)
 
     except (
         TypeError,
         ValueError,
     ):
+        return 0.0
 
-        return (
-            0.0
-        )
+    if start_sample < 0 or end_sample < start_sample:
+        return 0.0
 
-    if (
-        start_sample
-        < 0
-        or end_sample
-        < start_sample
-    ):
-
-        return (
-            0.0
-        )
-
-    return (
-        (
-            end_sample
-            - start_sample
-        )
-        / float(
-            sample_rate
-        )
-    )
+    return (end_sample - start_sample) / float(sample_rate)
 
 
 # ======================================================================
@@ -688,30 +504,15 @@ def _normalize_class_label(
     Normalize one optional broad acoustic class label.
     """
 
-    if (
-        value
-        is None
-    ):
+    if value is None:
+        return UNCLASSIFIED_LABEL
 
-        return (
-            UNCLASSIFIED_LABEL
-        )
+    label = str(value).strip()
 
-    label = str(
-        value
-    ).strip()
+    if not (label):
+        return UNCLASSIFIED_LABEL
 
-    if not (
-        label
-    ):
-
-        return (
-            UNCLASSIFIED_LABEL
-        )
-
-    return (
-        label
-    )
+    return label
 
 
 # ======================================================================
@@ -726,42 +527,22 @@ def _normalize_event_id(
     Normalize optional database event ID.
     """
 
-    if (
-        value
-        is None
-    ):
-
-        return (
-            None
-        )
+    if value is None:
+        return None
 
     try:
-
-        result = int(
-            value
-        )
+        result = int(value)
 
     except (
         TypeError,
         ValueError,
     ):
+        return None
 
-        return (
-            None
-        )
+    if result <= 0:
+        return None
 
-    if (
-        result
-        <= 0
-    ):
-
-        return (
-            None
-        )
-
-    return (
-        result
-    )
+    return result
 
 
 # ======================================================================
@@ -770,9 +551,7 @@ def _normalize_event_id(
 
 
 def normalize_activity_events(
-    rows: Iterable[
-        Any
-    ],
+    rows: Iterable[Any],
     *,
     sample_rate: int = DEFAULT_SAMPLE_RATE,
     timestamp_key: str = DEFAULT_TIMESTAMP_KEY,
@@ -805,51 +584,29 @@ def normalize_activity_events(
 
     sample_rate = _require_positive_int(
         sample_rate,
-        name=
-            "sample_rate",
+        name="sample_rate",
     )
 
     if not isinstance(
         timestamp_key,
         str,
     ):
+        raise TypeError("timestamp_key must be a string.")
 
-        raise TypeError(
-            "timestamp_key must be a string."
+    timestamp_key = timestamp_key.strip()
+
+    if not (timestamp_key):
+        raise ValueError("timestamp_key cannot be empty.")
+
+    normalized: list[_ActivityEvent] = []
+
+    for row_index, row in enumerate(rows):
+        timestamp_value = _row_value(
+            row,
+            timestamp_key,
         )
 
-    timestamp_key = (
-        timestamp_key.strip()
-    )
-
-    if not (
-        timestamp_key
-    ):
-
-        raise ValueError(
-            "timestamp_key cannot be empty."
-        )
-
-    normalized: list[
-        _ActivityEvent
-    ] = []
-
-    for row_index, row in enumerate(
-        rows
-    ):
-
-        timestamp_value = (
-            _row_value(
-                row,
-                timestamp_key,
-            )
-        )
-
-        if (
-            timestamp_value
-            is None
-        ):
-
+        if timestamp_value is None:
             raise ValueError(
                 (
                     f"activity row {row_index} "
@@ -861,64 +618,42 @@ def normalize_activity_events(
 
         timestamp = _parse_datetime(
             timestamp_value,
-            name=
-                (
-                    f"row[{row_index}]."
-                    f"{timestamp_key}"
-                ),
+            name=(f"row[{row_index}].{timestamp_key}"),
         )
 
-        duration_s = (
-            _resolve_event_duration_s(
+        duration_s = _resolve_event_duration_s(
+            row,
+            sample_rate=sample_rate,
+        )
+
+        class_label = _normalize_class_label(
+            _row_value(
                 row,
-                sample_rate=
-                    sample_rate,
+                "classification_label",
             )
         )
 
-        class_label = (
-            _normalize_class_label(
-                _row_value(
-                    row,
-                    "classification_label",
-                )
+        confidence = _confidence_or_none(
+            _row_value(
+                row,
+                "classification_confidence",
             )
         )
 
-        confidence = (
-            _confidence_or_none(
-                _row_value(
-                    row,
-                    "classification_confidence",
-                )
-            )
-        )
-
-        event_id = (
-            _normalize_event_id(
-                _row_value(
-                    row,
-                    "id",
-                )
+        event_id = _normalize_event_id(
+            _row_value(
+                row,
+                "id",
             )
         )
 
         normalized.append(
             _ActivityEvent(
-                event_id=
-                    event_id,
-
-                timestamp=
-                    timestamp,
-
-                duration_s=
-                    duration_s,
-
-                class_label=
-                    class_label,
-
-                confidence=
-                    confidence,
+                event_id=event_id,
+                timestamp=timestamp,
+                duration_s=duration_s,
+                class_label=class_label,
+                confidence=confidence,
             )
         )
 
@@ -926,34 +661,20 @@ def normalize_activity_events(
     # DATETIME MODE CONSISTENCY
     # ==============================================================
 
-    _validate_datetime_compatibility(
-        event.timestamp
-
-        for event
-        in normalized
-    )
+    _validate_datetime_compatibility(event.timestamp for event in normalized)
 
     # ==============================================================
     # DETERMINISTIC ORDER
     # ==============================================================
 
     normalized.sort(
-        key=
-            lambda event:
-                (
-                    event.timestamp,
-                    (
-                        event.event_id
-                        if event.event_id
-                        is not None
-                        else 0
-                    ),
-                )
+        key=lambda event: (
+            event.timestamp,
+            (event.event_id if event.event_id is not None else 0),
+        )
     )
 
-    return tuple(
-        normalized
-    )
+    return tuple(normalized)
 
 
 # ======================================================================
@@ -976,36 +697,21 @@ def _floor_datetime(
 
     bucket_seconds = _require_positive_int(
         bucket_seconds,
-        name=
-            "bucket_seconds",
+        name="bucket_seconds",
     )
 
     origin = datetime(
         1970,
         1,
         1,
-        tzinfo=
-            value.tzinfo,
+        tzinfo=value.tzinfo,
     )
 
-    elapsed_seconds = (
-        value
-        - origin
-    ).total_seconds()
+    elapsed_seconds = (value - origin).total_seconds()
 
-    bucket_index = math.floor(
-        elapsed_seconds
-        / bucket_seconds
-    )
+    bucket_index = math.floor(elapsed_seconds / bucket_seconds)
 
-    return (
-        origin
-        + timedelta(
-            seconds=
-                bucket_index
-                * bucket_seconds
-        )
-    )
+    return origin + timedelta(seconds=bucket_index * bucket_seconds)
 
 
 # ======================================================================
@@ -1026,26 +732,13 @@ def _ceil_datetime(
 
     floored = _floor_datetime(
         value,
-        bucket_seconds=
-            bucket_seconds,
+        bucket_seconds=bucket_seconds,
     )
 
-    if (
-        floored
-        == value
-    ):
+    if floored == value:
+        return value
 
-        return (
-            value
-        )
-
-    return (
-        floored
-        + timedelta(
-            seconds=
-                bucket_seconds
-        )
-    )
+    return floored + timedelta(seconds=bucket_seconds)
 
 
 # ======================================================================
@@ -1081,77 +774,39 @@ def _resolve_analysis_range(
 
     start_dt = (
         None
-
-        if start
-        is None
-
+        if start is None
         else _parse_datetime(
             start,
-            name=
-                "start",
+            name="start",
         )
     )
 
     end_dt = (
         None
-
-        if end
-        is None
-
+        if end is None
         else _parse_datetime(
             end,
-            name=
-                "end",
+            name="end",
         )
     )
 
-    compatibility_values = [
-        event.timestamp
+    compatibility_values = [event.timestamp for event in events]
 
-        for event
-        in events
-    ]
+    if start_dt is not None:
+        compatibility_values.append(start_dt)
 
-    if (
-        start_dt
-        is not None
-    ):
+    if end_dt is not None:
+        compatibility_values.append(end_dt)
 
-        compatibility_values.append(
-            start_dt
-        )
-
-    if (
-        end_dt
-        is not None
-    ):
-
-        compatibility_values.append(
-            end_dt
-        )
-
-    _validate_datetime_compatibility(
-        compatibility_values
-    )
+    _validate_datetime_compatibility(compatibility_values)
 
     # ==============================================================
     # EMPTY DATASET
     # ==============================================================
 
     if not events:
-
-        if (
-            start_dt
-            is not None
-            and end_dt
-            is not None
-            and end_dt
-            < start_dt
-        ):
-
-            raise ValueError(
-                "end cannot be earlier than start."
-            )
+        if start_dt is not None and end_dt is not None and end_dt < start_dt:
+            raise ValueError("end cannot be earlier than start.")
 
         return (
             start_dt,
@@ -1162,72 +817,36 @@ def _resolve_analysis_range(
     # DERIVED START
     # ==============================================================
 
-    if (
-        start_dt
-        is None
-    ):
-
+    if start_dt is None:
         start_dt = _floor_datetime(
-            events[
-                0
-            ].timestamp,
-
-            bucket_seconds=
-                bucket_seconds,
+            events[0].timestamp,
+            bucket_seconds=bucket_seconds,
         )
 
     # ==============================================================
     # DERIVED END
     # ==============================================================
 
-    if (
-        end_dt
-        is None
-    ):
-
+    if end_dt is None:
         latest_time = max(
-            (
-                event.end_time
-                if event.duration_s
-                > 0.0
-                else event.timestamp
-            )
-
-            for event
-            in events
+            (event.end_time if event.duration_s > 0.0 else event.timestamp)
+            for event in events
         )
 
         end_dt = _ceil_datetime(
             latest_time,
-            bucket_seconds=
-                bucket_seconds,
+            bucket_seconds=bucket_seconds,
         )
 
-        if (
-            end_dt
-            <= start_dt
-        ):
-
-            end_dt = (
-                start_dt
-                + timedelta(
-                    seconds=
-                        bucket_seconds
-                )
-            )
+        if end_dt <= start_dt:
+            end_dt = start_dt + timedelta(seconds=bucket_seconds)
 
     # ==============================================================
     # ORDER
     # ==============================================================
 
-    if (
-        end_dt
-        < start_dt
-    ):
-
-        raise ValueError(
-            "end cannot be earlier than start."
-        )
+    if end_dt < start_dt:
+        raise ValueError("end cannot be earlier than start.")
 
     return (
         start_dt,
@@ -1255,23 +874,10 @@ def _event_overlaps_window(
     the interval.
     """
 
-    if (
-        event.duration_s
-        <= 0.0
-    ):
+    if event.duration_s <= 0.0:
+        return start <= event.timestamp < end
 
-        return (
-            start
-            <= event.timestamp
-            < end
-        )
-
-    return (
-        event.end_time
-        > start
-        and event.timestamp
-        < end
-    )
+    return event.end_time > start and event.timestamp < end
 
 
 # ======================================================================
@@ -1289,14 +895,8 @@ def _duration_overlap_s(
     Duration of one event falling inside [start, end).
     """
 
-    if (
-        event.duration_s
-        <= 0.0
-    ):
-
-        return (
-            0.0
-        )
+    if event.duration_s <= 0.0:
+        return 0.0
 
     overlap_start = max(
         event.timestamp,
@@ -1308,21 +908,10 @@ def _duration_overlap_s(
         end,
     )
 
-    if (
-        overlap_end
-        <= overlap_start
-    ):
+    if overlap_end <= overlap_start:
+        return 0.0
 
-        return (
-            0.0
-        )
-
-    return float(
-        (
-            overlap_end
-            - overlap_start
-        ).total_seconds()
-    )
+    return float((overlap_end - overlap_start).total_seconds())
 
 
 # ======================================================================
@@ -1331,9 +920,7 @@ def _duration_overlap_s(
 
 
 def build_activity_bins(
-    rows: Iterable[
-        Any
-    ],
+    rows: Iterable[Any],
     *,
     bucket_seconds: int = DEFAULT_BUCKET_SECONDS,
     sample_rate: int = DEFAULT_SAMPLE_RATE,
@@ -1362,16 +949,13 @@ def build_activity_bins(
 
     bucket_seconds = _require_positive_int(
         bucket_seconds,
-        name=
-            "bucket_seconds",
+        name="bucket_seconds",
     )
 
     events = normalize_activity_events(
         rows,
-        sample_rate=
-            sample_rate,
-        timestamp_key=
-            timestamp_key,
+        sample_rate=sample_rate,
+        timestamp_key=timestamp_key,
     )
 
     (
@@ -1379,48 +963,21 @@ def build_activity_bins(
         analysis_end,
     ) = _resolve_analysis_range(
         events,
-        bucket_seconds=
-            bucket_seconds,
-        start=
-            start,
-        end=
-            end,
+        bucket_seconds=bucket_seconds,
+        start=start,
+        end=end,
     )
 
-    if (
-        analysis_start
-        is None
-        or analysis_end
-        is None
-        or analysis_end
-        <= analysis_start
-    ):
+    if analysis_start is None or analysis_end is None or analysis_end <= analysis_start:
+        return ()
 
-        return (
-            ()
-        )
+    bins: list[ActivityBin] = []
 
-    bins: list[
-        ActivityBin
-    ] = []
+    current_start = analysis_start
 
-    current_start = (
-        analysis_start
-    )
-
-    while (
-        current_start
-        < analysis_end
-    ):
-
+    while current_start < analysis_end:
         current_end = min(
-            (
-                current_start
-                + timedelta(
-                    seconds=
-                        bucket_seconds
-                )
-            ),
+            (current_start + timedelta(seconds=bucket_seconds)),
             analysis_end,
         )
 
@@ -1430,22 +987,11 @@ def build_activity_bins(
 
         starting_events = [
             event
-
-            for event
-            in events
-
-            if (
-                current_start
-                <= event.timestamp
-                < current_end
-            )
+            for event in events
+            if (current_start <= event.timestamp < current_end)
         ]
 
-        event_count = (
-            len(
-                starting_events
-            )
-        )
+        event_count = len(starting_events)
 
         # ==========================================================
         # ACTIVE DURATION
@@ -1454,21 +1000,14 @@ def build_activity_bins(
         active_duration_s = math.fsum(
             _duration_overlap_s(
                 event,
-                start=
-                    current_start,
-                end=
-                    current_end,
+                start=current_start,
+                end=current_end,
             )
-
-            for event
-            in events
-
+            for event in events
             if _event_overlaps_window(
                 event,
-                start=
-                    current_start,
-                end=
-                    current_end,
+                start=current_start,
+                end=current_end,
             )
         )
 
@@ -1478,53 +1017,26 @@ def build_activity_bins(
 
         confidences = [
             event.confidence
-
-            for event
-            in starting_events
-
-            if (
-                event.confidence
-                is not None
-            )
+            for event in starting_events
+            if (event.confidence is not None)
         ]
 
         mean_confidence = (
             None
-
             if not confidences
-
-            else float(
-                math.fsum(
-                    confidences
-                )
-                / len(
-                    confidences
-                )
-            )
+            else float(math.fsum(confidences) / len(confidences))
         )
 
         # ==========================================================
         # DOMINANT CLASS
         # ==========================================================
 
-        dominant_class = (
-            None
-        )
+        dominant_class = None
 
-        if (
-            starting_events
-        ):
+        if starting_events:
+            class_counts = Counter(event.class_label for event in starting_events)
 
-            class_counts = Counter(
-                event.class_label
-
-                for event
-                in starting_events
-            )
-
-            maximum_count = max(
-                class_counts.values()
-            )
+            maximum_count = max(class_counts.values())
 
             # ------------------------------------------------------
             # Deterministic tie-breaking:
@@ -1534,14 +1046,8 @@ def build_activity_bins(
 
             dominant_class = min(
                 label
-
-                for label, count
-                in class_counts.items()
-
-                if (
-                    count
-                    == maximum_count
-                )
+                for label, count in class_counts.items()
+                if (count == maximum_count)
             )
 
         # ==========================================================
@@ -1550,33 +1056,18 @@ def build_activity_bins(
 
         bins.append(
             ActivityBin(
-                bucket_start=
-                    current_start,
-
-                bucket_end=
-                    current_end,
-
-                event_count=
-                    event_count,
-
-                active_duration_s=
-                    active_duration_s,
-
-                mean_confidence=
-                    mean_confidence,
-
-                dominant_class=
-                    dominant_class,
+                bucket_start=current_start,
+                bucket_end=current_end,
+                event_count=event_count,
+                active_duration_s=active_duration_s,
+                mean_confidence=mean_confidence,
+                dominant_class=dominant_class,
             )
         )
 
-        current_start = (
-            current_end
-        )
+        current_start = current_end
 
-    return tuple(
-        bins
-    )
+    return tuple(bins)
 
 
 # ======================================================================
@@ -1585,9 +1076,7 @@ def build_activity_bins(
 
 
 def build_class_activity_summaries(
-    rows: Iterable[
-        Any
-    ],
+    rows: Iterable[Any],
     *,
     sample_rate: int = DEFAULT_SAMPLE_RATE,
     timestamp_key: str = DEFAULT_TIMESTAMP_KEY,
@@ -1612,222 +1101,96 @@ def build_class_activity_summaries(
 
     events = normalize_activity_events(
         rows,
-        sample_rate=
-            sample_rate,
-        timestamp_key=
-            timestamp_key,
+        sample_rate=sample_rate,
+        timestamp_key=timestamp_key,
     )
 
     # ==============================================================
     # OPTIONAL ANALYSIS WINDOW
     # ==============================================================
 
-    if (
-        start
-        is not None
-        or end
-        is not None
-    ):
-
+    if start is not None or end is not None:
         start_dt = (
             None
-
-            if start
-            is None
-
+            if start is None
             else _parse_datetime(
                 start,
-                name=
-                    "start",
+                name="start",
             )
         )
 
         end_dt = (
             None
-
-            if end
-            is None
-
+            if end is None
             else _parse_datetime(
                 end,
-                name=
-                    "end",
+                name="end",
             )
         )
 
-        compatibility = [
-            event.timestamp
+        compatibility = [event.timestamp for event in events]
 
-            for event
-            in events
-        ]
+        if start_dt is not None:
+            compatibility.append(start_dt)
 
-        if (
-            start_dt
-            is not None
-        ):
+        if end_dt is not None:
+            compatibility.append(end_dt)
 
-            compatibility.append(
-                start_dt
-            )
+        _validate_datetime_compatibility(compatibility)
 
-        if (
-            end_dt
-            is not None
-        ):
-
-            compatibility.append(
-                end_dt
-            )
-
-        _validate_datetime_compatibility(
-            compatibility
-        )
-
-        if (
-            start_dt
-            is not None
-            and end_dt
-            is not None
-            and end_dt
-            < start_dt
-        ):
-
-            raise ValueError(
-                "end cannot be earlier than start."
-            )
+        if start_dt is not None and end_dt is not None and end_dt < start_dt:
+            raise ValueError("end cannot be earlier than start.")
 
         events = tuple(
             event
-
-            for event
-            in events
-
+            for event in events
             if (
-                (
-                    start_dt
-                    is None
-                    or event.timestamp
-                    >= start_dt
-                )
-                and (
-                    end_dt
-                    is None
-                    or event.timestamp
-                    < end_dt
-                )
+                (start_dt is None or event.timestamp >= start_dt)
+                and (end_dt is None or event.timestamp < end_dt)
             )
         )
 
-    total_events = (
-        len(
-            events
-        )
-    )
+    total_events = len(events)
 
-    if (
-        total_events
-        == 0
-    ):
-
-        return (
-            ()
-        )
+    if total_events == 0:
+        return ()
 
     grouped: dict[
         str,
-        list[
-            _ActivityEvent
-        ],
-    ] = defaultdict(
-        list
-    )
+        list[_ActivityEvent],
+    ] = defaultdict(list)
 
-    for event in (
-        events
-    ):
+    for event in events:
+        grouped[event.class_label].append(event)
 
-        grouped[
-            event.class_label
-        ].append(
-            event
-        )
+    summaries: list[ClassActivitySummary] = []
 
-    summaries: list[
-        ClassActivitySummary
-    ] = []
+    for class_label in sorted(grouped):
+        class_events = grouped[class_label]
 
-    for class_label in sorted(
-        grouped
-    ):
+        event_count = len(class_events)
 
-        class_events = (
-            grouped[
-                class_label
-            ]
-        )
-
-        event_count = (
-            len(
-                class_events
-            )
-        )
-
-        total_duration_s = math.fsum(
-            event.duration_s
-
-            for event
-            in class_events
-        )
+        total_duration_s = math.fsum(event.duration_s for event in class_events)
 
         confidences = [
-            event.confidence
-
-            for event
-            in class_events
-
-            if (
-                event.confidence
-                is not None
-            )
+            event.confidence for event in class_events if (event.confidence is not None)
         ]
 
         mean_confidence = (
             None
-
             if not confidences
-
-            else float(
-                math.fsum(
-                    confidences
-                )
-                / len(
-                    confidences
-                )
-            )
+            else float(math.fsum(confidences) / len(confidences))
         )
 
-        proportion = (
-            event_count
-            / total_events
-        )
+        proportion = event_count / total_events
 
         summaries.append(
             ClassActivitySummary(
-                class_label=
-                    class_label,
-
-                event_count=
-                    event_count,
-
-                total_duration_s=
-                    total_duration_s,
-
-                mean_confidence=
-                    mean_confidence,
-
-                proportion_of_events=
-                    proportion,
+                class_label=class_label,
+                event_count=event_count,
+                total_duration_s=total_duration_s,
+                mean_confidence=mean_confidence,
+                proportion_of_events=proportion,
             )
         )
 
@@ -1841,17 +1204,13 @@ def build_class_activity_summaries(
     # ==============================================================
 
     summaries.sort(
-        key=
-            lambda summary:
-                (
-                    -summary.event_count,
-                    summary.class_label,
-                )
+        key=lambda summary: (
+            -summary.event_count,
+            summary.class_label,
+        )
     )
 
-    return tuple(
-        summaries
-    )
+    return tuple(summaries)
 
 
 # ======================================================================
@@ -1860,9 +1219,7 @@ def build_class_activity_summaries(
 
 
 def hourly_activity_profile(
-    rows: Iterable[
-        Any
-    ],
+    rows: Iterable[Any],
     *,
     sample_rate: int = DEFAULT_SAMPLE_RATE,
     timestamp_key: str = DEFAULT_TIMESTAMP_KEY,
@@ -1886,35 +1243,16 @@ def hourly_activity_profile(
 
     events = normalize_activity_events(
         rows,
-        sample_rate=
-            sample_rate,
-        timestamp_key=
-            timestamp_key,
+        sample_rate=sample_rate,
+        timestamp_key=timestamp_key,
     )
 
-    counts = {
-        hour:
-            0
+    counts = {hour: 0 for hour in range(24)}
 
-        for hour
-        in range(
-            24
-        )
-    }
+    for event in events:
+        counts[event.timestamp.hour] += 1
 
-    for event in (
-        events
-    ):
-
-        counts[
-            event.timestamp.hour
-        ] += (
-            1
-        )
-
-    return (
-        counts
-    )
+    return counts
 
 
 # ======================================================================
@@ -1923,9 +1261,7 @@ def hourly_activity_profile(
 
 
 def peak_activity_hour(
-    rows: Iterable[
-        Any
-    ],
+    rows: Iterable[Any],
     *,
     sample_rate: int = DEFAULT_SAMPLE_RATE,
     timestamp_key: str = DEFAULT_TIMESTAMP_KEY,
@@ -1943,42 +1279,18 @@ def peak_activity_hour(
 
     events = normalize_activity_events(
         rows,
-        sample_rate=
-            sample_rate,
-        timestamp_key=
-            timestamp_key,
+        sample_rate=sample_rate,
+        timestamp_key=timestamp_key,
     )
 
-    if not (
-        events
-    ):
+    if not (events):
+        return None
 
-        return (
-            None
-        )
+    counts = Counter(event.timestamp.hour for event in events)
 
-    counts = Counter(
-        event.timestamp.hour
+    maximum = max(counts.values())
 
-        for event
-        in events
-    )
-
-    maximum = max(
-        counts.values()
-    )
-
-    return min(
-        hour
-
-        for hour, count
-        in counts.items()
-
-        if (
-            count
-            == maximum
-        )
-    )
+    return min(hour for hour, count in counts.items() if (count == maximum))
 
 
 # ======================================================================
@@ -1987,9 +1299,7 @@ def peak_activity_hour(
 
 
 def build_activity_summary(
-    rows: Iterable[
-        Any
-    ],
+    rows: Iterable[Any],
     *,
     sample_rate: int = DEFAULT_SAMPLE_RATE,
     timestamp_key: str = DEFAULT_TIMESTAMP_KEY,
@@ -2004,20 +1314,15 @@ def build_activity_summary(
 
     sample_rate = _require_positive_int(
         sample_rate,
-        name=
-            "sample_rate",
+        name="sample_rate",
     )
 
-    materialized_rows = tuple(
-        rows
-    )
+    materialized_rows = tuple(rows)
 
     events = normalize_activity_events(
         materialized_rows,
-        sample_rate=
-            sample_rate,
-        timestamp_key=
-            timestamp_key,
+        sample_rate=sample_rate,
+        timestamp_key=timestamp_key,
     )
 
     # ==============================================================
@@ -2026,71 +1331,34 @@ def build_activity_summary(
 
     start_dt = (
         None
-
-        if start
-        is None
-
+        if start is None
         else _parse_datetime(
             start,
-            name=
-                "start",
+            name="start",
         )
     )
 
     end_dt = (
         None
-
-        if end
-        is None
-
+        if end is None
         else _parse_datetime(
             end,
-            name=
-                "end",
+            name="end",
         )
     )
 
-    compatibility = [
-        event.timestamp
+    compatibility = [event.timestamp for event in events]
 
-        for event
-        in events
-    ]
+    if start_dt is not None:
+        compatibility.append(start_dt)
 
-    if (
-        start_dt
-        is not None
-    ):
+    if end_dt is not None:
+        compatibility.append(end_dt)
 
-        compatibility.append(
-            start_dt
-        )
+    _validate_datetime_compatibility(compatibility)
 
-    if (
-        end_dt
-        is not None
-    ):
-
-        compatibility.append(
-            end_dt
-        )
-
-    _validate_datetime_compatibility(
-        compatibility
-    )
-
-    if (
-        start_dt
-        is not None
-        and end_dt
-        is not None
-        and end_dt
-        < start_dt
-    ):
-
-        raise ValueError(
-            "end cannot be earlier than start."
-        )
+    if start_dt is not None and end_dt is not None and end_dt < start_dt:
+        raise ValueError("end cannot be earlier than start.")
 
     # ==============================================================
     # FILTER EVENT ONSETS
@@ -2098,23 +1366,10 @@ def build_activity_summary(
 
     selected_events = tuple(
         event
-
-        for event
-        in events
-
+        for event in events
         if (
-            (
-                start_dt
-                is None
-                or event.timestamp
-                >= start_dt
-            )
-            and (
-                end_dt
-                is None
-                or event.timestamp
-                < end_dt
-            )
+            (start_dt is None or event.timestamp >= start_dt)
+            and (end_dt is None or event.timestamp < end_dt)
         )
     )
 
@@ -2122,142 +1377,62 @@ def build_activity_summary(
     # WINDOW METADATA
     # ==============================================================
 
-    if (
-        start_dt
-        is None
-    ):
-
-        window_start = (
-            selected_events[
-                0
-            ].timestamp
-
-            if selected_events
-
-            else None
-        )
+    if start_dt is None:
+        window_start = selected_events[0].timestamp if selected_events else None
 
     else:
+        window_start = start_dt
 
-        window_start = (
-            start_dt
-        )
-
-    if (
-        end_dt
-        is None
-    ):
-
-        if (
-            selected_events
-        ):
-
-            window_end = max(
-                event.end_time
-
-                for event
-                in selected_events
-            )
+    if end_dt is None:
+        if selected_events:
+            window_end = max(event.end_time for event in selected_events)
 
         else:
-
-            window_end = (
-                None
-            )
+            window_end = None
 
     else:
+        window_end = end_dt
 
-        window_end = (
-            end_dt
-        )
-
-    total_events = (
-        len(
-            selected_events
-        )
-    )
+    total_events = len(selected_events)
 
     window = AnalyticsTimeWindow(
-        start=
-            window_start,
-
-        end=
-            window_end,
-
-        event_count=
-            total_events,
+        start=window_start,
+        end=window_end,
+        event_count=total_events,
     )
 
     # ==============================================================
     # EMPTY DATASET
     # ==============================================================
 
-    if (
-        total_events
-        == 0
-    ):
-
+    if total_events == 0:
         return ActivitySummary(
-            window=
-                window,
-
-            total_events=
-                0,
-
-            total_active_duration_s=
-                0.0,
-
-            mean_event_duration_s=
-                0.0,
-
-            peak_activity_hour=
-                None,
-
-            class_summaries=
-                (),
+            window=window,
+            total_events=0,
+            total_active_duration_s=0.0,
+            mean_event_duration_s=0.0,
+            peak_activity_hour=None,
+            class_summaries=(),
         )
 
     # ==============================================================
     # DURATION
     # ==============================================================
 
-    total_active_duration_s = math.fsum(
-        event.duration_s
+    total_active_duration_s = math.fsum(event.duration_s for event in selected_events)
 
-        for event
-        in selected_events
-    )
-
-    mean_event_duration_s = (
-        total_active_duration_s
-        / total_events
-    )
+    mean_event_duration_s = total_active_duration_s / total_events
 
     # ==============================================================
     # PEAK HOUR
     # ==============================================================
 
-    hour_counts = Counter(
-        event.timestamp.hour
+    hour_counts = Counter(event.timestamp.hour for event in selected_events)
 
-        for event
-        in selected_events
-    )
-
-    maximum_hour_count = max(
-        hour_counts.values()
-    )
+    maximum_hour_count = max(hour_counts.values())
 
     busiest_hour = min(
-        hour
-
-        for hour, count
-        in hour_counts.items()
-
-        if (
-            count
-            == maximum_hour_count
-        )
+        hour for hour, count in hour_counts.items() if (count == maximum_hour_count)
     )
 
     # ==============================================================
@@ -2269,106 +1444,46 @@ def build_activity_summary(
 
     grouped: dict[
         str,
-        list[
-            _ActivityEvent
-        ],
-    ] = defaultdict(
-        list
-    )
+        list[_ActivityEvent],
+    ] = defaultdict(list)
 
-    for event in (
-        selected_events
-    ):
+    for event in selected_events:
+        grouped[event.class_label].append(event)
 
-        grouped[
-            event.class_label
-        ].append(
-            event
-        )
+    class_summaries: list[ClassActivitySummary] = []
 
-    class_summaries: list[
-        ClassActivitySummary
-    ] = []
+    for class_label in sorted(grouped):
+        class_events = grouped[class_label]
 
-    for class_label in sorted(
-        grouped
-    ):
+        class_count = len(class_events)
 
-        class_events = (
-            grouped[
-                class_label
-            ]
-        )
-
-        class_count = (
-            len(
-                class_events
-            )
-        )
-
-        class_duration = math.fsum(
-            event.duration_s
-
-            for event
-            in class_events
-        )
+        class_duration = math.fsum(event.duration_s for event in class_events)
 
         confidences = [
-            event.confidence
-
-            for event
-            in class_events
-
-            if (
-                event.confidence
-                is not None
-            )
+            event.confidence for event in class_events if (event.confidence is not None)
         ]
 
         class_mean_confidence = (
             None
-
             if not confidences
-
-            else float(
-                math.fsum(
-                    confidences
-                )
-                / len(
-                    confidences
-                )
-            )
+            else float(math.fsum(confidences) / len(confidences))
         )
 
         class_summaries.append(
             ClassActivitySummary(
-                class_label=
-                    class_label,
-
-                event_count=
-                    class_count,
-
-                total_duration_s=
-                    class_duration,
-
-                mean_confidence=
-                    class_mean_confidence,
-
-                proportion_of_events=
-                    (
-                        class_count
-                        / total_events
-                    ),
+                class_label=class_label,
+                event_count=class_count,
+                total_duration_s=class_duration,
+                mean_confidence=class_mean_confidence,
+                proportion_of_events=(class_count / total_events),
             )
         )
 
     class_summaries.sort(
-        key=
-            lambda summary:
-                (
-                    -summary.event_count,
-                    summary.class_label,
-                )
+        key=lambda summary: (
+            -summary.event_count,
+            summary.class_label,
+        )
     )
 
     # ==============================================================
@@ -2376,25 +1491,12 @@ def build_activity_summary(
     # ==============================================================
 
     return ActivitySummary(
-        window=
-            window,
-
-        total_events=
-            total_events,
-
-        total_active_duration_s=
-            total_active_duration_s,
-
-        mean_event_duration_s=
-            mean_event_duration_s,
-
-        peak_activity_hour=
-            busiest_hour,
-
-        class_summaries=
-            tuple(
-                class_summaries
-            ),
+        window=window,
+        total_events=total_events,
+        total_active_duration_s=total_active_duration_s,
+        mean_event_duration_s=mean_event_duration_s,
+        peak_activity_hour=busiest_hour,
+        class_summaries=tuple(class_summaries),
     )
 
 
@@ -2416,88 +1518,36 @@ def calculate_event_rate_per_hour(
     logically invalid.
     """
 
-    if (
-        isinstance(
-            event_count,
-            bool,
-        )
-        or not isinstance(
-            event_count,
-            int,
-        )
+    if isinstance(
+        event_count,
+        bool,
+    ) or not isinstance(
+        event_count,
+        int,
     ):
+        raise TypeError("event_count must be an integer.")
 
-        raise TypeError(
-            "event_count must be an integer."
-        )
-
-    if (
-        event_count
-        < 0
-    ):
-
-        raise ValueError(
-            "event_count cannot be negative."
-        )
+    if event_count < 0:
+        raise ValueError("event_count cannot be negative.")
 
     try:
-
-        window_duration_s = float(
-            window_duration_s
-        )
+        window_duration_s = float(window_duration_s)
 
     except (
         TypeError,
         ValueError,
     ) as exc:
+        raise TypeError(("window_duration_s must be numeric.")) from exc
 
-        raise TypeError(
-            (
-                "window_duration_s must "
-                "be numeric."
-            )
-        ) from exc
+    if not math.isfinite(window_duration_s) or window_duration_s < 0.0:
+        raise ValueError(("window_duration_s must be finite and non-negative."))
 
-    if (
-        not math.isfinite(
-            window_duration_s
-        )
-        or window_duration_s
-        < 0.0
-    ):
+    if window_duration_s == 0.0:
+        if event_count == 0:
+            return 0.0
 
         raise ValueError(
-            (
-                "window_duration_s must "
-                "be finite and non-negative."
-            )
+            ("A positive event_count cannot have zero observation duration.")
         )
 
-    if (
-        window_duration_s
-        == 0.0
-    ):
-
-        if (
-            event_count
-            == 0
-        ):
-
-            return (
-                0.0
-            )
-
-        raise ValueError(
-            (
-                "A positive event_count cannot "
-                "have zero observation duration."
-            )
-        )
-
-    return (
-        event_count
-        / (
-            window_duration_s
-            / 3600.0
-        )
-    )
+    return event_count / (window_duration_s / 3600.0)

@@ -10,9 +10,7 @@ import math
 # ======================================================================
 
 
-UINT8_MAX = (
-    0xFF
-)
+UINT8_MAX = 0xFF
 
 
 # ======================================================================
@@ -29,37 +27,19 @@ def _validate_node_id(
     Validate one Protocol-v4 acoustic node identifier.
     """
 
-    if (
-        isinstance(
-            value,
-            bool,
-        )
-        or not isinstance(
-            value,
-            int,
-        )
+    if isinstance(
+        value,
+        bool,
+    ) or not isinstance(
+        value,
+        int,
     ):
+        raise TypeError(f"{name} must be an integer.")
 
-        raise TypeError(
-            f"{name} must be an integer."
-        )
+    value = int(value)
 
-    value = int(
-        value
-    )
-
-    if not (
-        1
-        <= value
-        <= UINT8_MAX
-    ):
-
-        raise ValueError(
-            (
-                f"{name} must lie between "
-                "1 and 255."
-            )
-        )
+    if not (1 <= value <= UINT8_MAX):
+        raise ValueError((f"{name} must lie between 1 and 255."))
 
     return value
 
@@ -74,33 +54,16 @@ def _validate_finite_float(
     """
 
     try:
-
-        value = float(
-            value
-        )
+        value = float(value)
 
     except (
         TypeError,
         ValueError,
     ) as exc:
+        raise TypeError((f"{name} must be a numeric value.")) from exc
 
-        raise TypeError(
-            (
-                f"{name} must be "
-                "a numeric value."
-            )
-        ) from exc
-
-    if not math.isfinite(
-        value
-    ):
-
-        raise ValueError(
-            (
-                f"{name} must be "
-                "finite."
-            )
-        )
+    if not math.isfinite(value):
+        raise ValueError((f"{name} must be finite."))
 
     return value
 
@@ -127,42 +90,19 @@ def _validate_point(
             list,
         ),
     ):
+        raise TypeError((f"{name} must be a 2-D coordinate."))
 
-        raise TypeError(
-            (
-                f"{name} must be a "
-                "2-D coordinate."
-            )
-        )
+    if len(point) != 2:
+        raise ValueError((f"{name} must contain exactly two coordinates."))
 
-    if (
-        len(
-            point
-        )
-        != 2
-    ):
-
-        raise ValueError(
-            (
-                f"{name} must contain "
-                "exactly two coordinates."
-            )
-        )
-
-    x = (
-        _validate_finite_float(
-            point[0],
-            name=
-                f"{name}[0]",
-        )
+    x = _validate_finite_float(
+        point[0],
+        name=f"{name}[0]",
     )
 
-    y = (
-        _validate_finite_float(
-            point[1],
-            name=
-                f"{name}[1]",
-        )
+    y = _validate_finite_float(
+        point[1],
+        name=f"{name}[1]",
     )
 
     return (
@@ -232,93 +172,48 @@ class TDOAMeasurement:
         # NODE IDS
         # ==============================================================
 
-        node_a = (
-            _validate_node_id(
-                self.node_a,
-                name=
-                    "node_a",
-            )
+        node_a = _validate_node_id(
+            self.node_a,
+            name="node_a",
         )
 
-        node_b = (
-            _validate_node_id(
-                self.node_b,
-                name=
-                    "node_b",
-            )
+        node_b = _validate_node_id(
+            self.node_b,
+            name="node_b",
         )
 
-        if (
-            node_a
-            == node_b
-        ):
-
-            raise ValueError(
-                (
-                    "TDOA node_a and node_b "
-                    "must refer to different nodes."
-                )
-            )
+        if node_a == node_b:
+            raise ValueError(("TDOA node_a and node_b must refer to different nodes."))
 
         # ==============================================================
         # NUMERIC VALUES
         # ==============================================================
 
-        delay_seconds = (
-            _validate_finite_float(
-                self.delay_seconds,
-                name=
-                    "delay_seconds",
-            )
+        delay_seconds = _validate_finite_float(
+            self.delay_seconds,
+            name="delay_seconds",
         )
 
-        delay_samples = (
-            _validate_finite_float(
-                self.delay_samples,
-                name=
-                    "delay_samples",
-            )
+        delay_samples = _validate_finite_float(
+            self.delay_samples,
+            name="delay_samples",
         )
 
-        peak_ratio = (
-            _validate_finite_float(
-                self.peak_ratio,
-                name=
-                    "peak_ratio",
-            )
+        peak_ratio = _validate_finite_float(
+            self.peak_ratio,
+            name="peak_ratio",
         )
 
-        max_delay_seconds = (
-            _validate_finite_float(
-                self.max_delay_seconds,
-                name=
-                    "max_delay_seconds",
-            )
+        max_delay_seconds = _validate_finite_float(
+            self.max_delay_seconds,
+            name="max_delay_seconds",
         )
 
-        if (
-            peak_ratio
-            < 0.0
-        ):
+        if peak_ratio < 0.0:
+            raise ValueError(("peak_ratio cannot be negative."))
 
-            raise ValueError(
-                (
-                    "peak_ratio cannot "
-                    "be negative."
-                )
-            )
-
-        if (
-            max_delay_seconds
-            < 0.0
-        ):
-
-            raise ValueError(
-                (
-                    "max_delay_seconds cannot "
-                    "be negative."
-                )
-            )
+        if max_delay_seconds < 0.0:
+            raise ValueError(("max_delay_seconds cannot be negative."))
 
         # ==============================================================
         # PHYSICAL DELAY CONSISTENCY
@@ -330,27 +225,14 @@ class TDOAMeasurement:
 
         numerical_tolerance = max(
             1e-12,
-            max_delay_seconds
-            * 1e-9,
+            max_delay_seconds * 1e-9,
         )
 
-        if (
-            self.valid
-            and abs(
-                delay_seconds
-            )
-            > (
-                max_delay_seconds
-                + numerical_tolerance
-            )
+        if self.valid and abs(delay_seconds) > (
+            max_delay_seconds + numerical_tolerance
         ):
-
             raise ValueError(
-                (
-                    "Valid TDOA delay exceeds "
-                    "the configured physical "
-                    "maximum delay."
-                )
+                ("Valid TDOA delay exceeds the configured physical maximum delay.")
             )
 
         # ==============================================================
@@ -396,17 +278,13 @@ class TDOAMeasurement:
         object.__setattr__(
             self,
             "valid",
-            bool(
-                self.valid
-            ),
+            bool(self.valid),
         )
 
         object.__setattr__(
             self,
             "reason",
-            str(
-                self.reason
-            ),
+            str(self.reason),
         )
 
 
@@ -446,44 +324,25 @@ def pair_distance(
         Pair separation in meters.
     """
 
-    a_x, a_y = (
-        _validate_point(
-            a,
-            name=
-                "a",
-        )
+    a_x, a_y = _validate_point(
+        a,
+        name="a",
     )
 
-    b_x, b_y = (
-        _validate_point(
-            b,
-            name=
-                "b",
-        )
+    b_x, b_y = _validate_point(
+        b,
+        name="b",
     )
 
     distance = math.hypot(
-        a_x
-        - b_x,
-
-        a_y
-        - b_y,
+        a_x - b_x,
+        a_y - b_y,
     )
 
-    if not math.isfinite(
-        distance
-    ):
+    if not math.isfinite(distance):
+        raise ValueError(("Microphone-pair distance is not finite."))
 
-        raise ValueError(
-            (
-                "Microphone-pair distance "
-                "is not finite."
-            )
-        )
-
-    return float(
-        distance
-    )
+    return float(distance)
 
 
 # ======================================================================
@@ -527,49 +386,22 @@ def physical_max_delay(
     This bound is therefore used to restrict GCC-PHAT peak search.
     """
 
-    speed_of_sound_mps = (
-        _validate_finite_float(
-            speed_of_sound_mps,
-            name=
-                "speed_of_sound_mps",
-        )
+    speed_of_sound_mps = _validate_finite_float(
+        speed_of_sound_mps,
+        name="speed_of_sound_mps",
     )
 
-    if (
-        speed_of_sound_mps
-        <= 0.0
-    ):
+    if speed_of_sound_mps <= 0.0:
+        raise ValueError(("speed_of_sound_mps must be greater than 0."))
 
-        raise ValueError(
-            (
-                "speed_of_sound_mps must "
-                "be greater than 0."
-            )
-        )
-
-    distance_m = (
-        pair_distance(
-            a,
-            b,
-        )
+    distance_m = pair_distance(
+        a,
+        b,
     )
 
-    maximum_delay = (
-        distance_m
-        / speed_of_sound_mps
-    )
+    maximum_delay = distance_m / speed_of_sound_mps
 
-    if not math.isfinite(
-        maximum_delay
-    ):
+    if not math.isfinite(maximum_delay):
+        raise ValueError(("Calculated physical maximum delay is not finite."))
 
-        raise ValueError(
-            (
-                "Calculated physical maximum "
-                "delay is not finite."
-            )
-        )
-
-    return float(
-        maximum_delay
-    )
+    return float(maximum_delay)

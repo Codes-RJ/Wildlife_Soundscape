@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "profile": "wildlife_array_v1",
+  "dataset_id": "field-site-a-2026",
+  "synthetic": false,
+  "tasks": ["event_detection", "classification", "localization", "ecoacoustics"],
+  "audio_format": {
+    "sample_rate_hz": 48000,
+    "channels": 1,
+    "sample_width_bytes": 2,
+    "encoding": "PCM_S16LE"
+  },
+  "required_nodes": [1, 2, 3],
+  "capture_contract": {
+    "transport_protocol_version": 4,
+    "frames_per_block": 1024,
+    "alignment_basis": "sample_index",
+    "sync_tolerance_samples": 10
+  },
+  "taxonomy": {
+    "authority": "eBird/Clements",
+    "version": "2024"
+  },
+  "tdoa_calibration": {
+    "status": "measured",
+    "reference_node": 1,
+    "node_biases_seconds": {"1": 0.0, "2": 0.00002, "3": -0.00001},
+    "rms_consistency_error_samples": 0.45
+  },
+  "license": {
+    "name": "Project research data terms",
+    "url": "https://example.org/dataset-license"
+  },
+  "records": [
+    {
+      "record_id": "site-a-20260907-trial-001",
+      "group_id": "site-a-20260907-session-01",
+      "split": "test",
+      "recording_mode": "continuous",
+      "started_at": "2026-09-07T06:00:00+05:30",
+      "annotation_status": "verified",
+      "labels": ["Buceros bicornis"],
+      "audio_paths": {
+        "1": "audio/site-a/trial-001/node_1.wav",
+        "2": "audio/site-a/trial-001/node_2.wav",
+        "3": "audio/site-a/trial-001/node_3.wav"
+      },
+      "node_positions_m": {
+        "1": [-0.5, -0.288675, 1.2],
+        "2": [0.5, -0.288675, 1.2],
+        "3": [0.0, 0.57735, 1.2]
+      },
+      "source_position_m": [0.2, 0.3, 1.2],
+      "source_id": "playback-call-001",
+      "environment": {
+        "temperature_c": 24.5,
+        "humidity_percent": 71.0,
+        "pressure_hpa": 1008.2
+      }
+    }
+  ]
+}

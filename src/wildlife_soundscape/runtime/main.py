@@ -21,9 +21,7 @@ from wildlife_soundscape.runtime.server import (
 # ======================================================================
 
 
-logger = logging.getLogger(
-    __name__
-)
+logger = logging.getLogger(__name__)
 
 
 # ======================================================================
@@ -38,12 +36,7 @@ def configure_logging() -> None:
 
     logging.basicConfig(
         level=logging.INFO,
-        format=(
-            "%(asctime)s | "
-            "%(levelname)-8s | "
-            "%(name)s | "
-            "%(message)s"
-        ),
+        format=("%(asctime)s | %(levelname)-8s | %(name)s | %(message)s"),
     )
 
 
@@ -60,14 +53,9 @@ def _format_session_id(
     """
 
     if session_id is None:
+        return "NONE"
 
-        return (
-            "NONE"
-        )
-
-    return (
-        f"0x{session_id:08X}"
-    )
+    return f"0x{session_id:08X}"
 
 
 def _load_json(
@@ -80,7 +68,6 @@ def _load_json(
     """
 
     if value is None:
-
         return None
 
     if isinstance(
@@ -94,20 +81,15 @@ def _load_json(
             bool,
         ),
     ):
-
         return value
 
     try:
-
-        return json.loads(
-            value
-        )
+        return json.loads(value)
 
     except (
         TypeError,
         ValueError,
     ):
-
         return None
 
 
@@ -122,30 +104,18 @@ def _format_optional_float(
     """
 
     if value is None:
-
-        return (
-            "N/A"
-        )
+        return "N/A"
 
     try:
-
-        number = float(
-            value
-        )
+        number = float(value)
 
     except (
         TypeError,
         ValueError,
     ):
+        return str(value)
 
-        return str(
-            value
-        )
-
-    return (
-        f"{number:.{precision}f}"
-        f"{suffix}"
-    )
+    return f"{number:.{precision}f}{suffix}"
 
 
 # ======================================================================
@@ -169,24 +139,14 @@ def print_classification_status(
         heuristic fallback
     """
 
-    classification_config = (
-        server.config.classification
-    )
+    classification_config = server.config.classification
 
     # ==================================================================
     # DISABLED
     # ==================================================================
 
-    if not (
-        classification_config.enabled
-    ):
-
-        print(
-            (
-                f"{indent}"
-                "Classification: DISABLED"
-            )
-        )
+    if not (classification_config.enabled):
+        print((f"{indent}Classification: DISABLED"))
 
         return
 
@@ -194,60 +154,28 @@ def print_classification_status(
     # CONFIGURED
     # ==================================================================
 
-    configured_name = (
-        classification_config.backend
-        .strip()
-        .lower()
-    )
+    configured_name = classification_config.backend.strip().lower()
 
-    print(
-        (
-            f"{indent}"
-            "Classification: ENABLED "
-            f"| configured={configured_name}"
-        )
-    )
+    print((f"{indent}Classification: ENABLED | configured={configured_name}"))
 
     # ==================================================================
     # ACTIVE
     # ==================================================================
 
-    backend = (
-        server.events.classifier_backend
-    )
+    backend = server.events.classifier_backend
 
     if backend is None:
-
-        print(
-            (
-                f"{indent}"
-                "                "
-                "active=NONE"
-            )
-        )
+        print((f"{indent}                active=NONE"))
 
         return
 
-    print(
-        (
-            f"{indent}"
-            "                "
-            f"active={backend.name} "
-            f"v{backend.version}"
-        )
-    )
+    print((f"{indent}                active={backend.name} v{backend.version}"))
 
     # ==================================================================
     # FALLBACK
     # ==================================================================
 
-    if (
-        configured_name
-        != "heuristic"
-        and backend.name
-        == "heuristic_backend"
-    ):
-
+    if configured_name != "heuristic" and backend.name == "heuristic_backend":
         print(
             (
                 f"{indent}"
@@ -271,85 +199,48 @@ def print_status(
     state.
     """
 
-    config = (
-        server.config
-    )
+    config = server.config
 
+    print("\n" + "=" * 96)
+
+    print("WILDLIFE SOUNDSCAPE RECEIVER STATUS")
+
+    print((f"Active session: {_format_session_id(server.active_session_id)}"))
+
+    print((f"Detected events this session: {server.events.completed_events}"))
+
+    processing = server.processing.snapshot()
     print(
-        "\n"
-        + "="
-        * 96
+        "Processing: "
+        f"queued={processing['queue_depth']} "
+        f"accepted={processing['accepted']} "
+        f"dropped={processing['dropped']} "
+        f"max_latency={processing['max_latency_seconds']:.3f}s"
     )
 
-    print(
-        "WILDLIFE SOUNDSCAPE RECEIVER STATUS"
-    )
+    print_classification_status(server)
 
-    print(
-        (
-            "Active session: "
-            f"{_format_session_id(server.active_session_id)}"
-        )
-    )
-
-    print(
-        (
-            "Detected events this session: "
-            f"{server.events.completed_events}"
-        )
-    )
-
-    print_classification_status(
-        server
-    )
-
-    print(
-        "="
-        * 96
-    )
+    print("=" * 96)
 
     # ==================================================================
     # NODE STATUS
     # ==================================================================
 
-    for node_id in sorted(
-        config.expected_nodes
-    ):
-
-        connection = (
-            server.connections.get(
-                node_id
-            )
-        )
+    for node_id in sorted(config.expected_nodes):
+        connection = server.connections.get(node_id)
 
         if connection is None:
-
-            print(
-                f"Node {node_id}: OFFLINE"
-            )
+            print(f"Node {node_id}: OFFLINE")
 
             continue
 
-        snapshot = (
-            connection.state.snapshot()
-        )
+        snapshot = connection.state.snapshot()
 
-        heartbeat = (
-            snapshot.latest_heartbeat
-        )
+        heartbeat = snapshot.latest_heartbeat
 
-        hello = (
-            snapshot.hello
-        )
+        hello = snapshot.hello
 
-        role = (
-            "MASTER"
-            if (
-                hello is not None
-                and hello.master_node
-            )
-            else "SLAVE"
-        )
+        role = "MASTER" if (hello is not None and hello.master_node) else "SLAVE"
 
         print(
             (
@@ -384,7 +275,6 @@ def print_status(
         )
 
         if hello is not None:
-
             print(
                 (
                     "        "
@@ -396,7 +286,6 @@ def print_status(
             )
 
         if heartbeat is not None:
-
             print(
                 (
                     "        "
@@ -410,24 +299,10 @@ def print_status(
                 )
             )
 
-            if (
-                heartbeat.bme_available
-                is not None
-            ):
+            if heartbeat.bme_available is not None:
+                print((f"        BME280 available={heartbeat.bme_available}"))
 
-                print(
-                    (
-                        "        "
-                        f"BME280 available="
-                        f"{heartbeat.bme_available}"
-                    )
-                )
-
-            if (
-                heartbeat.sync_received
-                is not None
-            ):
-
+            if heartbeat.sync_received is not None:
                 print(
                     (
                         "        "
@@ -438,12 +313,9 @@ def print_status(
                     )
                 )
 
-        environment = (
-            snapshot.latest_environment
-        )
+        environment = snapshot.latest_environment
 
         if environment is not None:
-
             print(
                 (
                     "        "
@@ -454,12 +326,9 @@ def print_status(
                 )
             )
 
-        sync = (
-            snapshot.latest_sync
-        )
+        sync = snapshot.latest_sync
 
         if sync is not None:
-
             print(
                 (
                     "        "
@@ -475,28 +344,15 @@ def print_status(
     # ==================================================================
 
     try:
-
-        aligned = (
-            server.streams.latest_aligned_blocks()
-        )
+        aligned = server.streams.latest_aligned_blocks()
 
     except Exception as exc:
+        aligned = None
 
-        aligned = (
-            None
-        )
-
-        print(
-            (
-                "Aligned latest block: "
-                f"error ({exc})"
-            )
-        )
+        print((f"Aligned latest block: error ({exc})"))
 
     else:
-
         if aligned is not None:
-
             print(
                 (
                     "Aligned latest block "
@@ -507,35 +363,18 @@ def print_status(
             )
 
         else:
-
-            print(
-                (
-                    "Aligned latest block: "
-                    "not available"
-                )
-            )
+            print(("Aligned latest block: not available"))
 
     # ==================================================================
     # LATEST DSP
     # ==================================================================
 
-    features = (
-        server.events.last_features
-    )
+    features = server.events.last_features
 
     if features is not None:
+        print("-" * 96)
 
-        print(
-            "-"
-            * 96
-        )
-
-        snr_text = (
-            f"{features.snr_db:.2f} dB"
-            if features.snr_db
-            is not None
-            else "N/A"
-        )
+        snr_text = f"{features.snr_db:.2f} dB" if features.snr_db is not None else "N/A"
 
         print(
             (
@@ -577,16 +416,10 @@ def print_status(
     # LATEST CLASSIFICATION
     # ==================================================================
 
-    classification = (
-        server.events.last_classification
-    )
+    classification = server.events.last_classification
 
     if classification is not None:
-
-        print(
-            "-"
-            * 96
-        )
+        print("-" * 96)
 
         print(
             (
@@ -599,16 +432,10 @@ def print_status(
             )
         )
 
-        if (
-            classification.second_label
-            is not None
-        ):
-
-            second_confidence = (
-                _format_optional_float(
-                    classification.second_confidence,
-                    precision=3,
-                )
+        if classification.second_label is not None:
+            second_confidence = _format_optional_float(
+                classification.second_confidence,
+                precision=3,
             )
 
             print(
@@ -629,45 +456,18 @@ def print_status(
             )
         )
 
-        if (
-            classification.reasons
-        ):
+        if classification.reasons:
+            print("            reasons:")
 
-            print(
-                "            reasons:"
-            )
+            for reason in classification.reasons:
+                print((f"              - {reason}"))
 
-            for reason in (
-                classification.reasons
-            ):
+    elif not (server.events.classification_enabled):
+        print("-" * 96)
 
-                print(
-                    (
-                        "              - "
-                        f"{reason}"
-                    )
-                )
+        print(("LATEST CLASSIFICATION | disabled"))
 
-    elif not (
-        server.events.classification_enabled
-    ):
-
-        print(
-            "-"
-            * 96
-        )
-
-        print(
-            (
-                "LATEST CLASSIFICATION "
-                "| disabled"
-            )
-        )
-
-    print(
-        "="
-        * 96
-    )
+    print("=" * 96)
 
 
 # ======================================================================
@@ -686,47 +486,23 @@ def print_event_row(
     # POSITION
     # ==================================================================
 
-    if (
-        row["x_m"] is None
-        or row["y_m"] is None
-    ):
-
-        position = (
-            "n/a"
-        )
+    if row["x_m"] is None or row["y_m"] is None:
+        position = "n/a"
 
     else:
-
-        position = (
-            f"({row['x_m']:.3f}, "
-            f"{row['y_m']:.3f}) m"
-        )
+        position = f"({row['x_m']:.3f}, {row['y_m']:.3f}) m"
 
     # ==================================================================
     # BEST NODE
     # ==================================================================
 
-    best_node = (
-        "n/a"
-        if row["best_node_id"]
-        is None
-        else str(
-            row["best_node_id"]
-        )
-    )
+    best_node = "n/a" if row["best_node_id"] is None else str(row["best_node_id"])
 
     # ==================================================================
     # SNR
     # ==================================================================
 
-    snr = (
-        "n/a"
-        if row["snr_db"]
-        is None
-        else (
-            f"{row['snr_db']:.2f} dB"
-        )
-    )
+    snr = "n/a" if row["snr_db"] is None else (f"{row['snr_db']:.2f} dB")
 
     # ==================================================================
     # DOMINANT FREQUENCY
@@ -734,51 +510,24 @@ def print_event_row(
 
     dominant = (
         "n/a"
-        if row[
-            "dominant_frequency_hz"
-        ] is None
-        else (
-            f"{row['dominant_frequency_hz']:.1f} Hz"
-        )
+        if row["dominant_frequency_hz"] is None
+        else (f"{row['dominant_frequency_hz']:.1f} Hz")
     )
 
     # ==================================================================
     # CLASSIFICATION
     # ==================================================================
 
-    if (
-        row[
-            "classification_label"
-        ]
-        is None
-    ):
-
-        classification_text = (
-            "unclassified"
-        )
+    if row["classification_label"] is None:
+        classification_text = "unclassified"
 
     else:
+        confidence = row["classification_confidence"]
 
-        confidence = (
-            row[
-                "classification_confidence"
-            ]
-        )
-
-        classification_text = (
-            str(
-                row[
-                    "classification_label"
-                ]
-            )
-            .upper()
-        )
+        classification_text = str(row["classification_label"]).upper()
 
         if confidence is not None:
-
-            classification_text += (
-                f" ({float(confidence):.3f})"
-            )
+            classification_text += f" ({float(confidence):.3f})"
 
     # ==================================================================
     # OUTPUT
@@ -818,29 +567,16 @@ async def status_loop(
     """
 
     while True:
-
-        await asyncio.sleep(
-            server.config.print_status_every_s
-        )
+        await asyncio.sleep(server.config.print_status_every_s)
 
         try:
-
-            print_status(
-                server
-            )
+            print_status(server)
 
         except asyncio.CancelledError:
-
             raise
 
         except Exception:
-
-            logger.exception(
-                (
-                    "Periodic status display "
-                    "failed"
-                )
-            )
+            logger.exception(("Periodic status display failed"))
 
 
 # ======================================================================
@@ -855,9 +591,7 @@ def print_localization_result(
     Print one manual GCC-PHAT/TDOA localization result.
     """
 
-    position = (
-        result.position
-    )
+    position = result.position
 
     print(
         (
@@ -868,37 +602,14 @@ def print_localization_result(
         )
     )
 
-    print(
-        (
-            "Residual RMS: "
-            f"{position.residual_rms_meters:.4f} "
-            "m-equivalent"
-        )
-    )
+    print((f"Residual RMS: {position.residual_rms_meters:.4f} m-equivalent"))
 
-    print(
-        (
-            "Speed of sound: "
-            f"{result.speed_of_sound_mps:.2f} m/s"
-        )
-    )
+    print((f"Speed of sound: {result.speed_of_sound_mps:.2f} m/s"))
 
-    print(
-        "Pairwise TDOA measurements:"
-    )
+    print("Pairwise TDOA measurements:")
 
-    for measurement in (
-        result.measurements
-    ):
-
-        state = (
-            "OK"
-            if measurement.valid
-            else (
-                "REJECT "
-                f"({measurement.reason})"
-            )
-        )
+    for measurement in result.measurements:
+        state = "OK" if measurement.valid else (f"REJECT ({measurement.reason})")
 
         print(
             (
@@ -928,295 +639,103 @@ def print_event_details(
     Print complete persisted information for one acoustic event.
     """
 
-    print(
-        "\n"
-        + "-"
-        * 96
-    )
+    print("\n" + "-" * 96)
 
-    print(
-        "EVENT SUMMARY"
-    )
+    print("EVENT SUMMARY")
 
-    print(
-        "-"
-        * 96
-    )
+    print("-" * 96)
 
-    print_event_row(
-        row
-    )
+    print_event_row(row)
 
     # ==================================================================
     # CORE EVENT
     # ==================================================================
 
-    print(
-        "\nCore Event:"
-    )
+    print("\nCore Event:")
 
-    print(
-        (
-            "  Detector event ID: "
-            f"{row['detector_event_id']}"
-        )
-    )
+    print((f"  Detector event ID: {row['detector_event_id']}"))
 
-    print(
-        (
-            "  Session ID: "
-            f"{_format_session_id(row['session_id'])}"
-        )
-    )
+    print((f"  Session ID: {_format_session_id(row['session_id'])}"))
 
-    print(
-        (
-            "  Start sample: "
-            f"{row['start_sample']}"
-        )
-    )
+    print((f"  Start sample: {row['start_sample']}"))
 
-    print(
-        (
-            "  End sample: "
-            f"{row['end_sample']}"
-        )
-    )
+    print((f"  End sample: {row['end_sample']}"))
 
-    print(
-        (
-            "  Trigger nodes: "
-            f"{row['trigger_nodes']}"
-        )
-    )
+    print((f"  Trigger nodes: {row['trigger_nodes']}"))
 
-    if (
-        row[
-            "peak_rms_dbfs"
-        ]
-        is not None
-    ):
+    if row["peak_rms_dbfs"] is not None:
+        print((f"  Peak RMS: {row['peak_rms_dbfs']:.2f} dBFS"))
 
-        print(
-            (
-                "  Peak RMS: "
-                f"{row['peak_rms_dbfs']:.2f} dBFS"
-            )
-        )
-
-    print(
-        (
-            "  Best DSP node: "
-            f"{row['best_node_id']}"
-        )
-    )
+    print((f"  Best DSP node: {row['best_node_id']}"))
 
     # ==================================================================
     # ENVIRONMENT
     # ==================================================================
 
-    if (
-        row[
-            "temperature_c"
-        ]
-        is not None
-    ):
+    if row["temperature_c"] is not None:
+        print("\nEnvironment:")
 
-        print(
-            "\nEnvironment:"
-        )
+        print((f"  Temperature: {row['temperature_c']:.2f} C"))
 
-        print(
-            (
-                "  Temperature: "
-                f"{row['temperature_c']:.2f} C"
-            )
-        )
+        print((f"  Humidity: {row['humidity_percent']:.2f}%"))
 
-        print(
-            (
-                "  Humidity: "
-                f"{row['humidity_percent']:.2f}%"
-            )
-        )
-
-        print(
-            (
-                "  Pressure: "
-                f"{row['pressure_hpa']:.2f} hPa"
-            )
-        )
+        print((f"  Pressure: {row['pressure_hpa']:.2f} hPa"))
 
     # ==================================================================
     # LOCALIZATION
     # ==================================================================
 
-    print(
-        "\nLocalization:"
-    )
+    print("\nLocalization:")
 
-    if (
-        row["x_m"] is None
-        or row["y_m"] is None
-    ):
-
-        print(
-            "  Localization unavailable"
-        )
+    if row["x_m"] is None or row["y_m"] is None:
+        print("  Localization unavailable")
 
     else:
+        print((f"  Position: x={row['x_m']:.4f} m, y={row['y_m']:.4f} m"))
 
-        print(
-            (
-                "  Position: "
-                f"x={row['x_m']:.4f} m, "
-                f"y={row['y_m']:.4f} m"
-            )
-        )
+        print((f"  Success: {bool(row['localization_success'])}"))
 
-        print(
-            (
-                "  Success: "
-                f"{bool(row['localization_success'])}"
-            )
-        )
+        if row["localization_residual_m"] is not None:
+            print((f"  Residual RMS: {row['localization_residual_m']:.5f} m"))
 
-        if (
-            row[
-                "localization_residual_m"
-            ]
-            is not None
-        ):
-
-            print(
-                (
-                    "  Residual RMS: "
-                    f"{row['localization_residual_m']:.5f} m"
-                )
-            )
-
-        if (
-            row[
-                "speed_of_sound_mps"
-            ]
-            is not None
-        ):
-
-            print(
-                (
-                    "  Speed of sound: "
-                    f"{row['speed_of_sound_mps']:.3f} m/s"
-                )
-            )
+        if row["speed_of_sound_mps"] is not None:
+            print((f"  Speed of sound: {row['speed_of_sound_mps']:.3f} m/s"))
 
     # ==================================================================
     # DSP FEATURES
     # ==================================================================
 
-    if (
-        row[
-            "duration_s"
-        ]
-        is not None
-    ):
+    if row["duration_s"] is not None:
+        print("\nDSP Features:")
 
-        print(
-            "\nDSP Features:"
-        )
+        print((f"  Source node: {row['feature_source_node_id']}"))
 
-        print(
-            (
-                "  Source node: "
-                f"{row['feature_source_node_id']}"
-            )
-        )
+        print((f"  Duration: {row['duration_s']:.3f} s"))
 
-        print(
-            (
-                "  Duration: "
-                f"{row['duration_s']:.3f} s"
-            )
-        )
+        print((f"  RMS: {row['rms']:.6f}"))
 
-        print(
-            (
-                "  RMS: "
-                f"{row['rms']:.6f}"
-            )
-        )
+        print((f"  Peak amplitude: {row['peak_amplitude']:.6f}"))
 
-        print(
-            (
-                "  Peak amplitude: "
-                f"{row['peak_amplitude']:.6f}"
-            )
-        )
+        print((f"  Crest factor: {row['crest_factor']:.3f}"))
 
-        print(
-            (
-                "  Crest factor: "
-                f"{row['crest_factor']:.3f}"
-            )
-        )
+        print((f"  Zero-crossing rate: {row['zero_crossing_rate']:.6f}"))
 
-        print(
-            (
-                "  Zero-crossing rate: "
-                f"{row['zero_crossing_rate']:.6f}"
-            )
-        )
+        print((f"  Dominant frequency: {row['dominant_frequency_hz']:.2f} Hz"))
 
-        print(
-            (
-                "  Dominant frequency: "
-                f"{row['dominant_frequency_hz']:.2f} Hz"
-            )
-        )
+        print((f"  Spectral centroid: {row['spectral_centroid_hz']:.2f} Hz"))
 
-        print(
-            (
-                "  Spectral centroid: "
-                f"{row['spectral_centroid_hz']:.2f} Hz"
-            )
-        )
+        print((f"  Spectral bandwidth: {row['spectral_bandwidth_hz']:.2f} Hz"))
 
-        print(
-            (
-                "  Spectral bandwidth: "
-                f"{row['spectral_bandwidth_hz']:.2f} Hz"
-            )
-        )
+        print((f"  Spectral rolloff: {row['spectral_rolloff_hz']:.2f} Hz"))
 
-        print(
-            (
-                "  Spectral rolloff: "
-                f"{row['spectral_rolloff_hz']:.2f} Hz"
-            )
-        )
+        print((f"  Spectral flatness: {row['spectral_flatness']:.6f}"))
 
-        print(
-            (
-                "  Spectral flatness: "
-                f"{row['spectral_flatness']:.6f}"
-            )
-        )
-
-        print(
-            (
-                "  Spectral flux: "
-                f"{row['spectral_flux']:.6f}"
-            )
-        )
+        print((f"  Spectral flux: {row['spectral_flux']:.6f}"))
 
         print(
             (
                 "  SNR: "
-                + (
-                    f"{row['snr_db']:.2f} dB"
-                    if row["snr_db"]
-                    is not None
-                    else "N/A"
-                )
+                + (f"{row['snr_db']:.2f} dB" if row["snr_db"] is not None else "N/A")
             )
         )
 
@@ -1224,218 +743,84 @@ def print_event_details(
         # MFCC
         # --------------------------------------------------------------
 
-        mfcc_mean = (
-            _load_json(
-                row[
-                    "mfcc_mean_json"
-                ]
-            )
-        )
+        mfcc_mean = _load_json(row["mfcc_mean_json"])
 
-        mfcc_std = (
-            _load_json(
-                row[
-                    "mfcc_std_json"
-                ]
-            )
-        )
+        mfcc_std = _load_json(row["mfcc_std_json"])
 
-        if (
-            mfcc_mean
-            is not None
-        ):
+        if mfcc_mean is not None:
+            print((f"  MFCC mean: {mfcc_mean}"))
 
-            print(
-                (
-                    "  MFCC mean: "
-                    f"{mfcc_mean}"
-                )
-            )
-
-        if (
-            mfcc_std
-            is not None
-        ):
-
-            print(
-                (
-                    "  MFCC std: "
-                    f"{mfcc_std}"
-                )
-            )
+        if mfcc_std is not None:
+            print((f"  MFCC std: {mfcc_std}"))
 
     else:
-
-        print(
-            "\nDSP Features: unavailable"
-        )
+        print("\nDSP Features: unavailable")
 
     # ==================================================================
     # CLASSIFICATION
     # ==================================================================
 
-    if (
-        row[
-            "classification_label"
-        ]
-        is not None
-    ):
+    if row["classification_label"] is not None:
+        print("\nClassification:")
 
-        print(
-            "\nClassification:"
-        )
+        print((f"  Label: {str(row['classification_label']).upper()}"))
 
-        print(
-            (
-                "  Label: "
-                f"{str(row['classification_label']).upper()}"
-            )
-        )
-
-        if (
-            row[
-                "classification_confidence"
-            ]
-            is not None
-        ):
-
-            print(
-                (
-                    "  Confidence: "
-                    f"{row['classification_confidence']:.3f}"
-                )
-            )
+        if row["classification_confidence"] is not None:
+            print((f"  Confidence: {row['classification_confidence']:.3f}"))
 
         # --------------------------------------------------------------
         # SECOND CANDIDATE
         # --------------------------------------------------------------
 
-        if (
-            row[
-                "classification_second_label"
-            ]
-            is not None
-        ):
+        if row["classification_second_label"] is not None:
+            second_confidence = row["classification_second_confidence"]
 
-            second_confidence = (
-                row[
-                    "classification_second_confidence"
-                ]
-            )
+            second_text = str(row["classification_second_label"]).upper()
 
-            second_text = (
-                str(
-                    row[
-                        "classification_second_label"
-                    ]
-                )
-                .upper()
-            )
+            if second_confidence is not None:
+                second_text += f" ({float(second_confidence):.3f})"
 
-            if (
-                second_confidence
-                is not None
-            ):
-
-                second_text += (
-                    f" ({float(second_confidence):.3f})"
-                )
-
-            print(
-                (
-                    "  Second candidate: "
-                    f"{second_text}"
-                )
-            )
+            print((f"  Second candidate: {second_text}"))
 
         # --------------------------------------------------------------
         # DECISION MARGIN
         # --------------------------------------------------------------
 
-        if (
-            row[
-                "classification_margin"
-            ]
-            is not None
-        ):
-
-            print(
-                (
-                    "  Decision margin: "
-                    f"{row['classification_margin']:.3f}"
-                )
-            )
+        if row["classification_margin"] is not None:
+            print((f"  Decision margin: {row['classification_margin']:.3f}"))
 
         # --------------------------------------------------------------
         # CLASSIFIER IDENTITY
         # --------------------------------------------------------------
 
-        classifier_name = (
-            row[
-                "classifier_name"
-            ]
-        )
+        classifier_name = row["classifier_name"]
 
-        classifier_version = (
-            row[
-                "classifier_version"
-            ]
-        )
+        classifier_version = row["classifier_version"]
 
-        if (
-            classifier_name
-            is not None
-        ):
+        if classifier_name is not None:
+            classifier_text = str(classifier_name)
 
-            classifier_text = str(
-                classifier_name
-            )
+            if classifier_version is not None:
+                classifier_text += f" v{classifier_version}"
 
-            if (
-                classifier_version
-                is not None
-            ):
-
-                classifier_text += (
-                    f" v{classifier_version}"
-                )
-
-            print(
-                (
-                    "  Classifier: "
-                    f"{classifier_text}"
-                )
-            )
+            print((f"  Classifier: {classifier_text}"))
 
         # --------------------------------------------------------------
         # CLASS SCORES
         # --------------------------------------------------------------
 
-        scores = (
-            _load_json(
-                row[
-                    "classification_scores_json"
-                ]
-            )
-        )
+        scores = _load_json(row["classification_scores_json"])
 
         if isinstance(
             scores,
             dict,
         ):
-
-            print(
-                "  Class scores:"
-            )
+            print("  Class scores:")
 
             try:
-
                 ranked_scores = sorted(
                     scores.items(),
-                    key=lambda item:
-                        float(
-                            item[1]
-                        ),
+                    key=lambda item: float(item[1]),
                     reverse=True,
                 )
 
@@ -1443,44 +828,24 @@ def print_event_details(
                 TypeError,
                 ValueError,
             ):
-
-                ranked_scores = list(
-                    scores.items()
-                )
+                ranked_scores = list(scores.items())
 
             for (
                 label,
                 score,
-            ) in (
-                ranked_scores
-            ):
-
-                score_text = (
-                    _format_optional_float(
-                        score,
-                        precision=3,
-                    )
+            ) in ranked_scores:
+                score_text = _format_optional_float(
+                    score,
+                    precision=3,
                 )
 
-                print(
-                    (
-                        "    "
-                        f"{str(label).upper():<14}"
-                        f"{score_text}"
-                    )
-                )
+                print((f"    {str(label).upper():<14}{score_text}"))
 
         # --------------------------------------------------------------
         # CLASSIFICATION REASONS
         # --------------------------------------------------------------
 
-        reasons = (
-            _load_json(
-                row[
-                    "classification_reasons_json"
-                ]
-            )
-        )
+        reasons = _load_json(row["classification_reasons_json"])
 
         if isinstance(
             reasons,
@@ -1489,48 +854,22 @@ def print_event_details(
                 tuple,
             ),
         ):
-
-            print(
-                "  Reasons:"
-            )
+            print("  Reasons:")
 
             for reason in reasons:
-
-                print(
-                    (
-                        "    - "
-                        f"{reason}"
-                    )
-                )
+                print((f"    - {reason}"))
 
     else:
-
-        print(
-            "\nClassification: unavailable"
-        )
+        print("\nClassification: unavailable")
 
     # ==================================================================
     # EVENT FILES
     # ==================================================================
 
-    if (
-        row[
-            "event_directory"
-        ]
-        is not None
-    ):
+    if row["event_directory"] is not None:
+        print((f"\nEvent directory: {row['event_directory']}"))
 
-        print(
-            (
-                "\nEvent directory: "
-                f"{row['event_directory']}"
-            )
-        )
-
-    print(
-        "-"
-        * 96
-    )
+    print("-" * 96)
 
 
 # ======================================================================
@@ -1543,45 +882,25 @@ def print_commands() -> None:
     Print supported interactive CLI commands.
     """
 
-    print(
-        "\nCommands:"
-    )
+    print("\nCommands:")
 
-    print(
-        "  start"
-    )
+    print("  start")
 
-    print(
-        "  stop"
-    )
+    print("  stop")
 
-    print(
-        "  ping"
-    )
+    print("  ping")
 
-    print(
-        "  status"
-    )
+    print("  status")
 
-    print(
-        "  locate"
-    )
+    print("  locate")
 
-    print(
-        "  events"
-    )
+    print("  events")
 
-    print(
-        "  event <db_id>"
-    )
+    print("  event <db_id>")
 
-    print(
-        "  help"
-    )
+    print("  help")
 
-    print(
-        "  quit"
-    )
+    print("  quit")
 
 
 # ======================================================================
@@ -1599,59 +918,36 @@ async def command_loop(
     print_commands()
 
     while True:
-
         # ==============================================================
         # READ COMMAND
         # ==============================================================
 
         try:
-
-            raw_command = (
-                await asyncio.to_thread(
-                    input,
-                    "> ",
-                )
+            raw_command = await asyncio.to_thread(
+                input,
+                "> ",
             )
 
         except EOFError:
-
-            print(
-                "\nInput stream closed."
-            )
+            print("\nInput stream closed.")
 
             return
 
-        raw_command = (
-            raw_command.strip()
-        )
+        raw_command = raw_command.strip()
 
         if not raw_command:
-
             continue
 
-        parts = (
-            raw_command.split()
-        )
+        parts = raw_command.split()
 
-        command = (
-            parts[0]
-            .lower()
-        )
+        command = parts[0].lower()
 
         # ==============================================================
         # START
         # ==============================================================
 
-        if (
-            command
-            == "start"
-        ):
-
-            if (
-                server.active_session_id
-                is not None
-            ):
-
+        if command == "start":
+            if server.active_session_id is not None:
                 print(
                     (
                         "A session is already active: "
@@ -1661,42 +957,20 @@ async def command_loop(
 
                 continue
 
-            label = (
-                datetime.now()
-                .strftime(
-                    "session_%Y%m%d_%H%M%S"
-                )
-            )
+            label = datetime.now().strftime("session_%Y%m%d_%H%M%S")
 
             try:
-
-                session_id = (
-                    await server.start_acquisition(
-                        label
-                    )
-                )
+                session_id = await server.start_acquisition(label)
 
             except asyncio.CancelledError:
-
                 raise
 
             except Exception as exc:
-
-                print(
-                    (
-                        "START failed: "
-                        f"{exc}"
-                    )
-                )
+                print((f"START failed: {exc}"))
 
                 continue
 
-            print(
-                (
-                    "Started session "
-                    f"{_format_session_id(session_id)}"
-                )
-            )
+            print((f"Started session {_format_session_id(session_id)}"))
 
             continue
 
@@ -1704,47 +978,24 @@ async def command_loop(
         # STOP
         # ==============================================================
 
-        if (
-            command
-            == "stop"
-        ):
-
-            if (
-                server.active_session_id
-                is None
-            ):
-
-                print(
-                    (
-                        "No acquisition session "
-                        "is active"
-                    )
-                )
+        if command == "stop":
+            if server.active_session_id is None:
+                print(("No acquisition session is active"))
 
                 continue
 
             try:
-
                 await server.stop_acquisition()
 
             except asyncio.CancelledError:
-
                 raise
 
             except Exception as exc:
-
-                print(
-                    (
-                        "STOP completed with an error: "
-                        f"{exc}"
-                    )
-                )
+                print((f"STOP completed with an error: {exc}"))
 
                 continue
 
-            print(
-                "Acquisition stopped"
-            )
+            print("Acquisition stopped")
 
             continue
 
@@ -1752,33 +1003,18 @@ async def command_loop(
         # PING
         # ==============================================================
 
-        if (
-            command
-            == "ping"
-        ):
-
+        if command == "ping":
             try:
-
                 await server.ping_all()
 
             except asyncio.CancelledError:
-
                 raise
 
             except Exception as exc:
-
-                print(
-                    (
-                        "PING failed: "
-                        f"{exc}"
-                    )
-                )
+                print((f"PING failed: {exc}"))
 
             else:
-
-                print(
-                    "PING requested"
-                )
+                print("PING requested")
 
             continue
 
@@ -1786,25 +1022,12 @@ async def command_loop(
         # STATUS
         # ==============================================================
 
-        if (
-            command
-            == "status"
-        ):
-
+        if command == "status":
             try:
-
-                print_status(
-                    server
-                )
+                print_status(server)
 
             except Exception as exc:
-
-                print(
-                    (
-                        "Status display failed: "
-                        f"{exc}"
-                    )
-                )
+                print((f"Status display failed: {exc}"))
 
             continue
 
@@ -1812,45 +1035,23 @@ async def command_loop(
         # MANUAL LOCALIZATION
         # ==============================================================
 
-        if (
-            command
-            == "locate"
-        ):
-
+        if command == "locate":
             try:
-
                 # Reuse the exact LocalizationEngine already owned by
                 # EventPipeline instead of constructing a second engine.
-                result = (
-                    server.events.localizer
-                    .locate_latest()
-                )
+                result = server.events.localizer.locate_latest()
 
             except Exception as exc:
-
-                print(
-                    (
-                        "Localization failed: "
-                        f"{exc}"
-                    )
-                )
+                print((f"Localization failed: {exc}"))
 
                 continue
 
             if result is None:
-
-                print(
-                    (
-                        "Localization unavailable: "
-                        "not enough common audio yet"
-                    )
-                )
+                print(("Localization unavailable: not enough common audio yet"))
 
                 continue
 
-            print_localization_result(
-                result
-            )
+            print_localization_result(result)
 
             continue
 
@@ -1858,58 +1059,26 @@ async def command_loop(
         # RECENT EVENTS
         # ==============================================================
 
-        if (
-            command
-            == "events"
-        ):
-
+        if command == "events":
             try:
-
-                rows = (
-                    server.events.database
-                    .recent_events(
-                        10
-                    )
-                )
+                rows = server.events.database.recent_events(10)
 
             except Exception as exc:
-
-                print(
-                    (
-                        "Unable to read events: "
-                        f"{exc}"
-                    )
-                )
+                print((f"Unable to read events: {exc}"))
 
                 continue
 
             if not rows:
-
-                print(
-                    (
-                        "No detected events "
-                        "stored yet"
-                    )
-                )
+                print(("No detected events stored yet"))
 
                 continue
 
             for row in rows:
-
                 try:
-
-                    print_event_row(
-                        row
-                    )
+                    print_event_row(row)
 
                 except Exception as exc:
-
-                    print(
-                        (
-                            "Unable to display "
-                            f"event row: {exc}"
-                        )
-                    )
+                    print((f"Unable to display event row: {exc}"))
 
             continue
 
@@ -1917,105 +1086,43 @@ async def command_loop(
         # ONE DATABASE EVENT
         # ==============================================================
 
-        if (
-            command
-            == "event"
-        ):
-
-            if (
-                len(
-                    parts
-                )
-                != 2
-            ):
-
-                print(
-                    (
-                        "Usage: "
-                        "event <database_id>"
-                    )
-                )
+        if command == "event":
+            if len(parts) != 2:
+                print(("Usage: event <database_id>"))
 
                 continue
 
             try:
-
-                database_id = int(
-                    parts[
-                        1
-                    ]
-                )
+                database_id = int(parts[1])
 
             except ValueError:
-
-                print(
-                    (
-                        "Usage: "
-                        "event <database_id>"
-                    )
-                )
+                print(("Usage: event <database_id>"))
 
                 continue
 
-            if (
-                database_id
-                <= 0
-            ):
-
-                print(
-                    (
-                        "Database event ID must "
-                        "be greater than 0"
-                    )
-                )
+            if database_id <= 0:
+                print(("Database event ID must be greater than 0"))
 
                 continue
 
             try:
-
-                row = (
-                    server.events.database
-                    .get_event(
-                        database_id
-                    )
-                )
+                row = server.events.database.get_event(database_id)
 
             except Exception as exc:
-
-                print(
-                    (
-                        "Database lookup failed: "
-                        f"{exc}"
-                    )
-                )
+                print((f"Database lookup failed: {exc}"))
 
                 continue
 
             if row is None:
-
-                print(
-                    (
-                        "No event with database ID "
-                        f"{database_id}"
-                    )
-                )
+                print((f"No event with database ID {database_id}"))
 
                 continue
 
             try:
-
-                print_event_details(
-                    row
-                )
+                print_event_details(row)
 
             except Exception as exc:
-
-                print(
-                    (
-                        "Unable to display event: "
-                        f"{exc}"
-                    )
-                )
+                print((f"Unable to display event: {exc}"))
 
             continue
 
@@ -2023,14 +1130,10 @@ async def command_loop(
         # HELP
         # ==============================================================
 
-        if (
-            command
-            in {
-                "help",
-                "?",
-            }
-        ):
-
+        if command in {
+            "help",
+            "?",
+        }:
             print_commands()
 
             continue
@@ -2039,27 +1142,18 @@ async def command_loop(
         # QUIT
         # ==============================================================
 
-        if (
-            command
-            in {
-                "quit",
-                "exit",
-                "q",
-            }
-        ):
-
+        if command in {
+            "quit",
+            "exit",
+            "q",
+        }:
             return
 
         # ==============================================================
         # UNKNOWN COMMAND
         # ==============================================================
 
-        print(
-            (
-                "Unknown command. "
-                "Type 'help' for commands."
-            )
-        )
+        print(("Unknown command. Type 'help' for commands."))
 
 
 # ======================================================================
@@ -2074,28 +1168,13 @@ def print_startup_info(
     Display the configured receiver architecture at startup.
     """
 
-    config = (
-        server.config
-    )
+    config = server.config
 
-    print(
-        "\nWildlife Soundscape Receiver"
-    )
+    print("\nWildlife Soundscape Receiver")
 
-    print(
-        (
-            "Listening on "
-            f"{config.network.host}:"
-            f"{config.network.port}"
-        )
-    )
+    print((f"Listening on {config.network.host}:{config.network.port}"))
 
-    print(
-        (
-            "Expected nodes: "
-            f"{sorted(config.expected_nodes)}"
-        )
-    )
+    print((f"Expected nodes: {sorted(config.expected_nodes)}"))
 
     print(
         (
@@ -2118,13 +1197,7 @@ def print_startup_info(
     print(
         (
             "Event detection: "
-            + (
-                "ENABLED"
-                if (
-                    config.detection.enabled
-                )
-                else "DISABLED"
-            )
+            + ("ENABLED" if (config.detection.enabled) else "DISABLED")
         )
     )
 
@@ -2146,32 +1219,21 @@ def print_startup_info(
             "Environmental sound-speed correction: "
             + (
                 "ENABLED"
-                if (
-                    config.localization
-                    .use_environmental_speed
-                )
+                if (config.localization.use_environmental_speed)
                 else "DISABLED"
             )
         )
     )
 
-    print_classification_status(
-        server
-    )
+    print_classification_status(server)
 
-    if (
-        config.classification.enabled
-    ):
-
+    if config.classification.enabled:
         print(
             (
                 "Model audio delivery: "
                 + (
                     "ENABLED"
-                    if (
-                        config.classification
-                        .provide_model_audio
-                    )
+                    if (config.classification.provide_model_audio)
                     else "DISABLED"
                 )
             )
@@ -2180,36 +1242,18 @@ def print_startup_info(
     print(
         (
             "Continuous WAV recording: "
-            + (
-                "ENABLED"
-                if (
-                    config.audio.record_wav
-                )
-                else "DISABLED"
-            )
+            + ("ENABLED" if (config.audio.record_wav) else "DISABLED")
         )
     )
 
     print(
         (
             "Event WAV storage: "
-            + (
-                "ENABLED"
-                if (
-                    config.persistence
-                    .save_event_wav
-                )
-                else "DISABLED"
-            )
+            + ("ENABLED" if (config.persistence.save_event_wav) else "DISABLED")
         )
     )
 
-    print(
-        (
-            "Database: "
-            f"{config.persistence.database_path}"
-        )
-    )
+    print((f"Database: {config.persistence.database_path}"))
 
 
 # ======================================================================
@@ -2228,7 +1272,6 @@ async def start_acquisition_when_ready(
     previous_missing: tuple[int, ...] | None = None
 
     while True:
-
         missing = tuple(
             node_id
             for node_id in server.config.expected_nodes
@@ -2240,24 +1283,15 @@ async def start_acquisition_when_ready(
         )
 
         if not missing:
-
             break
 
         if missing != previous_missing:
-
-            print(
-                "Automatic acquisition is waiting for nodes: "
-                f"{list(missing)}"
-            )
+            print(f"Automatic acquisition is waiting for nodes: {list(missing)}")
             previous_missing = missing
 
-        await asyncio.sleep(
-            poll_interval_seconds
-        )
+        await asyncio.sleep(poll_interval_seconds)
 
-    session_id = await server.start_acquisition(
-        session_label
-    )
+    session_id = await server.start_acquisition(session_label)
 
     print(
         "Automatic acquisition started: "
@@ -2279,19 +1313,11 @@ async def main_async(
 
     configure_logging()
 
-    server = (
-        ReceiverServer(
-            CONFIG
-        )
-    )
+    server = ReceiverServer(CONFIG)
 
-    status_task: (
-        asyncio.Task[None]
-        | None
-    ) = None
+    status_task: asyncio.Task[None] | None = None
 
     try:
-
         # ==============================================================
         # TCP SERVER
         # ==============================================================
@@ -2302,22 +1328,15 @@ async def main_async(
         # STARTUP INFORMATION
         # ==============================================================
 
-        print_startup_info(
-            server
-        )
+        print_startup_info(server)
 
         # ==============================================================
         # BACKGROUND STATUS
         # ==============================================================
 
-        status_task = (
-            asyncio.create_task(
-                status_loop(
-                    server
-                ),
-                name=
-                    "receiver-status-loop",
-            )
+        status_task = asyncio.create_task(
+            status_loop(server),
+            name="receiver-status-loop",
         )
 
         # ==============================================================
@@ -2325,7 +1344,6 @@ async def main_async(
         # ==============================================================
 
         if auto_start:
-
             await start_acquisition_when_ready(
                 server,
                 session_label,
@@ -2335,27 +1353,17 @@ async def main_async(
         # INTERACTIVE CLI
         # ==============================================================
 
-        await command_loop(
-            server
-        )
+        await command_loop(server)
 
     finally:
-
         # ==============================================================
         # STATUS TASK
         # ==============================================================
 
-        if (
-            status_task
-            is not None
-        ):
-
+        if status_task is not None:
             status_task.cancel()
 
-            with contextlib.suppress(
-                asyncio.CancelledError
-            ):
-
+            with contextlib.suppress(asyncio.CancelledError):
                 await status_task
 
         # ==============================================================
@@ -2369,21 +1377,13 @@ async def main_async(
         # ==============================================================
 
         try:
-
             await server.close()
 
         except asyncio.CancelledError:
-
             raise
 
         except Exception:
-
-            logger.exception(
-                (
-                    "Receiver shutdown "
-                    "encountered an error"
-                )
-            )
+            logger.exception(("Receiver shutdown encountered an error"))
 
 
 # ======================================================================
@@ -2400,9 +1400,7 @@ def build_argument_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--auto-start",
         action="store_true",
-        help=(
-            "wait for all configured nodes and automatically start acquisition"
-        ),
+        help=("wait for all configured nodes and automatically start acquisition"),
     )
     parser.add_argument(
         "--session-label",
@@ -2419,12 +1417,9 @@ def main(
     Application entry point.
     """
 
-    args = build_argument_parser().parse_args(
-        argv
-    )
+    args = build_argument_parser().parse_args(argv)
 
     try:
-
         asyncio.run(
             main_async(
                 auto_start=args.auto_start,
@@ -2433,10 +1428,8 @@ def main(
         )
 
     except KeyboardInterrupt:
-
         pass
 
 
 if __name__ == "__main__":
-
     main()

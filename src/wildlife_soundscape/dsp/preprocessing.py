@@ -78,13 +78,9 @@ PCM16Array = NDArray[np.int16]
 # ======================================================================
 
 
-PCM16_SCALE: Final[float] = (
-    32768.0
-)
+PCM16_SCALE: Final[float] = 32768.0
 
-EPSILON: Final[float] = (
-    1e-12
-)
+EPSILON: Final[float] = 1e-12
 
 
 # ======================================================================
@@ -137,53 +133,37 @@ class PreprocessingConfig:
     # SAMPLE RATE
     # ------------------------------------------------------------------
 
-    sample_rate: int = (
-        48_000
-    )
+    sample_rate: int = 48_000
 
     # ------------------------------------------------------------------
     # DC REMOVAL
     # ------------------------------------------------------------------
 
-    remove_dc: bool = (
-        True
-    )
+    remove_dc: bool = True
 
     # ------------------------------------------------------------------
     # BAND-PASS FILTER
     # ------------------------------------------------------------------
 
-    bandpass_enabled: bool = (
-        True
-    )
+    bandpass_enabled: bool = True
 
     # Broad wildlife-analysis range.
     #
     # These are engineering defaults, not biological class boundaries.
 
-    low_cutoff_hz: float = (
-        100.0
-    )
+    low_cutoff_hz: float = 100.0
 
-    high_cutoff_hz: float = (
-        16_000.0
-    )
+    high_cutoff_hz: float = 16_000.0
 
-    filter_order: int = (
-        4
-    )
+    filter_order: int = 4
 
     # ------------------------------------------------------------------
     # MODEL INPUT NORMALIZATION
     # ------------------------------------------------------------------
 
-    normalize_for_model: bool = (
-        True
-    )
+    normalize_for_model: bool = True
 
-    model_target_peak: float = (
-        0.98
-    )
+    model_target_peak: float = 0.98
 
     # ==================================================================
     # VALIDATION
@@ -200,97 +180,40 @@ class PreprocessingConfig:
         # SAMPLE RATE
         # --------------------------------------------------------------
 
-        if (
-            self.sample_rate
-            <= 0
-        ):
-
-            raise ValueError(
-                (
-                    "sample_rate must "
-                    "be greater than 0."
-                )
-            )
+        if self.sample_rate <= 0:
+            raise ValueError(("sample_rate must be greater than 0."))
 
         # --------------------------------------------------------------
         # FILTER ORDER
         # --------------------------------------------------------------
 
-        if (
-            self.filter_order
-            <= 0
-        ):
-
-            raise ValueError(
-                (
-                    "filter_order must "
-                    "be greater than 0."
-                )
-            )
+        if self.filter_order <= 0:
+            raise ValueError(("filter_order must be greater than 0."))
 
         # --------------------------------------------------------------
         # BAND-PASS RANGE
         # --------------------------------------------------------------
 
-        nyquist = (
-            self.sample_rate
-            / 2.0
-        )
+        nyquist = self.sample_rate / 2.0
 
         if self.bandpass_enabled:
+            if self.low_cutoff_hz <= 0.0:
+                raise ValueError(("low_cutoff_hz must be greater than 0."))
 
-            if (
-                self.low_cutoff_hz
-                <= 0.0
-            ):
+            if self.high_cutoff_hz <= self.low_cutoff_hz:
+                raise ValueError(("high_cutoff_hz must be greater than low_cutoff_hz."))
 
+            if self.high_cutoff_hz >= nyquist:
                 raise ValueError(
-                    (
-                        "low_cutoff_hz must "
-                        "be greater than 0."
-                    )
-                )
-
-            if (
-                self.high_cutoff_hz
-                <= self.low_cutoff_hz
-            ):
-
-                raise ValueError(
-                    (
-                        "high_cutoff_hz must be greater "
-                        "than low_cutoff_hz."
-                    )
-                )
-
-            if (
-                self.high_cutoff_hz
-                >= nyquist
-            ):
-
-                raise ValueError(
-                    (
-                        "high_cutoff_hz must remain below "
-                        f"Nyquist ({nyquist:.1f} Hz)."
-                    )
+                    (f"high_cutoff_hz must remain below Nyquist ({nyquist:.1f} Hz).")
                 )
 
         # --------------------------------------------------------------
         # MODEL TARGET PEAK
         # --------------------------------------------------------------
 
-        if not (
-            0.0
-            < self.model_target_peak
-            <= 1.0
-        ):
-
-            raise ValueError(
-                (
-                    "model_target_peak must "
-                    "be in the interval (0, 1]."
-                )
-            )
+        if not (0.0 < self.model_target_peak <= 1.0):
+            raise ValueError(("model_target_peak must be in the interval (0, 1]."))
 
 
 # ======================================================================
@@ -374,37 +297,13 @@ def _validate_1d_audio(
         audio,
         np.ndarray,
     ):
+        raise TypeError(("audio must be a NumPy ndarray."))
 
-        raise TypeError(
-            (
-                "audio must be a "
-                "NumPy ndarray."
-            )
-        )
+    if audio.ndim != 1:
+        raise ValueError((f"Expected mono 1-D audio, got shape {audio.shape}."))
 
-    if (
-        audio.ndim
-        != 1
-    ):
-
-        raise ValueError(
-            (
-                "Expected mono 1-D audio, "
-                f"got shape {audio.shape}."
-            )
-        )
-
-    if (
-        audio.size
-        == 0
-    ):
-
-        raise ValueError(
-            (
-                "Audio array "
-                "cannot be empty."
-            )
-        )
+    if audio.size == 0:
+        raise ValueError(("Audio array cannot be empty."))
 
 
 # ======================================================================
@@ -419,34 +318,16 @@ def _validate_float_audio(
     Validate a floating-point mono audio array.
     """
 
-    _validate_1d_audio(
-        audio
-    )
+    _validate_1d_audio(audio)
 
     if not np.issubdtype(
         audio.dtype,
         np.floating,
     ):
+        raise TypeError((f"Expected floating-point audio, received {audio.dtype}."))
 
-        raise TypeError(
-            (
-                "Expected floating-point "
-                f"audio, received {audio.dtype}."
-            )
-        )
-
-    if not np.all(
-        np.isfinite(
-            audio
-        )
-    ):
-
-        raise ValueError(
-            (
-                "Audio contains NaN "
-                "or infinite samples."
-            )
-        )
+    if not np.all(np.isfinite(audio)):
+        raise ValueError(("Audio contains NaN or infinite samples."))
 
 
 # ======================================================================
@@ -471,31 +352,15 @@ def pcm16_to_float32(
     retained.
     """
 
-    _validate_1d_audio(
-        pcm
-    )
+    _validate_1d_audio(pcm)
 
-    if (
-        pcm.dtype
-        != np.int16
-    ):
+    if pcm.dtype != np.int16:
+        raise TypeError((f"Expected int16 PCM, received {pcm.dtype}."))
 
-        raise TypeError(
-            (
-                "Expected int16 PCM, "
-                f"received {pcm.dtype}."
-            )
-        )
-
-    result = (
-        pcm.astype(
-            np.float32,
-            copy=False,
-        )
-        / np.float32(
-            PCM16_SCALE
-        )
-    )
+    result = pcm.astype(
+        np.float32,
+        copy=False,
+    ) / np.float32(PCM16_SCALE)
 
     return np.asarray(
         result,
@@ -522,9 +387,7 @@ def remove_dc_offset(
     the returned waveform remains float32.
     """
 
-    _validate_float_audio(
-        audio
-    )
+    _validate_float_audio(audio)
 
     mean_value = float(
         np.mean(
@@ -533,15 +396,10 @@ def remove_dc_offset(
         )
     )
 
-    corrected = (
-        audio.astype(
-            np.float32,
-            copy=False,
-        )
-        - np.float32(
-            mean_value
-        )
-    )
+    corrected = audio.astype(
+        np.float32,
+        copy=False,
+    ) - np.float32(mean_value)
 
     return np.asarray(
         corrected,
@@ -568,48 +426,16 @@ def _design_bandpass_sos(
     because it is numerically more stable for higher-order filters.
     """
 
-    if (
-        sample_rate
-        <= 0
-    ):
+    if sample_rate <= 0:
+        raise ValueError(("sample_rate must be greater than 0."))
 
-        raise ValueError(
-            (
-                "sample_rate must "
-                "be greater than 0."
-            )
-        )
+    if order <= 0:
+        raise ValueError(("Filter order must be greater than 0."))
 
-    if (
-        order
-        <= 0
-    ):
+    nyquist = sample_rate / 2.0
 
-        raise ValueError(
-            (
-                "Filter order must "
-                "be greater than 0."
-            )
-        )
-
-    nyquist = (
-        sample_rate
-        / 2.0
-    )
-
-    if not (
-        0.0
-        < low_cutoff_hz
-        < high_cutoff_hz
-        < nyquist
-    ):
-
-        raise ValueError(
-            (
-                "Band-pass cutoffs must satisfy "
-                "0 < low < high < Nyquist."
-            )
-        )
+    if not (0.0 < low_cutoff_hz < high_cutoff_hz < nyquist):
+        raise ValueError(("Band-pass cutoffs must satisfy 0 < low < high < Nyquist."))
 
     sos = butter(
         N=order,
@@ -651,11 +477,7 @@ def _safe_sos_padlen(
         signal_length - 1
     """
 
-    if (
-        signal_length
-        <= 1
-    ):
-
+    if signal_length <= 1:
         return 0
 
     zeros_at_origin = int(
@@ -678,18 +500,12 @@ def _safe_sos_padlen(
         )
     )
 
-    estimated_default = (
-        3
-        * (
-            2
-            * len(
-                sos
-            )
-            + 1
-            - min(
-                zeros_at_origin,
-                poles_at_origin,
-            )
+    estimated_default = 3 * (
+        2 * len(sos)
+        + 1
+        - min(
+            zeros_at_origin,
+            poles_at_origin,
         )
     )
 
@@ -725,19 +541,13 @@ def apply_bandpass_filter(
     the complete event pipeline to fail.
     """
 
-    _validate_float_audio(
-        audio
-    )
+    _validate_float_audio(audio)
 
     # --------------------------------------------------------------
     # FILTERING VERY SHORT AUDIO IS NOT MEANINGFUL
     # --------------------------------------------------------------
 
-    if (
-        audio.size
-        < 8
-    ):
-
+    if audio.size < 8:
         return np.asarray(
             audio,
             dtype=np.float32,
@@ -747,33 +557,20 @@ def apply_bandpass_filter(
     # FILTER DESIGN
     # --------------------------------------------------------------
 
-    sos = (
-        _design_bandpass_sos(
-            sample_rate=
-                sample_rate,
-
-            low_cutoff_hz=
-                low_cutoff_hz,
-
-            high_cutoff_hz=
-                high_cutoff_hz,
-
-            order=
-                order,
-        )
+    sos = _design_bandpass_sos(
+        sample_rate=sample_rate,
+        low_cutoff_hz=low_cutoff_hz,
+        high_cutoff_hz=high_cutoff_hz,
+        order=order,
     )
 
     # --------------------------------------------------------------
     # SAFE PADDING
     # --------------------------------------------------------------
 
-    padlen = (
-        _safe_sos_padlen(
-            sos,
-            int(
-                audio.size
-            ),
-        )
+    padlen = _safe_sos_padlen(
+        sos,
+        int(audio.size),
     )
 
     # --------------------------------------------------------------
@@ -781,23 +578,16 @@ def apply_bandpass_filter(
     # --------------------------------------------------------------
 
     try:
-
-        filtered = (
-            sosfiltfilt(
-                sos,
-
-                audio.astype(
-                    np.float64,
-                    copy=False,
-                ),
-
-                padlen=
-                    padlen,
-            )
+        filtered = sosfiltfilt(
+            sos,
+            audio.astype(
+                np.float64,
+                copy=False,
+            ),
+            padlen=padlen,
         )
 
     except ValueError:
-
         # ----------------------------------------------------------
         # Pathological / extremely short signals should not crash an
         # otherwise valid event.
@@ -808,18 +598,8 @@ def apply_bandpass_filter(
             dtype=np.float32,
         ).copy()
 
-    if not np.all(
-        np.isfinite(
-            filtered
-        )
-    ):
-
-        raise ValueError(
-            (
-                "Band-pass filtering "
-                "produced non-finite samples."
-            )
-        )
+    if not np.all(np.isfinite(filtered)):
+        raise ValueError(("Band-pass filtering produced non-finite samples."))
 
     return np.asarray(
         filtered,
@@ -860,43 +640,18 @@ def peak_normalize(
     information.
     """
 
-    _validate_float_audio(
-        audio
-    )
+    _validate_float_audio(audio)
 
-    if not (
-        0.0
-        < target_peak
-        <= 1.0
-    ):
+    if not (0.0 < target_peak <= 1.0):
+        raise ValueError(("target_peak must be in (0, 1]."))
 
-        raise ValueError(
-            (
-                "target_peak must "
-                "be in (0, 1]."
-            )
-        )
-
-    peak = float(
-        np.max(
-            np.abs(
-                audio
-            )
-        )
-    )
+    peak = float(np.max(np.abs(audio)))
 
     # --------------------------------------------------------------
     # SILENCE / NEAR-SILENCE
     # --------------------------------------------------------------
 
-    if (
-        not np.isfinite(
-            peak
-        )
-        or peak
-        <= EPSILON
-    ):
-
+    if not np.isfinite(peak) or peak <= EPSILON:
         return np.zeros_like(
             audio,
             dtype=np.float32,
@@ -906,22 +661,12 @@ def peak_normalize(
     # NORMALIZATION GAIN
     # --------------------------------------------------------------
 
-    gain = (
-        float(
-            target_peak
-        )
-        / peak
-    )
+    gain = float(target_peak) / peak
 
-    normalized = (
-        audio.astype(
-            np.float32,
-            copy=False,
-        )
-        * np.float32(
-            gain
-        )
-    )
+    normalized = audio.astype(
+        np.float32,
+        copy=False,
+    ) * np.float32(gain)
 
     # --------------------------------------------------------------
     # NUMERICAL SAFETY
@@ -974,21 +719,13 @@ def preprocess_event_audio(
     The supplied PCM array is never modified.
     """
 
-    cfg = (
-        config
-        if config is not None
-        else PreprocessingConfig()
-    )
+    cfg = config if config is not None else PreprocessingConfig()
 
     # ==================================================================
     # 1. PCM16 -> FLOAT32
     # ==================================================================
 
-    raw_float = (
-        pcm16_to_float32(
-            pcm
-        )
-    )
+    raw_float = pcm16_to_float32(pcm)
 
     # Keep representation independent from caller memory.
     raw_float = np.asarray(
@@ -1001,92 +738,48 @@ def preprocess_event_audio(
     # ==================================================================
 
     if cfg.remove_dc:
-
-        amplitude_signal = (
-            remove_dc_offset(
-                raw_float
-            )
-        )
+        amplitude_signal = remove_dc_offset(raw_float)
 
     else:
-
-        amplitude_signal = (
-            raw_float.copy()
-        )
+        amplitude_signal = raw_float.copy()
 
     # ==================================================================
     # 3. OPTIONAL BAND-PASS FILTER
     # ==================================================================
 
     if cfg.bandpass_enabled:
-
-        analysis_signal = (
-            apply_bandpass_filter(
-                amplitude_signal,
-
-                sample_rate=
-                    cfg.sample_rate,
-
-                low_cutoff_hz=
-                    cfg.low_cutoff_hz,
-
-                high_cutoff_hz=
-                    cfg.high_cutoff_hz,
-
-                order=
-                    cfg.filter_order,
-            )
+        analysis_signal = apply_bandpass_filter(
+            amplitude_signal,
+            sample_rate=cfg.sample_rate,
+            low_cutoff_hz=cfg.low_cutoff_hz,
+            high_cutoff_hz=cfg.high_cutoff_hz,
+            order=cfg.filter_order,
         )
 
     else:
-
-        analysis_signal = (
-            amplitude_signal.copy()
-        )
+        analysis_signal = amplitude_signal.copy()
 
     # ==================================================================
     # 4. PRE-NORMALIZATION PEAK
     # ==================================================================
 
-    peak_before_normalization = float(
-        np.max(
-            np.abs(
-                analysis_signal
-            )
-        )
-    )
+    peak_before_normalization = float(np.max(np.abs(analysis_signal)))
 
-    if not np.isfinite(
-        peak_before_normalization
-    ):
-
-        raise ValueError(
-            (
-                "analysis_signal contains "
-                "non-finite amplitude values."
-            )
-        )
+    if not np.isfinite(peak_before_normalization):
+        raise ValueError(("analysis_signal contains non-finite amplitude values."))
 
     # ==================================================================
     # 5. MODEL INPUT
     # ==================================================================
 
     if cfg.normalize_for_model:
-
-        model_signal = (
-            peak_normalize(
-                analysis_signal,
-
-                target_peak=
-                    cfg.model_target_peak,
-            )
+        model_signal = peak_normalize(
+            analysis_signal,
+            target_peak=cfg.model_target_peak,
         )
 
     else:
-
-        model_signal = (
-            analysis_signal.copy()
-        )
+        model_signal = analysis_signal.copy()
 
     # ==================================================================
     # 6. CONTIGUOUS OUTPUT BUFFERS
@@ -1117,21 +810,10 @@ def preprocess_event_audio(
     # ==================================================================
 
     return PreprocessedAudio(
-        raw_float=
-            raw_float,
-
-        amplitude_signal=
-            amplitude_signal,
-
-        analysis_signal=
-            analysis_signal,
-
-        model_signal=
-            model_signal,
-
-        sample_rate=
-            cfg.sample_rate,
-
-        peak_before_normalization=
-            peak_before_normalization,
+        raw_float=raw_float,
+        amplitude_signal=amplitude_signal,
+        analysis_signal=analysis_signal,
+        model_signal=model_signal,
+        sample_rate=cfg.sample_rate,
+        peak_before_normalization=peak_before_normalization,
     )

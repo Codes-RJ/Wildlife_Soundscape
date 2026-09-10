@@ -28,7 +28,6 @@ Audio sampleIndex is the authoritative shared-clock timeline used by
 the acoustic pipeline.
 """
 
-
 from __future__ import annotations
 
 
@@ -86,14 +85,9 @@ def test_sequence_first_packet() -> None:
         100,
     )
 
-    assert (
-        result.gap
-        == 0
-    )
+    assert result.gap == 0
 
-    assert not (
-        result.duplicate_or_old
-    )
+    assert not (result.duplicate_or_old)
 
 
 def test_sequence_normal() -> None:
@@ -103,14 +97,9 @@ def test_sequence_normal() -> None:
         11,
     )
 
-    assert (
-        result.gap
-        == 0
-    )
+    assert result.gap == 0
 
-    assert not (
-        result.duplicate_or_old
-    )
+    assert not (result.duplicate_or_old)
 
 
 def test_sequence_gap() -> None:
@@ -123,14 +112,9 @@ def test_sequence_gap() -> None:
         14,
     )
 
-    assert (
-        result.gap
-        == 3
-    )
+    assert result.gap == 3
 
-    assert not (
-        result.duplicate_or_old
-    )
+    assert not (result.duplicate_or_old)
 
 
 def test_sequence_wrap() -> None:
@@ -140,14 +124,9 @@ def test_sequence_wrap() -> None:
         0,
     )
 
-    assert (
-        result.gap
-        == 0
-    )
+    assert result.gap == 0
 
-    assert not (
-        result.duplicate_or_old
-    )
+    assert not (result.duplicate_or_old)
 
 
 def test_sequence_gap_across_wraparound() -> None:
@@ -174,14 +153,9 @@ def test_sequence_gap_across_wraparound() -> None:
         1,
     )
 
-    assert (
-        result.gap
-        == 2
-    )
+    assert result.gap == 2
 
-    assert not (
-        result.duplicate_or_old
-    )
+    assert not (result.duplicate_or_old)
 
 
 def test_sequence_duplicate() -> None:
@@ -191,14 +165,9 @@ def test_sequence_duplicate() -> None:
         100,
     )
 
-    assert (
-        result.gap
-        == 0
-    )
+    assert result.gap == 0
 
-    assert (
-        result.duplicate_or_old
-    )
+    assert result.duplicate_or_old
 
 
 def test_sequence_old_packet() -> None:
@@ -208,14 +177,9 @@ def test_sequence_old_packet() -> None:
         98,
     )
 
-    assert (
-        result.gap
-        == 0
-    )
+    assert result.gap == 0
 
-    assert (
-        result.duplicate_or_old
-    )
+    assert result.duplicate_or_old
 
 
 @pytest.mark.parametrize(
@@ -229,10 +193,7 @@ def test_sequence_rejects_out_of_range_new_sequence(
     value: int,
 ) -> None:
 
-    with pytest.raises(
-        ValueError
-    ):
-
+    with pytest.raises(ValueError):
         classify_sequence(
             10,
             value,
@@ -250,10 +211,7 @@ def test_sequence_rejects_out_of_range_previous_sequence(
     value: int,
 ) -> None:
 
-    with pytest.raises(
-        ValueError
-    ):
-
+    with pytest.raises(ValueError):
         classify_sequence(
             value,
             10,
@@ -269,49 +227,21 @@ def test_node_state_initializes_empty_buffers(
     make_node_state,
 ) -> None:
 
-    state = make_node_state(
-        node_id=
-            1
-    )
+    state = make_node_state(node_id=1)
 
-    assert (
-        state.node_id
-        == 1
-    )
+    assert state.node_id == 1
 
-    assert (
-        state.session_id
-        is None
-    )
+    assert state.session_id is None
 
-    assert (
-        state.last_sequence
-        is None
-    )
+    assert state.last_sequence is None
 
-    assert (
-        state.last_sample_index
-        is None
-    )
+    assert state.last_sample_index is None
 
-    assert (
-        state.expected_next_audio_sample
-        is None
-    )
+    assert state.expected_next_audio_sample is None
 
-    assert (
-        len(
-            state.audio_blocks
-        )
-        == 0
-    )
+    assert len(state.audio_blocks) == 0
 
-    assert (
-        len(
-            state.environment_history
-        )
-        == 0
-    )
+    assert len(state.environment_history) == 0
 
 
 # ======================================================================
@@ -324,46 +254,23 @@ def test_observe_first_header_establishes_session(
     session_id,
 ) -> None:
 
-    state = make_node_state(
-        node_id=
-            1
-    )
+    state = make_node_state(node_id=1)
 
     state.observe_header(
-        sequence=
-            10,
-
-        session_id=
-            session_id,
-
-        sample_index=
-            4096,
+        sequence=10,
+        session_id=session_id,
+        sample_index=4096,
     )
 
-    assert (
-        state.session_id
-        == session_id
-    )
+    assert state.session_id == session_id
 
-    assert (
-        state.last_sequence
-        == 10
-    )
+    assert state.last_sequence == 10
 
-    assert (
-        state.last_sample_index
-        == 4096
-    )
+    assert state.last_sample_index == 4096
 
-    assert (
-        state.packets_received
-        == 1
-    )
+    assert state.packets_received == 1
 
-    assert (
-        state.sequence_gaps
-        == 0
-    )
+    assert state.sequence_gaps == 0
 
 
 def test_observe_header_accumulates_sequence_gap(
@@ -374,41 +281,22 @@ def test_observe_header_accumulates_sequence_gap(
     state = make_node_state()
 
     state.observe_header(
-        sequence=
-            10,
-
-        session_id=
-            session_id,
-
-        sample_index=
-            0,
+        sequence=10,
+        session_id=session_id,
+        sample_index=0,
     )
 
     state.observe_header(
-        sequence=
-            14,
-
-        session_id=
-            session_id,
-
-        sample_index=
-            1024,
+        sequence=14,
+        session_id=session_id,
+        sample_index=1024,
     )
 
-    assert (
-        state.sequence_gaps
-        == 3
-    )
+    assert state.sequence_gaps == 3
 
-    assert (
-        state.last_sequence
-        == 14
-    )
+    assert state.last_sequence == 14
 
-    assert (
-        state.packets_received
-        == 2
-    )
+    assert state.packets_received == 2
 
 
 def test_old_header_does_not_regress_sequence_tracker(
@@ -429,77 +317,42 @@ def test_old_header_does_not_regress_sequence_tracker(
     state = make_node_state()
 
     state.observe_header(
-        sequence=
-            10,
-
-        session_id=
-            session_id,
-
-        sample_index=
-            0,
+        sequence=10,
+        session_id=session_id,
+        sample_index=0,
     )
 
     state.observe_header(
-        sequence=
-            11,
-
-        session_id=
-            session_id,
-
-        sample_index=
-            1024,
+        sequence=11,
+        session_id=session_id,
+        sample_index=1024,
     )
 
     state.observe_header(
-        sequence=
-            10,
-
-        session_id=
-            session_id,
-
-        sample_index=
-            0,
+        sequence=10,
+        session_id=session_id,
+        sample_index=0,
     )
 
-    assert (
-        state.duplicate_or_old_packets
-        == 1
-    )
+    assert state.duplicate_or_old_packets == 1
 
-    assert (
-        state.last_sequence
-        == 11
-    )
+    assert state.last_sequence == 11
 
-    assert (
-        state.last_sample_index
-        == 1024
-    )
+    assert state.last_sample_index == 1024
 
     # --------------------------------------------------------------
     # A legitimate next packet must remain normal.
     # --------------------------------------------------------------
 
     state.observe_header(
-        sequence=
-            12,
-
-        session_id=
-            session_id,
-
-        sample_index=
-            2048,
+        sequence=12,
+        session_id=session_id,
+        sample_index=2048,
     )
 
-    assert (
-        state.sequence_gaps
-        == 0
-    )
+    assert state.sequence_gaps == 0
 
-    assert (
-        state.last_sequence
-        == 12
-    )
+    assert state.last_sequence == 12
 
 
 # ======================================================================
@@ -517,104 +370,52 @@ def test_new_session_resets_sample_timeline(
     state = make_node_state()
 
     state.observe_header(
-        sequence=
-            50,
-
-        session_id=
-            session_id,
-
-        sample_index=
-            5000,
+        sequence=50,
+        session_id=session_id,
+        sample_index=5000,
     )
 
     state.add_audio(
         make_audio_block(
-            node_id=
-                1,
-
-            sequence=
-                50,
-
-            session_id=
-                session_id,
-
-            sample_index=
-                0,
+            node_id=1,
+            sequence=50,
+            session_id=session_id,
+            sample_index=0,
         )
     )
 
     state.latest_sync = SyncPayload(
-        session_id=
-            session_id,
-
-        sync_id=
-            1,
-
-        sample_index=
-            0,
-
-        local_micros=
-            100,
+        session_id=session_id,
+        sync_id=1,
+        sample_index=0,
+        local_micros=100,
     )
 
-    assert (
-        len(
-            state.audio_blocks
-        )
-        == 1
-    )
+    assert len(state.audio_blocks) == 1
 
     # --------------------------------------------------------------
     # New non-zero acquisition session.
     # --------------------------------------------------------------
 
     state.observe_header(
-        sequence=
-            0,
-
-        session_id=
-            second_session_id,
-
-        sample_index=
-            0,
+        sequence=0,
+        session_id=second_session_id,
+        sample_index=0,
     )
 
-    assert (
-        state.session_id
-        == second_session_id
-    )
+    assert state.session_id == second_session_id
 
-    assert (
-        state.sequence_resets
-        == 1
-    )
+    assert state.sequence_resets == 1
 
-    assert (
-        len(
-            state.audio_blocks
-        )
-        == 0
-    )
+    assert len(state.audio_blocks) == 0
 
-    assert (
-        state.expected_next_audio_sample
-        is None
-    )
+    assert state.expected_next_audio_sample is None
 
-    assert (
-        state.latest_sync
-        is None
-    )
+    assert state.latest_sync is None
 
-    assert (
-        state.last_sequence
-        == 0
-    )
+    assert state.last_sequence == 0
 
-    assert (
-        state.last_sample_index
-        == 0
-    )
+    assert state.last_sample_index == 0
 
 
 def test_idle_session_zero_does_not_replace_active_session(
@@ -625,36 +426,20 @@ def test_idle_session_zero_does_not_replace_active_session(
     state = make_node_state()
 
     state.observe_header(
-        sequence=
-            20,
-
-        session_id=
-            session_id,
-
-        sample_index=
-            1024,
+        sequence=20,
+        session_id=session_id,
+        sample_index=1024,
     )
 
     state.observe_header(
-        sequence=
-            21,
-
-        session_id=
-            0,
-
-        sample_index=
-            1024,
+        sequence=21,
+        session_id=0,
+        sample_index=1024,
     )
 
-    assert (
-        state.session_id
-        == session_id
-    )
+    assert state.session_id == session_id
 
-    assert (
-        state.sequence_resets
-        == 0
-    )
+    assert state.sequence_resets == 0
 
 
 # ======================================================================
@@ -670,39 +455,21 @@ def test_observe_header_counts_health_flags(
     state = make_node_state()
 
     combined_flags = int(
-        PacketFlags.CLIPPED
-        | PacketFlags.CLOCK_FAULT
-        | PacketFlags.QUEUE_CONGESTED
+        PacketFlags.CLIPPED | PacketFlags.CLOCK_FAULT | PacketFlags.QUEUE_CONGESTED
     )
 
     state.observe_header(
-        sequence=
-            1,
-
-        session_id=
-            session_id,
-
-        sample_index=
-            0,
-
-        flags=
-            combined_flags,
+        sequence=1,
+        session_id=session_id,
+        sample_index=0,
+        flags=combined_flags,
     )
 
-    assert (
-        state.clipped_packets
-        == 1
-    )
+    assert state.clipped_packets == 1
 
-    assert (
-        state.clock_fault_packets
-        == 1
-    )
+    assert state.clock_fault_packets == 1
 
-    assert (
-        state.congested_packets
-        == 1
-    )
+    assert state.congested_packets == 1
 
 
 def test_health_flag_counters_accumulate_independently(
@@ -713,51 +480,24 @@ def test_health_flag_counters_accumulate_independently(
     state = make_node_state()
 
     state.observe_header(
-        sequence=
-            1,
-
-        session_id=
-            session_id,
-
-        sample_index=
-            0,
-
-        flags=
-            int(
-                PacketFlags.CLIPPED
-            ),
+        sequence=1,
+        session_id=session_id,
+        sample_index=0,
+        flags=int(PacketFlags.CLIPPED),
     )
 
     state.observe_header(
-        sequence=
-            2,
-
-        session_id=
-            session_id,
-
-        sample_index=
-            1024,
-
-        flags=
-            int(
-                PacketFlags.CLOCK_FAULT
-            ),
+        sequence=2,
+        session_id=session_id,
+        sample_index=1024,
+        flags=int(PacketFlags.CLOCK_FAULT),
     )
 
-    assert (
-        state.clipped_packets
-        == 1
-    )
+    assert state.clipped_packets == 1
 
-    assert (
-        state.clock_fault_packets
-        == 1
-    )
+    assert state.clock_fault_packets == 1
 
-    assert (
-        state.congested_packets
-        == 0
-    )
+    assert state.congested_packets == 0
 
 
 # ======================================================================
@@ -773,68 +513,33 @@ def test_add_audio_accepts_contiguous_blocks(
 
     state = make_node_state()
 
-    state.reset_stream_tracking(
-        session_id=
-            session_id
-    )
+    state.reset_stream_tracking(session_id=session_id)
 
     first = make_audio_block(
-        node_id=
-            1,
-
-        sequence=
-            0,
-
-        session_id=
-            session_id,
-
-        sample_index=
-            0,
+        node_id=1,
+        sequence=0,
+        session_id=session_id,
+        sample_index=0,
     )
 
     second = make_audio_block(
-        node_id=
-            1,
-
-        sequence=
-            1,
-
-        session_id=
-            session_id,
-
-        sample_index=
-            first.end_sample,
+        node_id=1,
+        sequence=1,
+        session_id=session_id,
+        sample_index=first.end_sample,
     )
 
-    state.add_audio(
-        first
-    )
+    state.add_audio(first)
 
-    state.add_audio(
-        second
-    )
+    state.add_audio(second)
 
-    assert (
-        len(
-            state.audio_blocks
-        )
-        == 2
-    )
+    assert len(state.audio_blocks) == 2
 
-    assert (
-        state.sample_gaps
-        == 0
-    )
+    assert state.sample_gaps == 0
 
-    assert (
-        state.expected_next_audio_sample
-        == second.end_sample
-    )
+    assert state.expected_next_audio_sample == second.end_sample
 
-    assert (
-        state.audio_packets_received
-        == 2
-    )
+    assert state.audio_packets_received == 2
 
 
 def test_add_audio_counts_missing_samples(
@@ -845,63 +550,31 @@ def test_add_audio_counts_missing_samples(
 
     state = make_node_state()
 
-    state.reset_stream_tracking(
-        session_id=
-            session_id
-    )
+    state.reset_stream_tracking(session_id=session_id)
 
     first = make_audio_block(
-        node_id=
-            1,
-
-        sequence=
-            0,
-
-        session_id=
-            session_id,
-
-        sample_index=
-            0,
+        node_id=1,
+        sequence=0,
+        session_id=session_id,
+        sample_index=0,
     )
 
-    state.add_audio(
-        first
-    )
+    state.add_audio(first)
 
-    missing_samples = (
-        256
-    )
+    missing_samples = 256
 
     second = make_audio_block(
-        node_id=
-            1,
-
-        sequence=
-            1,
-
-        session_id=
-            session_id,
-
-        sample_index=
-            first.end_sample
-            + missing_samples,
+        node_id=1,
+        sequence=1,
+        session_id=session_id,
+        sample_index=first.end_sample + missing_samples,
     )
 
-    state.add_audio(
-        second
-    )
+    state.add_audio(second)
 
-    assert (
-        state.sample_gaps
-        == missing_samples
-    )
+    assert state.sample_gaps == missing_samples
 
-    assert (
-        len(
-            state.audio_blocks
-        )
-        == 2
-    )
+    assert len(state.audio_blocks) == 2
 
 
 def test_add_audio_rejects_old_or_overlapping_block(
@@ -912,67 +585,33 @@ def test_add_audio_rejects_old_or_overlapping_block(
 
     state = make_node_state()
 
-    state.reset_stream_tracking(
-        session_id=
-            session_id
-    )
+    state.reset_stream_tracking(session_id=session_id)
 
     first = make_audio_block(
-        node_id=
-            1,
-
-        sequence=
-            0,
-
-        session_id=
-            session_id,
-
-        sample_index=
-            0,
+        node_id=1,
+        sequence=0,
+        session_id=session_id,
+        sample_index=0,
     )
 
-    state.add_audio(
-        first
-    )
+    state.add_audio(first)
 
-    expected_after_first = (
-        state.expected_next_audio_sample
-    )
+    expected_after_first = state.expected_next_audio_sample
 
     overlap = make_audio_block(
-        node_id=
-            1,
-
-        sequence=
-            1,
-
-        session_id=
-            session_id,
-
-        sample_index=
-            512,
+        node_id=1,
+        sequence=1,
+        session_id=session_id,
+        sample_index=512,
     )
 
-    state.add_audio(
-        overlap
-    )
+    state.add_audio(overlap)
 
-    assert (
-        len(
-            state.audio_blocks
-        )
-        == 1
-    )
+    assert len(state.audio_blocks) == 1
 
-    assert (
-        state.duplicate_or_old_packets
-        == 1
-    )
+    assert state.duplicate_or_old_packets == 1
 
-    assert (
-        state.expected_next_audio_sample
-        == expected_after_first
-    )
+    assert state.expected_next_audio_sample == expected_after_first
 
 
 def test_add_audio_rejects_wrong_node(
@@ -981,26 +620,15 @@ def test_add_audio_rejects_wrong_node(
     session_id,
 ) -> None:
 
-    state = make_node_state(
-        node_id=
-            1
-    )
+    state = make_node_state(node_id=1)
 
     block = make_audio_block(
-        node_id=
-            2,
-
-        session_id=
-            session_id,
+        node_id=2,
+        session_id=session_id,
     )
 
-    with pytest.raises(
-        ValueError
-    ):
-
-        state.add_audio(
-            block
-        )
+    with pytest.raises(ValueError):
+        state.add_audio(block)
 
 
 # ======================================================================
@@ -1015,103 +643,56 @@ def test_environment_near_returns_nearest_sample(
 
     state = make_node_state()
 
-    state.reset_stream_tracking(
-        session_id=
-            session_id
-    )
+    state.reset_stream_tracking(session_id=session_id)
 
     environment_1 = EnvironmentPayload(
-        temperature_c=
-            25.0,
-
-        humidity_percent=
-            50.0,
-
-        pressure_hpa=
-            1012.0,
+        temperature_c=25.0,
+        humidity_percent=50.0,
+        pressure_hpa=1012.0,
     )
 
     environment_2 = EnvironmentPayload(
-        temperature_c=
-            26.0,
-
-        humidity_percent=
-            52.0,
-
-        pressure_hpa=
-            1011.5,
+        temperature_c=26.0,
+        humidity_percent=52.0,
+        pressure_hpa=1011.5,
     )
 
     environment_3 = EnvironmentPayload(
-        temperature_c=
-            27.0,
-
-        humidity_percent=
-            54.0,
-
-        pressure_hpa=
-            1011.0,
+        temperature_c=27.0,
+        humidity_percent=54.0,
+        pressure_hpa=1011.0,
     )
 
     state.add_environment(
         EnvironmentSample(
-            node_id=
-                1,
-
-            session_id=
-                session_id,
-
-            sample_index=
-                0,
-
-            value=
-                environment_1,
+            node_id=1,
+            session_id=session_id,
+            sample_index=0,
+            value=environment_1,
         )
     )
 
     state.add_environment(
         EnvironmentSample(
-            node_id=
-                1,
-
-            session_id=
-                session_id,
-
-            sample_index=
-                1000,
-
-            value=
-                environment_2,
+            node_id=1,
+            session_id=session_id,
+            sample_index=1000,
+            value=environment_2,
         )
     )
 
     state.add_environment(
         EnvironmentSample(
-            node_id=
-                1,
-
-            session_id=
-                session_id,
-
-            sample_index=
-                2000,
-
-            value=
-                environment_3,
+            node_id=1,
+            session_id=session_id,
+            sample_index=2000,
+            value=environment_3,
         )
     )
 
-    assert (
-        state.environment_near(
-            1400
-        )
-        == environment_2
-    )
+    assert state.environment_near(1400) == environment_2
 
-    assert (
-        state.latest_environment
-        == environment_3
-    )
+    assert state.latest_environment == environment_3
 
 
 def test_environment_from_stale_session_is_ignored(
@@ -1122,49 +703,26 @@ def test_environment_from_stale_session_is_ignored(
 
     state = make_node_state()
 
-    state.reset_stream_tracking(
-        session_id=
-            session_id
-    )
+    state.reset_stream_tracking(session_id=session_id)
 
     stale_environment = EnvironmentPayload(
-        temperature_c=
-            40.0,
-
-        humidity_percent=
-            10.0,
-
-        pressure_hpa=
-            900.0,
+        temperature_c=40.0,
+        humidity_percent=10.0,
+        pressure_hpa=900.0,
     )
 
     state.add_environment(
         EnvironmentSample(
-            node_id=
-                1,
-
-            session_id=
-                second_session_id,
-
-            sample_index=
-                1000,
-
-            value=
-                stale_environment,
+            node_id=1,
+            session_id=second_session_id,
+            sample_index=1000,
+            value=stale_environment,
         )
     )
 
-    assert (
-        state.latest_environment
-        is None
-    )
+    assert state.latest_environment is None
 
-    assert (
-        len(
-            state.environment_history
-        )
-        == 0
-    )
+    assert len(state.environment_history) == 0
 
 
 def test_environment_wrong_node_is_rejected(
@@ -1172,39 +730,21 @@ def test_environment_wrong_node_is_rejected(
     session_id,
 ) -> None:
 
-    state = make_node_state(
-        node_id=
-            1
-    )
+    state = make_node_state(node_id=1)
 
     environment = EnvironmentPayload(
-        temperature_c=
-            25.0,
-
-        humidity_percent=
-            50.0,
-
-        pressure_hpa=
-            1013.25,
+        temperature_c=25.0,
+        humidity_percent=50.0,
+        pressure_hpa=1013.25,
     )
 
-    with pytest.raises(
-        ValueError
-    ):
-
+    with pytest.raises(ValueError):
         state.add_environment(
             EnvironmentSample(
-                node_id=
-                    2,
-
-                session_id=
-                    session_id,
-
-                sample_index=
-                    0,
-
-                value=
-                    environment,
+                node_id=2,
+                session_id=session_id,
+                sample_index=0,
+                value=environment,
             )
         )
 
@@ -1218,53 +758,27 @@ def test_reset_stream_tracking_clears_environment_by_default(
     state = make_node_state()
 
     environment = EnvironmentPayload(
-        temperature_c=
-            24.0,
-
-        humidity_percent=
-            48.0,
-
-        pressure_hpa=
-            1010.0,
+        temperature_c=24.0,
+        humidity_percent=48.0,
+        pressure_hpa=1010.0,
     )
 
-    state.reset_stream_tracking(
-        session_id=
-            session_id
-    )
+    state.reset_stream_tracking(session_id=session_id)
 
     state.add_environment(
         EnvironmentSample(
-            node_id=
-                1,
-
-            session_id=
-                session_id,
-
-            sample_index=
-                0,
-
-            value=
-                environment,
+            node_id=1,
+            session_id=session_id,
+            sample_index=0,
+            value=environment,
         )
     )
 
-    state.reset_stream_tracking(
-        session_id=
-            second_session_id
-    )
+    state.reset_stream_tracking(session_id=second_session_id)
 
-    assert (
-        state.latest_environment
-        is None
-    )
+    assert state.latest_environment is None
 
-    assert (
-        len(
-            state.environment_history
-        )
-        == 0
-    )
+    assert len(state.environment_history) == 0
 
 
 # ======================================================================
@@ -1277,78 +791,36 @@ def test_snapshot_exposes_node_diagnostics(
     session_id,
 ) -> None:
 
-    state = make_node_state(
-        node_id=
-            2
-    )
+    state = make_node_state(node_id=2)
 
-    state.connected = (
-        True
-    )
+    state.connected = True
 
-    state.peer = (
-        "192.168.1.42"
-    )
+    state.peer = "192.168.1.42"
 
     state.observe_header(
-        sequence=
-            5,
-
-        session_id=
-            session_id,
-
-        sample_index=
-            8192,
-
-        flags=
-            int(
-                PacketFlags.CLIPPED
-            ),
+        sequence=5,
+        session_id=session_id,
+        sample_index=8192,
+        flags=int(PacketFlags.CLIPPED),
     )
 
-    snapshot = (
-        state.snapshot()
-    )
+    snapshot = state.snapshot()
 
-    assert (
-        snapshot.node_id
-        == 2
-    )
+    assert snapshot.node_id == 2
 
-    assert (
-        snapshot.connected
-        is True
-    )
+    assert snapshot.connected is True
 
-    assert (
-        snapshot.peer
-        == "192.168.1.42"
-    )
+    assert snapshot.peer == "192.168.1.42"
 
-    assert (
-        snapshot.session_id
-        == session_id
-    )
+    assert snapshot.session_id == session_id
 
-    assert (
-        snapshot.last_sequence
-        == 5
-    )
+    assert snapshot.last_sequence == 5
 
-    assert (
-        snapshot.last_sample_index
-        == 8192
-    )
+    assert snapshot.last_sample_index == 8192
 
-    assert (
-        snapshot.packets_received
-        == 1
-    )
+    assert snapshot.packets_received == 1
 
-    assert (
-        snapshot.clipped_packets
-        == 1
-    )
+    assert snapshot.clipped_packets == 1
 
 
 # ======================================================================
@@ -1367,66 +839,46 @@ class _FakeWriter:
 
         self.data = bytearray()
 
-        self.drain_count = (
-            0
-        )
+        self.drain_count = 0
 
-        self.close_count = (
-            0
-        )
+        self.close_count = 0
 
-        self.wait_closed_count = (
-            0
-        )
+        self.wait_closed_count = 0
 
-        self._closing = (
-            False
-        )
+        self._closing = False
 
     def is_closing(
         self,
     ) -> bool:
 
-        return (
-            self._closing
-        )
+        return self._closing
 
     def write(
         self,
         data: bytes,
     ) -> None:
 
-        self.data.extend(
-            data
-        )
+        self.data.extend(data)
 
     async def drain(
         self,
     ) -> None:
 
-        self.drain_count += (
-            1
-        )
+        self.drain_count += 1
 
     def close(
         self,
     ) -> None:
 
-        self.close_count += (
-            1
-        )
+        self.close_count += 1
 
-        self._closing = (
-            True
-        )
+        self._closing = True
 
     async def wait_closed(
         self,
     ) -> None:
 
-        self.wait_closed_count += (
-            1
-        )
+        self.wait_closed_count += 1
 
 
 # ======================================================================
@@ -1441,18 +893,11 @@ def test_node_connection_sends_control_frame(
 
     async def scenario() -> None:
 
-        state = make_node_state(
-            node_id=
-                2
-        )
+        state = make_node_state(node_id=2)
 
-        reader = (
-            asyncio.StreamReader()
-        )
+        reader = asyncio.StreamReader()
 
-        writer = (
-            _FakeWriter()
-        )
+        writer = _FakeWriter()
 
         connection = NodeConnection(
             state,
@@ -1462,39 +907,20 @@ def test_node_connection_sends_control_frame(
 
         await connection.send_command(
             ControlCommand.START,
-            session_id=
-                session_id,
+            session_id=session_id,
         )
 
-        frame = unpack_control(
-            bytes(
-                writer.data
-            )
-        )
+        frame = unpack_control(bytes(writer.data))
 
-        assert (
-            frame.command
-            == ControlCommand.START
-        )
+        assert frame.command == ControlCommand.START
 
-        assert (
-            frame.session_id
-            == session_id
-        )
+        assert frame.session_id == session_id
 
-        assert (
-            writer.drain_count
-            == 1
-        )
+        assert writer.drain_count == 1
 
-        assert (
-            connection.node_id
-            == 2
-        )
+        assert connection.node_id == 2
 
-    asyncio.run(
-        scenario()
-    )
+    asyncio.run(scenario())
 
 
 def test_node_connection_rejects_write_when_closing(
@@ -1506,9 +932,7 @@ def test_node_connection_rejects_write_when_closing(
 
         state = make_node_state()
 
-        writer = (
-            _FakeWriter()
-        )
+        writer = _FakeWriter()
 
         writer.close()
 
@@ -1518,19 +942,13 @@ def test_node_connection_rejects_write_when_closing(
             writer,
         )
 
-        with pytest.raises(
-            ConnectionError
-        ):
-
+        with pytest.raises(ConnectionError):
             await connection.send_command(
                 ControlCommand.START,
-                session_id=
-                    session_id,
+                session_id=session_id,
             )
 
-    asyncio.run(
-        scenario()
-    )
+    asyncio.run(scenario())
 
 
 def test_node_connection_close_waits_for_writer(
@@ -1541,9 +959,7 @@ def test_node_connection_close_waits_for_writer(
 
         state = make_node_state()
 
-        writer = (
-            _FakeWriter()
-        )
+        writer = _FakeWriter()
 
         connection = NodeConnection(
             state,
@@ -1553,20 +969,10 @@ def test_node_connection_close_waits_for_writer(
 
         await connection.close()
 
-        assert (
-            writer.close_count
-            == 1
-        )
+        assert writer.close_count == 1
 
-        assert (
-            writer.wait_closed_count
-            == 1
-        )
+        assert writer.wait_closed_count == 1
 
-        assert (
-            writer.is_closing()
-        )
+        assert writer.is_closing()
 
-    asyncio.run(
-        scenario()
-    )
+    asyncio.run(scenario())

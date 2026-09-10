@@ -83,7 +83,9 @@ class SoundscapeService:
         if session_id is not None:
             session_id = self._positive_integer(session_id, name="session_id")
             if self.active_session_id not in (None, session_id):
-                raise ValueError("session_id does not match the active soundscape session.")
+                raise ValueError(
+                    "session_id does not match the active soundscape session."
+                )
 
         self.reset_buffers()
         self.active_session_id = None
@@ -172,7 +174,9 @@ class SoundscapeService:
             config=self.config,
         )
 
-        if self.database is not None and hasattr(self.database, "add_soundscape_indices"):
+        if self.database is not None and hasattr(
+            self.database, "add_soundscape_indices"
+        ):
             try:
                 self.database.add_soundscape_indices(
                     session_id=session_id,

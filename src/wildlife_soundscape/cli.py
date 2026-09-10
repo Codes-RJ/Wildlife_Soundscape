@@ -36,3 +36,10 @@ def benchmark_gcc() -> None:
     from .tools.benchmark_gcc_variants import main
 
     main()
+
+
+def validate_dataset() -> int:
+    """Validate a native research dataset manifest."""
+    from .tools.validate_dataset import main
+
+    return main()

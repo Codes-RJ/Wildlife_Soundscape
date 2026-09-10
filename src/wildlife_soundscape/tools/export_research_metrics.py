@@ -93,8 +93,13 @@ Behavior indicators are derived acoustic-pattern indicators rather than
 confirmed ethological observations.
 """
 
-
 from __future__ import annotations
+
+from wildlife_soundscape.core.provenance import config_from_manifest
+from wildlife_soundscape.storage.provenance import (
+    read_manifests,
+    write_manifest_sidecar,
+)
 
 
 # ======================================================================
@@ -158,21 +163,13 @@ from wildlife_soundscape.storage.database import (
 # ======================================================================
 
 
-DEFAULT_EXPORT_DIRECTORY = (
-    Path(
-        "data/exports"
-    )
-)
+DEFAULT_EXPORT_DIRECTORY = Path("data/exports")
 
 
-DEFAULT_EXPORT_STEM = (
-    "research_metrics"
-)
+DEFAULT_EXPORT_STEM = "research_metrics"
 
 
-UINT32_MAX = (
-    0xFFFFFFFF
-)
+UINT32_MAX = 0xFFFFFFFF
 
 
 # ======================================================================
@@ -191,17 +188,11 @@ class ResearchMetricsExportOptions:
 
     output_directory: Path
 
-    stem: str = (
-        DEFAULT_EXPORT_STEM
-    )
+    stem: str = DEFAULT_EXPORT_STEM
 
-    pretty_json: bool = (
-        True
-    )
+    pretty_json: bool = True
 
-    export_csv_tables: bool = (
-        True
-    )
+    export_csv_tables: bool = True
 
     def __post_init__(
         self,
@@ -215,13 +206,7 @@ class ResearchMetricsExportOptions:
             self.output_directory,
             Path,
         ):
-
-            raise TypeError(
-                (
-                    "output_directory must be "
-                    "pathlib.Path."
-                )
-            )
+            raise TypeError(("output_directory must be pathlib.Path."))
 
         # ==============================================================
         # STEM
@@ -231,34 +216,15 @@ class ResearchMetricsExportOptions:
             self.stem,
             str,
         ):
+            raise TypeError("stem must be a string.")
 
-            raise TypeError(
-                "stem must be a string."
-            )
+        normalized_stem = self.stem.strip()
 
-        normalized_stem = (
-            self.stem.strip()
-        )
+        if not (normalized_stem):
+            raise ValueError("stem cannot be empty.")
 
-        if not (
-            normalized_stem
-        ):
-
-            raise ValueError(
-                "stem cannot be empty."
-            )
-
-        if (
-            "/" in normalized_stem
-            or "\\" in normalized_stem
-        ):
-
-            raise ValueError(
-                (
-                    "stem must be a filename stem, "
-                    "not a path."
-                )
-            )
+        if "/" in normalized_stem or "\\" in normalized_stem:
+            raise ValueError(("stem must be a filename stem, not a path."))
 
         # ==============================================================
         # FLAGS
@@ -268,19 +234,13 @@ class ResearchMetricsExportOptions:
             self.pretty_json,
             bool,
         ):
-
-            raise TypeError(
-                "pretty_json must be bool."
-            )
+            raise TypeError("pretty_json must be bool.")
 
         if not isinstance(
             self.export_csv_tables,
             bool,
         ):
-
-            raise TypeError(
-                "export_csv_tables must be bool."
-            )
+            raise TypeError("export_csv_tables must be bool.")
 
 
 # ======================================================================
@@ -314,32 +274,13 @@ class ResearchMetricsExportResult:
     ]:
 
         return {
-            "json_path":
-                str(
-                    self.json_path
-                ),
-
-            "summary_csv_path":
-                (
-                    str(
-                        self.summary_csv_path
-                    )
-
-                    if self.summary_csv_path
-                    is not None
-
-                    else None
-                ),
-
-            "table_csv_paths":
-                [
-                    str(
-                        path
-                    )
-
-                    for path
-                    in self.table_csv_paths
-                ],
+            "json_path": str(self.json_path),
+            "summary_csv_path": (
+                str(self.summary_csv_path)
+                if self.summary_csv_path is not None
+                else None
+            ),
+            "table_csv_paths": [str(path) for path in self.table_csv_paths],
         }
 
 
@@ -355,47 +296,22 @@ def validate_session_id(
     Validate one Protocol-v4 uint32 session identifier.
     """
 
-    if (
-        isinstance(
-            value,
-            bool,
-        )
-        or not isinstance(
-            value,
-            int,
-        )
+    if isinstance(
+        value,
+        bool,
+    ) or not isinstance(
+        value,
+        int,
     ):
+        raise TypeError("session_id must be an integer.")
 
-        raise TypeError(
-            "session_id must be an integer."
-        )
+    if value <= 0:
+        raise ValueError("session_id must be greater than 0.")
 
-    if (
-        value
-        <= 0
-    ):
+    if value > UINT32_MAX:
+        raise ValueError(("session_id exceeds the Protocol-v4 uint32 range."))
 
-        raise ValueError(
-            "session_id must be greater than 0."
-        )
-
-    if (
-        value
-        > UINT32_MAX
-    ):
-
-        raise ValueError(
-            (
-                "session_id exceeds the "
-                "Protocol-v4 uint32 range."
-            )
-        )
-
-    return (
-        int(
-            value
-        )
-    )
+    return int(value)
 
 
 # ======================================================================
@@ -432,22 +348,15 @@ def to_json_safe(
     # NONE / BASIC SCALARS
     # ==================================================================
 
-    if (
-        value
-        is None
-        or isinstance(
-            value,
-            (
-                str,
-                bool,
-                int,
-            ),
-        )
+    if value is None or isinstance(
+        value,
+        (
+            str,
+            bool,
+            int,
+        ),
     ):
-
-        return (
-            value
-        )
+        return value
 
     # ==================================================================
     # FLOAT
@@ -457,21 +366,12 @@ def to_json_safe(
         value,
         float,
     ):
-
-        if not math.isfinite(
-            value
-        ):
-
+        if not math.isfinite(value):
             raise ValueError(
-                (
-                    "Research report contains "
-                    "a non-finite floating-point value."
-                )
+                ("Research report contains a non-finite floating-point value.")
             )
 
-        return (
-            value
-        )
+        return value
 
     # ==================================================================
     # ENUM
@@ -481,12 +381,7 @@ def to_json_safe(
         value,
         Enum,
     ):
-
-        return (
-            to_json_safe(
-                value.value
-            )
-        )
+        return to_json_safe(value.value)
 
     # ==================================================================
     # PATH
@@ -496,12 +391,7 @@ def to_json_safe(
         value,
         Path,
     ):
-
-        return (
-            str(
-                value
-            )
-        )
+        return str(value)
 
     # ==================================================================
     # DATE / DATETIME
@@ -514,10 +404,7 @@ def to_json_safe(
             date,
         ),
     ):
-
-        return (
-            value.isoformat()
-        )
+        return value.isoformat()
 
     # ==================================================================
     # AUTHORITATIVE PUBLIC SERIALIZATION CONTRACT
@@ -529,31 +416,15 @@ def to_json_safe(
         None,
     )
 
-    if callable(
-        to_dict_method
-    ):
+    if callable(to_dict_method):
+        serialized = to_dict_method()
 
-        serialized = (
-            to_dict_method()
-        )
-
-        if (
-            serialized
-            is value
-        ):
-
+        if serialized is value:
             raise ValueError(
-                (
-                    "to_dict() returned the original "
-                    "object and would recurse forever."
-                )
+                ("to_dict() returned the original object and would recurse forever.")
             )
 
-        return (
-            to_json_safe(
-                serialized
-            )
-        )
+        return to_json_safe(serialized)
 
     # ==================================================================
     # GENERIC DATACLASS FALLBACK
@@ -563,23 +434,11 @@ def to_json_safe(
     # own public serialization contract.
     # ==================================================================
 
-    if (
-        is_dataclass(
-            value
-        )
-        and not isinstance(
-            value,
-            type,
-        )
+    if is_dataclass(value) and not isinstance(
+        value,
+        type,
     ):
-
-        return (
-            to_json_safe(
-                asdict(
-                    value
-                )
-            )
-        )
+        return to_json_safe(asdict(value))
 
     # ==================================================================
     # MAPPING
@@ -589,18 +448,7 @@ def to_json_safe(
         value,
         Mapping,
     ):
-
-        return {
-            str(
-                key
-            ):
-                to_json_safe(
-                    item
-                )
-
-            for key, item
-            in value.items()
-        }
+        return {str(key): to_json_safe(item) for key, item in value.items()}
 
     # ==================================================================
     # SEQUENCE
@@ -615,15 +463,7 @@ def to_json_safe(
             frozenset,
         ),
     ):
-
-        return [
-            to_json_safe(
-                item
-            )
-
-            for item
-            in value
-        ]
+        return [to_json_safe(item) for item in value]
 
     # ==================================================================
     # NUMPY-LIKE SCALAR
@@ -635,39 +475,18 @@ def to_json_safe(
         None,
     )
 
-    if callable(
-        item_method
-    ):
-
+    if callable(item_method):
         try:
-
-            item_value = (
-                item_method()
-            )
+            item_value = item_method()
 
         except Exception:
-
             pass
 
         else:
+            if item_value is not value:
+                return to_json_safe(item_value)
 
-            if (
-                item_value
-                is not value
-            ):
-
-                return (
-                    to_json_safe(
-                        item_value
-                    )
-                )
-
-    raise TypeError(
-        (
-            "Unsupported research-report value "
-            f"type: {type(value).__name__}"
-        )
-    )
+    raise TypeError((f"Unsupported research-report value type: {type(value).__name__}"))
 
 
 # ======================================================================
@@ -689,27 +508,15 @@ def normalize_report(
         ResearchAnalyticsReport.to_dict()
     """
 
-    normalized = (
-        to_json_safe(
-            report
-        )
-    )
+    normalized = to_json_safe(report)
 
     if not isinstance(
         normalized,
         dict,
     ):
+        raise TypeError(("Research analytics report must normalize to a dictionary."))
 
-        raise TypeError(
-            (
-                "Research analytics report "
-                "must normalize to a dictionary."
-            )
-        )
-
-    return (
-        normalized
-    )
+    return normalized
 
 
 # ======================================================================
@@ -724,18 +531,14 @@ def is_scalar_export_value(
     Return True for values suitable for one summary CSV cell.
     """
 
-    return (
-        value
-        is None
-        or isinstance(
-            value,
-            (
-                str,
-                bool,
-                int,
-                float,
-            ),
-        )
+    return value is None or isinstance(
+        value,
+        (
+            str,
+            bool,
+            int,
+            float,
+        ),
     )
 
 
@@ -786,55 +589,26 @@ def flatten_scalar_metrics(
         value,
         Mapping,
     ):
+        for key, item in value.items():
+            key_text = str(key)
 
-        for key, item in (
-            value.items()
-        ):
+            path = key_text if not prefix else (f"{prefix}.{key_text}")
 
-            key_text = (
-                str(
-                    key
-                )
-            )
-
-            path = (
-                key_text
-
-                if not prefix
-
-                else (
-                    f"{prefix}.{key_text}"
-                )
-            )
-
-            if (
-                is_scalar_export_value(
-                    item
-                )
-            ):
-
-                flattened[
-                    path
-                ] = (
-                    item
-                )
+            if is_scalar_export_value(item):
+                flattened[path] = item
 
             elif isinstance(
                 item,
                 Mapping,
             ):
-
                 flattened.update(
                     flatten_scalar_metrics(
                         item,
-                        prefix=
-                            path,
+                        prefix=path,
                     )
                 )
 
-    return (
-        flattened
-    )
+    return flattened
 
 
 # ======================================================================
@@ -853,31 +627,16 @@ def sanitize_filename_component(
         value,
         str,
     ):
+        raise TypeError("value must be a string.")
 
-        raise TypeError(
-            "value must be a string."
-        )
+    result: list[str] = []
 
-    result: list[
-        str
-    ] = []
-
-    for character in (
-        value
-    ):
-
-        if (
-            character.isalnum()
-            or character
-            in (
-                "_",
-                "-",
-            )
+    for character in value:
+        if character.isalnum() or character in (
+            "_",
+            "-",
         ):
-
-            result.append(
-                character.lower()
-            )
+            result.append(character.lower())
 
         elif character in (
             ".",
@@ -885,42 +644,20 @@ def sanitize_filename_component(
             "/",
             "\\",
         ):
-
-            result.append(
-                "_"
-            )
+            result.append("_")
 
         else:
+            result.append("_")
 
-            result.append(
-                "_"
-            )
+    normalized = "".join(result).strip("_")
 
-    normalized = (
-        "".join(
-            result
-        )
-        .strip(
-            "_"
-        )
-    )
-
-    while (
-        "__"
-        in normalized
-    ):
-
-        normalized = (
-            normalized.replace(
-                "__",
-                "_",
-            )
+    while "__" in normalized:
+        normalized = normalized.replace(
+            "__",
+            "_",
         )
 
-    return (
-        normalized
-        or "table"
-    )
+    return normalized or "table"
 
 
 # ======================================================================
@@ -953,36 +690,19 @@ def flatten_table_row(
         Any,
     ] = {}
 
-    for key, value in (
-        row.items()
-    ):
+    for key, value in row.items():
+        key_text = str(key)
 
-        key_text = (
-            str(
-                key
-            )
-        )
-
-        column = (
-            key_text
-
-            if not prefix
-
-            else (
-                f"{prefix}.{key_text}"
-            )
-        )
+        column = key_text if not prefix else (f"{prefix}.{key_text}")
 
         if isinstance(
             value,
             Mapping,
         ):
-
             output.update(
                 flatten_table_row(
                     value,
-                    prefix=
-                        column,
+                    prefix=column,
                 )
             )
 
@@ -990,60 +710,31 @@ def flatten_table_row(
             value,
             list,
         ):
-
-            output[
-                column
-            ] = (
-                json.dumps(
-                    value,
-                    ensure_ascii=
-                        False,
-                    allow_nan=
-                        False,
-                    separators=
-                        (
-                            ",",
-                            ":",
-                        ),
-                )
+            output[column] = json.dumps(
+                value,
+                ensure_ascii=False,
+                allow_nan=False,
+                separators=(
+                    ",",
+                    ":",
+                ),
             )
 
-        elif (
-            is_scalar_export_value(
-                value
-            )
-        ):
-
-            output[
-                column
-            ] = (
-                value
-            )
+        elif is_scalar_export_value(value):
+            output[column] = value
 
         else:
-
-            output[
-                column
-            ] = (
-                json.dumps(
-                    to_json_safe(
-                        value
-                    ),
-                    ensure_ascii=
-                        False,
-                    allow_nan=
-                        False,
-                    separators=
-                        (
-                            ",",
-                            ":",
-                        ),
-                )
+            output[column] = json.dumps(
+                to_json_safe(value),
+                ensure_ascii=False,
+                allow_nan=False,
+                separators=(
+                    ",",
+                    ":",
+                ),
             )
 
-    return (
-        output
-    )
+    return output
 
 
 # ======================================================================
@@ -1105,38 +796,17 @@ def discover_report_tables(
         value,
         Mapping,
     ):
+        for key, item in value.items():
+            child_path = str(key) if not path else (f"{path}.{key}")
 
-        for key, item in (
-            value.items()
-        ):
-
-            child_path = (
-                str(
-                    key
-                )
-
-                if not path
-
-                else (
-                    f"{path}.{key}"
-                )
+            nested_tables = discover_report_tables(
+                item,
+                path=child_path,
             )
 
-            nested_tables = (
-                discover_report_tables(
-                    item,
-                    path=
-                        child_path,
-                )
-            )
+            tables.update(nested_tables)
 
-            tables.update(
-                nested_tables
-            )
-
-        return (
-            tables
-        )
+        return tables
 
     # ==================================================================
     # LIST
@@ -1146,14 +816,8 @@ def discover_report_tables(
         value,
         list,
     ):
-
-        if not (
-            value
-        ):
-
-            return (
-                tables
-            )
+        if not (value):
+            return tables
 
         # --------------------------------------------------------------
         # LIST OF MAPPINGS
@@ -1164,60 +828,22 @@ def discover_report_tables(
                 item,
                 Mapping,
             )
-
-            for item
-            in value
+            for item in value
         ):
+            tables[path or "items"] = [flatten_table_row(item) for item in value]
 
-            tables[
-                path
-                or "items"
-            ] = [
-                flatten_table_row(
-                    item
-                )
-
-                for item
-                in value
-            ]
-
-            return (
-                tables
-            )
+            return tables
 
         # --------------------------------------------------------------
         # LIST OF SCALARS
         # --------------------------------------------------------------
 
-        if all(
-            is_scalar_export_value(
-                item
-            )
+        if all(is_scalar_export_value(item) for item in value):
+            tables[path or "values"] = [{"value": item} for item in value]
 
-            for item
-            in value
-        ):
+            return tables
 
-            tables[
-                path
-                or "values"
-            ] = [
-                {
-                    "value":
-                        item
-                }
-
-                for item
-                in value
-            ]
-
-            return (
-                tables
-            )
-
-    return (
-        tables
-    )
+    return tables
 
 
 # ======================================================================
@@ -1232,35 +858,17 @@ def union_fieldnames(
             Any,
         ]
     ],
-) -> list[
-    str
-]:
+) -> list[str]:
     """
     Build deterministic union of CSV columns.
     """
 
-    fields: set[
-        str
-    ] = set()
+    fields: set[str] = set()
 
-    for row in (
-        rows
-    ):
+    for row in rows:
+        fields.update(str(key) for key in row.keys())
 
-        fields.update(
-            str(
-                key
-            )
-
-            for key
-            in row.keys()
-        )
-
-    return (
-        sorted(
-            fields
-        )
-    )
+    return sorted(fields)
 
 
 # ======================================================================
@@ -1285,61 +893,33 @@ def write_csv_rows(
         output_path,
         Path,
     ):
-
-        raise TypeError(
-            "output_path must be pathlib.Path."
-        )
+        raise TypeError("output_path must be pathlib.Path.")
 
     output_path.parent.mkdir(
         parents=True,
         exist_ok=True,
     )
 
-    fieldnames = (
-        union_fieldnames(
-            rows
-        )
-    )
+    fieldnames = union_fieldnames(rows)
 
     with output_path.open(
         "w",
-        encoding=
-            "utf-8",
-        newline=
-            "",
+        encoding="utf-8",
+        newline="",
     ) as handle:
-
-        if not (
-            fieldnames
-        ):
-
+        if not (fieldnames):
             return
 
         writer = csv.DictWriter(
             handle,
-            fieldnames=
-                fieldnames,
-            extrasaction=
-                "ignore",
+            fieldnames=fieldnames,
+            extrasaction="ignore",
         )
 
         writer.writeheader()
 
-        for row in (
-            rows
-        ):
-
-            writer.writerow(
-                {
-                    field:
-                        row.get(
-                            field
-                        )
-
-                    for field
-                    in fieldnames
-                }
-            )
+        for row in rows:
+            writer.writerow({field: row.get(field) for field in fieldnames})
 
 
 # ======================================================================
@@ -1362,11 +942,7 @@ def write_summary_csv(
         metric,value
     """
 
-    metrics = (
-        flatten_scalar_metrics(
-            report
-        )
-    )
+    metrics = flatten_scalar_metrics(report)
 
     output_path.parent.mkdir(
         parents=True,
@@ -1375,17 +951,10 @@ def write_summary_csv(
 
     with output_path.open(
         "w",
-        encoding=
-            "utf-8",
-        newline=
-            "",
+        encoding="utf-8",
+        newline="",
     ) as handle:
-
-        writer = (
-            csv.writer(
-                handle
-            )
-        )
+        writer = csv.writer(handle)
 
         writer.writerow(
             (
@@ -1394,32 +963,17 @@ def write_summary_csv(
             )
         )
 
-        for metric in sorted(
-            metrics
-        ):
-
-            value = (
-                metrics[
-                    metric
-                ]
-            )
+        for metric in sorted(metrics):
+            value = metrics[metric]
 
             if isinstance(
                 value,
                 bool,
             ):
-
-                exported_value = (
-                    1
-                    if value
-                    else 0
-                )
+                exported_value = 1 if value else 0
 
             else:
-
-                exported_value = (
-                    value
-                )
+                exported_value = value
 
             writer.writerow(
                 (
@@ -1454,41 +1008,25 @@ def write_report_json(
 
     with output_path.open(
         "w",
-        encoding=
-            "utf-8",
+        encoding="utf-8",
     ) as handle:
-
         json.dump(
-            dict(
-                report
-            ),
+            dict(report),
             handle,
-            ensure_ascii=
-                False,
-            allow_nan=
-                False,
-            indent=
-                (
-                    2
-                    if pretty
-                    else None
-                ),
-            separators=
-                (
-                    None
-
-                    if pretty
-
-                    else (
-                        ",",
-                        ":",
-                    )
-                ),
+            ensure_ascii=False,
+            allow_nan=False,
+            indent=(2 if pretty else None),
+            separators=(
+                None
+                if pretty
+                else (
+                    ",",
+                    ":",
+                )
+            ),
         )
 
-        handle.write(
-            "\n"
-        )
+        handle.write("\n")
 
 
 # ======================================================================
@@ -1510,23 +1048,11 @@ def export_research_metrics(
         options,
         ResearchMetricsExportOptions,
     ):
+        raise TypeError(("options must be ResearchMetricsExportOptions."))
 
-        raise TypeError(
-            (
-                "options must be "
-                "ResearchMetricsExportOptions."
-            )
-        )
+    normalized = normalize_report(report)
 
-    normalized = (
-        normalize_report(
-            report
-        )
-    )
-
-    output_directory = (
-        options.output_directory
-    )
+    output_directory = options.output_directory
 
     output_directory.mkdir(
         parents=True,
@@ -1537,51 +1063,30 @@ def export_research_metrics(
     # COMPLETE JSON
     # ==================================================================
 
-    json_path = (
-        output_directory
-        / (
-            f"{options.stem}.json"
-        )
-    )
+    json_path = output_directory / (f"{options.stem}.json")
 
     write_report_json(
         normalized,
         json_path,
-        pretty=
-            options.pretty_json,
+        pretty=options.pretty_json,
     )
 
     # ==================================================================
     # JSON-ONLY MODE
     # ==================================================================
 
-    if not (
-        options.export_csv_tables
-    ):
-
-        return (
-            ResearchMetricsExportResult(
-                json_path=
-                    json_path,
-
-                summary_csv_path=
-                    None,
-
-                table_csv_paths=
-                    (),
-            )
+    if not (options.export_csv_tables):
+        return ResearchMetricsExportResult(
+            json_path=json_path,
+            summary_csv_path=None,
+            table_csv_paths=(),
         )
 
     # ==================================================================
     # SCALAR SUMMARY
     # ==================================================================
 
-    summary_path = (
-        output_directory
-        / (
-            f"{options.stem}_summary.csv"
-        )
-    )
+    summary_path = output_directory / (f"{options.stem}_summary.csv")
 
     write_summary_csv(
         normalized,
@@ -1592,97 +1097,44 @@ def export_research_metrics(
     # NESTED TABLES
     # ==================================================================
 
-    table_directory = (
-        output_directory
-        / (
-            f"{options.stem}_tables"
-        )
-    )
+    table_directory = output_directory / (f"{options.stem}_tables")
 
-    tables = (
-        discover_report_tables(
-            normalized
-        )
-    )
+    tables = discover_report_tables(normalized)
 
-    table_paths: list[
-        Path
-    ] = []
+    table_paths: list[Path] = []
 
-    used_names: set[
-        str
-    ] = set()
+    used_names: set[str] = set()
 
-    for report_path, rows in sorted(
-        tables.items()
-    ):
-
-        if not (
-            rows
-        ):
-
+    for report_path, rows in sorted(tables.items()):
+        if not (rows):
             continue
 
-        base_name = (
-            sanitize_filename_component(
-                report_path
-            )
-        )
+        base_name = sanitize_filename_component(report_path)
 
-        filename = (
-            base_name
-        )
+        filename = base_name
 
-        suffix_index = (
-            2
-        )
+        suffix_index = 2
 
-        while (
-            filename
-            in used_names
-        ):
+        while filename in used_names:
+            filename = f"{base_name}_{suffix_index}"
 
-            filename = (
-                f"{base_name}_{suffix_index}"
-            )
+            suffix_index += 1
 
-            suffix_index += (
-                1
-            )
+        used_names.add(filename)
 
-        used_names.add(
-            filename
-        )
-
-        output_path = (
-            table_directory
-            / (
-                f"{filename}.csv"
-            )
-        )
+        output_path = table_directory / (f"{filename}.csv")
 
         write_csv_rows(
             rows,
             output_path,
         )
 
-        table_paths.append(
-            output_path
-        )
+        table_paths.append(output_path)
 
-    return (
-        ResearchMetricsExportResult(
-            json_path=
-                json_path,
-
-            summary_csv_path=
-                summary_path,
-
-            table_csv_paths=
-                tuple(
-                    table_paths
-                ),
-        )
+    return ResearchMetricsExportResult(
+        json_path=json_path,
+        summary_csv_path=summary_path,
+        table_csv_paths=tuple(table_paths),
     )
 
 
@@ -1715,76 +1167,38 @@ def validate_external_session_coherence(
     acquisition session.
     """
 
-    materialized = tuple(
-        event_rows
-    )
+    materialized = tuple(event_rows)
 
-    session_ids: set[
-        int
-    ] = set()
+    session_ids: set[int] = set()
 
-    for index, row in enumerate(
-        materialized
-    ):
-
+    for index, row in enumerate(materialized):
         if not isinstance(
             row,
             Mapping,
         ):
+            raise TypeError((f"event row {index} must be mapping-like."))
 
-            raise TypeError(
-                (
-                    f"event row {index} must "
-                    "be mapping-like."
-                )
-            )
+        value = row.get("session_id")
 
-        value = (
-            row.get(
-                "session_id"
-            )
-        )
-
-        if (
-            value
-            is None
-        ):
-
+        if value is None:
             continue
 
         try:
-
-            session_id = int(
-                value
-            )
+            session_id = int(value)
 
         except (
             TypeError,
             ValueError,
         ) as exc:
-
             raise ValueError(
-                (
-                    f"event row {index} contains "
-                    "an invalid session_id."
-                )
+                (f"event row {index} contains an invalid session_id.")
             ) from exc
 
-        validate_session_id(
-            session_id
-        )
+        validate_session_id(session_id)
 
-        session_ids.add(
-            session_id
-        )
+        session_ids.add(session_id)
 
-    if (
-        len(
-            session_ids
-        )
-        > 1
-    ):
-
+    if len(session_ids) > 1:
         raise ValueError(
             (
                 "External event dataset contains "
@@ -1795,9 +1209,7 @@ def validate_external_session_coherence(
             )
         )
 
-    return (
-        materialized
-    )
+    return materialized
 
 
 # ======================================================================
@@ -1818,7 +1230,8 @@ def build_research_report(
             str,
             Any,
         ]
-    ] | None = None,
+    ]
+    | None = None,
     config: AppConfig = CONFIG,
 ):
     """
@@ -1840,91 +1253,32 @@ def build_research_report(
         config,
         AppConfig,
     ):
+        raise TypeError("config must be an AppConfig.")
 
-        raise TypeError(
-            "config must be an AppConfig."
-        )
-
-    event_rows_tuple = (
-        validate_external_session_coherence(
-            event_rows
-        )
-    )
+    event_rows_tuple = validate_external_session_coherence(event_rows)
 
     environmental_tuple = (
-        None
-
-        if environmental_rows
-        is None
-
-        else tuple(
-            environmental_rows
-        )
+        None if environmental_rows is None else tuple(environmental_rows)
     )
 
-    analytics = (
-        config.analytics
-    )
+    analytics = config.analytics
 
-    return (
-        build_research_analytics_report(
-            event_rows_tuple,
-
-            environmental_rows=
-                environmental_tuple,
-
-            sample_rate=
-                config
-                .audio
-                .sample_rate,
-
-            timestamp_key=
-                "event_time",
-
-            bucket_seconds=
-                analytics
-                .bucket_seconds,
-
-            cell_size_m=
-                analytics
-                .cell_size_m,
-
-            max_grid_cells=
-                analytics
-                .max_grid_cells,
-
-            max_transition_gap_s=
-                analytics
-                .max_transition_gap_s,
-
-            same_class_transitions_only=
-                analytics
-                .same_class_transitions_only,
-
-            alpha=
-                analytics
-                .environmental_alpha,
-
-            environmental_min_samples=
-                analytics
-                .environmental_min_samples,
-
-            neutral_threshold=
-                analytics
-                .neutral_threshold,
-
-            min_activity_events=
-                analytics
-                .min_activity_events,
-
-            min_localized_events=
-                analytics
-                .min_localized_events,
-
-            min_transitions=
-                analytics
-                .min_transitions,
-        )
+    return build_research_analytics_report(
+        event_rows_tuple,
+        environmental_rows=environmental_tuple,
+        sample_rate=config.audio.sample_rate,
+        timestamp_key="event_time",
+        bucket_seconds=analytics.bucket_seconds,
+        cell_size_m=analytics.cell_size_m,
+        max_grid_cells=analytics.max_grid_cells,
+        max_transition_gap_s=analytics.max_transition_gap_s,
+        same_class_transitions_only=analytics.same_class_transitions_only,
+        alpha=analytics.environmental_alpha,
+        environmental_min_samples=analytics.environmental_min_samples,
+        neutral_threshold=analytics.neutral_threshold,
+        min_activity_events=analytics.min_activity_events,
+        min_localized_events=analytics.min_localized_events,
+        min_transitions=analytics.min_transitions,
     )
 
 
@@ -1946,7 +1300,8 @@ def build_and_export_research_metrics(
             str,
             Any,
         ]
-    ] | None = None,
+    ]
+    | None = None,
     options: ResearchMetricsExportOptions,
     config: AppConfig = CONFIG,
 ) -> ResearchMetricsExportResult:
@@ -1954,23 +1309,15 @@ def build_and_export_research_metrics(
     Convenience function for analytics + research export.
     """
 
-    report = (
-        build_research_report(
-            event_rows,
-
-            environmental_rows=
-                environmental_rows,
-
-            config=
-                config,
-        )
+    report = build_research_report(
+        event_rows,
+        environmental_rows=environmental_rows,
+        config=config,
     )
 
-    return (
-        export_research_metrics(
-            report,
-            options,
-        )
+    return export_research_metrics(
+        report,
+        options,
     )
 
 
@@ -1994,16 +1341,9 @@ def create_event_database(
         database_path,
         Path,
     ):
+        raise TypeError("database_path must be pathlib.Path.")
 
-        raise TypeError(
-            "database_path must be pathlib.Path."
-        )
-
-    return (
-        EventDatabase(
-            database_path
-        )
-    )
+    return EventDatabase(database_path)
 
 
 # ======================================================================
@@ -2040,85 +1380,45 @@ def load_database_analytics_inputs(
     actually acquiring data.
     """
 
-    session_id = (
-        validate_session_id(
-            session_id
-        )
-    )
+    session_id = validate_session_id(session_id)
 
     if not isinstance(
         database_path,
         Path,
     ):
-
-        raise TypeError(
-            "database_path must be pathlib.Path."
-        )
+        raise TypeError("database_path must be pathlib.Path.")
 
     if not isinstance(
         config,
         AppConfig,
     ):
+        raise TypeError("config must be an AppConfig.")
 
-        raise TypeError(
-            "config must be an AppConfig."
-        )
-
-    database = (
-        create_event_database(
-            database_path
-        )
-    )
+    database = create_event_database(database_path)
 
     # ==================================================================
     # EVENTS
     # ==================================================================
 
-    event_rows = (
-        database.analytics_event_rows(
-            session_id=
-                session_id,
-
-            sample_rate=
-                config
-                .audio
-                .sample_rate,
-        )
+    event_rows = database.analytics_event_rows(
+        session_id=session_id,
+        sample_rate=config.audio.sample_rate,
     )
 
     # ==================================================================
     # REGULAR ENVIRONMENTAL BINS
     # ==================================================================
 
-    environmental_rows = (
-        database.analytics_environmental_bins(
-            session_id=
-                session_id,
-
-            sample_rate=
-                config
-                .audio
-                .sample_rate,
-
-            bucket_seconds=
-                config
-                .analytics
-                .bucket_seconds,
-
-            node_id=
-                config
-                .analytics
-                .environmental_node_id,
-        )
+    environmental_rows = database.analytics_environmental_bins(
+        session_id=session_id,
+        sample_rate=config.audio.sample_rate,
+        bucket_seconds=config.analytics.bucket_seconds,
+        node_id=config.analytics.environmental_node_id,
     )
 
     return (
-        list(
-            event_rows
-        ),
-        list(
-            environmental_rows
-        ),
+        list(event_rows),
+        list(environmental_rows),
     )
 
 
@@ -2141,52 +1441,31 @@ def export_database_session(
     temporal/spatial sequence is deliberately prohibited here.
     """
 
-    session_id = (
-        validate_session_id(
-            session_id
-        )
-    )
+    session_id = validate_session_id(session_id)
+    manifests = read_manifests(database_path, session_id)
+    if session_id in manifests:
+        config = config_from_manifest(manifests[session_id])
 
     (
         event_rows,
         environmental_rows,
-    ) = (
-        load_database_analytics_inputs(
-            database_path,
-
-            session_id=
-                session_id,
-
-            config=
-                config,
-        )
+    ) = load_database_analytics_inputs(
+        database_path,
+        session_id=session_id,
+        config=config,
     )
 
-    if not (
-        event_rows
-    ):
+    if not (event_rows):
+        raise ValueError(("Selected session contains no persisted acoustic events."))
 
-        raise ValueError(
-            (
-                "Selected session contains "
-                "no persisted acoustic events."
-            )
-        )
-
-    return (
-        build_and_export_research_metrics(
-            event_rows,
-
-            environmental_rows=
-                environmental_rows,
-
-            options=
-                options,
-
-            config=
-                config,
-        )
+    result = build_and_export_research_metrics(
+        event_rows,
+        environmental_rows=environmental_rows,
+        options=options,
+        config=config,
     )
+    write_manifest_sidecar(result.json_path, manifests)
+    return result
 
 
 # ======================================================================
@@ -2212,30 +1491,15 @@ def load_rows_file(
         path,
         Path,
     ):
+        raise TypeError("path must be pathlib.Path.")
 
-        raise TypeError(
-            "path must be pathlib.Path."
-        )
+    if not (path.exists()):
+        raise FileNotFoundError(f"Input file does not exist: {path}")
 
-    if not (
-        path.exists()
-    ):
+    if not (path.is_file()):
+        raise ValueError(f"Input path is not a file: {path}")
 
-        raise FileNotFoundError(
-            f"Input file does not exist: {path}"
-        )
-
-    if not (
-        path.is_file()
-    ):
-
-        raise ValueError(
-            f"Input path is not a file: {path}"
-        )
-
-    suffix = (
-        path.suffix.lower()
-    )
+    suffix = path.suffix.lower()
 
     rows: list[
         Mapping[
@@ -2248,125 +1512,64 @@ def load_rows_file(
     # JSON
     # ==================================================================
 
-    if (
-        suffix
-        == ".json"
-    ):
-
+    if suffix == ".json":
         with path.open(
             "r",
-            encoding=
-                "utf-8",
+            encoding="utf-8",
         ) as handle:
-
-            value = (
-                json.load(
-                    handle
-                )
-            )
+            value = json.load(handle)
 
         if not isinstance(
             value,
             list,
         ):
+            raise ValueError(("JSON analytics input must contain a top-level list."))
 
-            raise ValueError(
-                (
-                    "JSON analytics input must "
-                    "contain a top-level list."
-                )
-            )
-
-        rows = (
-            value
-        )
+        rows = value
 
     # ==================================================================
     # JSONL
     # ==================================================================
 
-    elif (
-        suffix
-        == ".jsonl"
-    ):
-
+    elif suffix == ".jsonl":
         rows = []
 
         with path.open(
             "r",
-            encoding=
-                "utf-8",
+            encoding="utf-8",
         ) as handle:
-
             for line_number, line in enumerate(
                 handle,
-                start=
-                    1,
+                start=1,
             ):
+                text = line.strip()
 
-                text = (
-                    line.strip()
-                )
-
-                if not (
-                    text
-                ):
-
+                if not (text):
                     continue
 
                 try:
-
-                    value = (
-                        json.loads(
-                            text
-                        )
-                    )
+                    value = json.loads(text)
 
                 except json.JSONDecodeError as exc:
+                    raise ValueError((f"Invalid JSONL at line {line_number}.")) from exc
 
-                    raise ValueError(
-                        (
-                            "Invalid JSONL at "
-                            f"line {line_number}."
-                        )
-                    ) from exc
-
-                rows.append(
-                    value
-                )
+                rows.append(value)
 
     else:
-
-        raise ValueError(
-            (
-                "Research input must use "
-                ".json or .jsonl."
-            )
-        )
+        raise ValueError(("Research input must use .json or .jsonl."))
 
     # ==================================================================
     # ROW VALIDATION
     # ==================================================================
 
-    for index, row in enumerate(
-        rows
-    ):
-
+    for index, row in enumerate(rows):
         if not isinstance(
             row,
             Mapping,
         ):
+            raise ValueError((f"Research input row {index} is not an object."))
 
-            raise ValueError(
-                (
-                    "Research input row "
-                    f"{index} is not an object."
-                )
-            )
-
-    return (
-        rows
-    )
+    return rows
 
 
 # ======================================================================
@@ -2380,18 +1583,10 @@ def build_argument_parser() -> argparse.ArgumentParser:
     """
 
     parser = argparse.ArgumentParser(
-        description=(
-            "Generate and export Wildlife Soundscape "
-            "research analytics."
-        )
+        description=("Generate and export Wildlife Soundscape research analytics.")
     )
 
-    source_group = (
-        parser.add_mutually_exclusive_group(
-            required=
-                True
-        )
-    )
+    source_group = parser.add_mutually_exclusive_group(required=True)
 
     # ==================================================================
     # DATABASE MODE
@@ -2399,14 +1594,9 @@ def build_argument_parser() -> argparse.ArgumentParser:
 
     source_group.add_argument(
         "--session-id",
-        type=
-            int,
-        default=
-            None,
-        help=(
-            "Build research analytics directly "
-            "from one persisted database session."
-        ),
+        type=int,
+        default=None,
+        help=("Build research analytics directly from one persisted database session."),
     )
 
     # ==================================================================
@@ -2415,10 +1605,8 @@ def build_argument_parser() -> argparse.ArgumentParser:
 
     source_group.add_argument(
         "--events",
-        type=
-            Path,
-        default=
-            None,
+        type=Path,
+        default=None,
         help=(
             "JSON/JSONL event rows used as analytics input. "
             "A dataset containing multiple session_id values "
@@ -2432,15 +1620,9 @@ def build_argument_parser() -> argparse.ArgumentParser:
 
     parser.add_argument(
         "--database",
-        type=
-            Path,
-        default=
-            CONFIG
-            .persistence
-            .database_path,
-        help=(
-            "SQLite database path used with --session-id."
-        ),
+        type=Path,
+        default=CONFIG.persistence.database_path,
+        help=("SQLite database path used with --session-id."),
     )
 
     # ==================================================================
@@ -2449,13 +1631,10 @@ def build_argument_parser() -> argparse.ArgumentParser:
 
     parser.add_argument(
         "--environment",
-        type=
-            Path,
-        default=
-            None,
+        type=Path,
+        default=None,
         help=(
-            "Optional JSON/JSONL regular environmental-bin "
-            "rows when using --events."
+            "Optional JSON/JSONL regular environmental-bin rows when using --events."
         ),
     )
 
@@ -2465,47 +1644,31 @@ def build_argument_parser() -> argparse.ArgumentParser:
 
     parser.add_argument(
         "--output-dir",
-        type=
-            Path,
-        default=
-            DEFAULT_EXPORT_DIRECTORY,
-        help=(
-            "Research export directory."
-        ),
+        type=Path,
+        default=DEFAULT_EXPORT_DIRECTORY,
+        help=("Research export directory."),
     )
 
     parser.add_argument(
         "--stem",
-        type=
-            str,
-        default=
-            None,
-        help=(
-            "Output filename stem."
-        ),
+        type=str,
+        default=None,
+        help=("Output filename stem."),
     )
 
     parser.add_argument(
         "--json-only",
-        action=
-            "store_true",
-        help=(
-            "Generate only the complete JSON report."
-        ),
+        action="store_true",
+        help=("Generate only the complete JSON report."),
     )
 
     parser.add_argument(
         "--compact-json",
-        action=
-            "store_true",
-        help=(
-            "Disable pretty JSON indentation."
-        ),
+        action="store_true",
+        help=("Disable pretty JSON indentation."),
     )
 
-    return (
-        parser
-    )
+    return parser
 
 
 # ======================================================================
@@ -2518,87 +1681,45 @@ def main() -> int:
     Command-line entry point.
     """
 
-    parser = (
-        build_argument_parser()
-    )
+    parser = build_argument_parser()
 
-    arguments = (
-        parser.parse_args()
-    )
+    arguments = parser.parse_args()
 
     # ==================================================================
     # STEM
     # ==================================================================
 
-    if (
-        arguments.stem
-        is not None
-    ):
+    if arguments.stem is not None:
+        stem = arguments.stem
 
-        stem = (
-            arguments.stem
-        )
-
-    elif (
-        arguments.session_id
-        is not None
-    ):
-
-        stem = (
-            "research_metrics_"
-            f"session_{arguments.session_id}"
-        )
+    elif arguments.session_id is not None:
+        stem = f"research_metrics_session_{arguments.session_id}"
 
     else:
-
-        stem = (
-            DEFAULT_EXPORT_STEM
-        )
+        stem = DEFAULT_EXPORT_STEM
 
     # ==================================================================
     # OPTIONS
     # ==================================================================
 
     try:
-
-        options = (
-            ResearchMetricsExportOptions(
-                output_directory=
-                    arguments.output_dir,
-
-                stem=
-                    stem,
-
-                pretty_json=
-                    not arguments.compact_json,
-
-                export_csv_tables=
-                    not arguments.json_only,
-            )
+        options = ResearchMetricsExportOptions(
+            output_directory=arguments.output_dir,
+            stem=stem,
+            pretty_json=not arguments.compact_json,
+            export_csv_tables=not arguments.json_only,
         )
 
         # ==============================================================
         # DATABASE SESSION
         # ==============================================================
 
-        if (
-            arguments.session_id
-            is not None
-        ):
-
-            result = (
-                export_database_session(
-                    arguments.database,
-
-                    session_id=
-                        arguments.session_id,
-
-                    options=
-                        options,
-
-                    config=
-                        CONFIG,
-                )
+        if arguments.session_id is not None:
+            result = export_database_session(
+                arguments.database,
+                session_id=arguments.session_id,
+                options=options,
+                config=CONFIG,
             )
 
         # ==============================================================
@@ -2606,55 +1727,22 @@ def main() -> int:
         # ==============================================================
 
         else:
+            if arguments.events is None:
+                raise ValueError(("External dataset mode requires --events."))
 
-            if (
-                arguments.events
-                is None
-            ):
+            event_rows = load_rows_file(arguments.events)
 
-                raise ValueError(
-                    (
-                        "External dataset mode "
-                        "requires --events."
-                    )
-                )
-
-            event_rows = (
-                load_rows_file(
-                    arguments.events
-                )
-            )
-
-            if (
-                arguments.environment
-                is None
-            ):
-
-                environmental_rows = (
-                    None
-                )
+            if arguments.environment is None:
+                environmental_rows = None
 
             else:
+                environmental_rows = load_rows_file(arguments.environment)
 
-                environmental_rows = (
-                    load_rows_file(
-                        arguments.environment
-                    )
-                )
-
-            result = (
-                build_and_export_research_metrics(
-                    event_rows,
-
-                    environmental_rows=
-                        environmental_rows,
-
-                    options=
-                        options,
-
-                    config=
-                        CONFIG,
-                )
+            result = build_and_export_research_metrics(
+                event_rows,
+                environmental_rows=environmental_rows,
+                options=options,
+                config=CONFIG,
             )
 
     except (
@@ -2665,68 +1753,29 @@ def main() -> int:
         TypeError,
         ValueError,
     ) as exc:
-
         parser.exit(
-            status=
-                1,
-            message=
-                (
-                    "Research export failed: "
-                    f"{exc}\n"
-                ),
+            status=1,
+            message=(f"Research export failed: {exc}\n"),
         )
 
     # ==================================================================
     # STATUS
     # ==================================================================
 
-    print(
-        "Research analytics exported:"
-    )
+    print("Research analytics exported:")
 
-    print(
-        (
-            f"  JSON: "
-            f"{result.json_path}"
-        )
-    )
+    print((f"  JSON: {result.json_path}"))
 
-    if (
-        result.summary_csv_path
-        is not None
-    ):
+    if result.summary_csv_path is not None:
+        print((f"  Summary CSV: {result.summary_csv_path}"))
 
-        print(
-            (
-                "  Summary CSV: "
-                f"{result.summary_csv_path}"
-            )
-        )
+    if result.table_csv_paths:
+        print((f"  Table CSV files: {len(result.table_csv_paths)}"))
 
-    if (
-        result.table_csv_paths
-    ):
+        for path in result.table_csv_paths:
+            print((f"    - {path}"))
 
-        print(
-            (
-                "  Table CSV files: "
-                f"{len(result.table_csv_paths)}"
-            )
-        )
-
-        for path in (
-            result.table_csv_paths
-        ):
-
-            print(
-                (
-                    f"    - {path}"
-                )
-            )
-
-    return (
-        0
-    )
+    return 0
 
 
 # ======================================================================
@@ -2734,11 +1783,5 @@ def main() -> int:
 # ======================================================================
 
 
-if (
-    __name__
-    == "__main__"
-):
-
-    raise SystemExit(
-        main()
-    )
+if __name__ == "__main__":
+    raise SystemExit(main())

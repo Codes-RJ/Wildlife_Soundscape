@@ -25,14 +25,10 @@ from wildlife_soundscape.core.models import (
 # ======================================================================
 
 
-PCM16_FULL_SCALE = (
-    32768.0
-)
+PCM16_FULL_SCALE = 32768.0
 
 
-MINIMUM_DBFS = (
-    -120.0
-)
+MINIMUM_DBFS = -120.0
 
 
 # ======================================================================
@@ -110,8 +106,7 @@ class AcousticEvent:
 
         return max(
             0,
-            self.end_sample
-            - self.start_sample,
+            self.end_sample - self.start_sample,
         )
 
 
@@ -185,88 +180,46 @@ class NodeEventDetector:
             node_id,
             bool,
         ):
+            raise TypeError("node_id must be an integer")
 
-            raise TypeError(
-                "node_id must be an integer"
-            )
-
-        if (
-            node_id
-            <= 0
-        ):
-
-            raise ValueError(
-                (
-                    "node_id must be "
-                    "greater than 0"
-                )
-            )
+        if node_id <= 0:
+            raise ValueError(("node_id must be greater than 0"))
 
         if not isinstance(
             config,
             EventDetectionConfig,
         ):
+            raise TypeError(("config must be an EventDetectionConfig instance"))
 
-            raise TypeError(
-                (
-                    "config must be an "
-                    "EventDetectionConfig instance"
-                )
-            )
+        self.node_id = node_id
 
-        self.node_id = (
-            node_id
-        )
-
-        self.config = (
-            config
-        )
+        self.config = config
 
         # ==============================================================
         # ADAPTIVE NOISE HISTORY
         # ==============================================================
 
-        self._noise: Deque[
-            float
-        ] = deque(
-            maxlen=
-                config.noise_history_blocks
-        )
+        self._noise: Deque[float] = deque(maxlen=config.noise_history_blocks)
 
         # ==============================================================
         # SPECTRAL HISTORY
         # ==============================================================
 
-        self._previous_spectrum: (
-            np.ndarray
-            | None
-        ) = None
+        self._previous_spectrum: np.ndarray | None = None
 
-        self._previous_end_sample: (
-            int
-            | None
-        ) = None
+        self._previous_end_sample: int | None = None
 
-        self._session_id: (
-            int
-            | None
-        ) = None
+        self._session_id: int | None = None
 
         # ==============================================================
         # HYSTERESIS STATE
         # ==============================================================
 
-        self._active = (
-            False
-        )
+        self._active = False
 
-        self._attack_count = (
-            0
-        )
+        self._attack_count = 0
 
-        self._release_count = (
-            0
-        )
+        self._release_count = 0
 
     # ==================================================================
     # RESET
@@ -289,29 +242,17 @@ class NodeEventDetector:
 
         self._noise.clear()
 
-        self._previous_spectrum = (
-            None
-        )
+        self._previous_spectrum = None
 
-        self._previous_end_sample = (
-            None
-        )
+        self._previous_end_sample = None
 
-        self._session_id = (
-            session_id
-        )
+        self._session_id = session_id
 
-        self._active = (
-            False
-        )
+        self._active = False
 
-        self._attack_count = (
-            0
-        )
+        self._attack_count = 0
 
-        self._release_count = (
-            0
-        )
+        self._release_count = 0
 
     # ==================================================================
     # RMS
@@ -330,43 +271,15 @@ class NodeEventDetector:
             dtype=np.float64,
         )
 
-        if (
-            x.size
-            == 0
-        ):
+        if x.size == 0:
+            return MINIMUM_DBFS
 
-            return (
-                MINIMUM_DBFS
-            )
+        rms = float(np.sqrt(np.mean(x * x)))
 
-        rms = float(
-            np.sqrt(
-                np.mean(
-                    x
-                    * x
-                )
-            )
-        )
+        if not math.isfinite(rms) or rms <= 1e-12:
+            return MINIMUM_DBFS
 
-        if (
-            not math.isfinite(
-                rms
-            )
-            or rms
-            <= 1e-12
-        ):
-
-            return (
-                MINIMUM_DBFS
-            )
-
-        dbfs = (
-            20.0
-            * math.log10(
-                rms
-                / PCM16_FULL_SCALE
-            )
-        )
+        dbfs = 20.0 * math.log10(rms / PCM16_FULL_SCALE)
 
         return float(
             max(
@@ -394,121 +307,62 @@ class NodeEventDetector:
             dtype=np.float64,
         )
 
-        if (
-            x.size
-            < 16
-        ):
+        if x.size < 16:
+            self._previous_spectrum = None
 
-            self._previous_spectrum = (
-                None
-            )
-
-            return (
-                0.0
-            )
+            return 0.0
 
         # ==============================================================
         # REMOVE DC
         # ==============================================================
 
-        x = (
-            x
-            - np.mean(
-                x
-            )
-        )
+        x = x - np.mean(x)
 
         # ==============================================================
         # WINDOW + FFT
         # ==============================================================
 
-        window = np.hanning(
-            x.size
-        )
+        window = np.hanning(x.size)
 
-        spectrum = np.abs(
-            np.fft.rfft(
-                x
-                * window
-            )
-        )
+        spectrum = np.abs(np.fft.rfft(x * window))
 
         # ==============================================================
         # NORMALIZE MAGNITUDE VECTOR
         # ==============================================================
 
-        norm = float(
-            np.linalg.norm(
-                spectrum
-            )
-        )
+        norm = float(np.linalg.norm(spectrum))
 
-        if (
-            norm
-            > 1e-12
-        ):
-
-            spectrum = (
-                spectrum
-                / norm
-            )
+        if norm > 1e-12:
+            spectrum = spectrum / norm
 
         # ==============================================================
         # FIRST / INCOMPATIBLE SPECTRUM
         # ==============================================================
 
         if (
-            self._previous_spectrum
-            is None
-            or self._previous_spectrum.size
-            != spectrum.size
+            self._previous_spectrum is None
+            or self._previous_spectrum.size != spectrum.size
         ):
-
-            flux = (
-                0.0
-            )
+            flux = 0.0
 
         else:
+            difference = spectrum - self._previous_spectrum
 
-            difference = (
-                spectrum
-                - self._previous_spectrum
+            positive_difference = np.maximum(
+                difference,
+                0.0,
             )
 
-            positive_difference = (
-                np.maximum(
-                    difference,
-                    0.0,
-                )
-            )
+            flux = float(np.sqrt(np.mean(np.square(positive_difference))))
 
-            flux = float(
-                np.sqrt(
-                    np.mean(
-                        np.square(
-                            positive_difference
-                        )
-                    )
-                )
-            )
+        self._previous_spectrum = spectrum
 
-        self._previous_spectrum = (
-            spectrum
-        )
-
-        if not math.isfinite(
-            flux
-        ):
-
-            return (
-                0.0
-            )
+        if not math.isfinite(flux):
+            return 0.0
 
         return max(
             0.0,
-            float(
-                flux
-            ),
+            float(flux),
         )
 
     # ==================================================================
@@ -531,19 +385,9 @@ class NodeEventDetector:
             block,
             AudioBlock,
         ):
+            raise TypeError(("block must be an AudioBlock instance"))
 
-            raise TypeError(
-                (
-                    "block must be "
-                    "an AudioBlock instance"
-                )
-            )
-
-        if (
-            block.node_id
-            != self.node_id
-        ):
-
+        if block.node_id != self.node_id:
             raise ValueError(
                 (
                     "AudioBlock node_id does not "
@@ -557,15 +401,8 @@ class NodeEventDetector:
         # SESSION TRANSITION
         # ==============================================================
 
-        if (
-            self._session_id
-            != block.session_id
-        ):
-
-            self.reset(
-                session_id=
-                    block.session_id
-            )
+        if self._session_id != block.session_id:
+            self.reset(session_id=block.session_id)
 
         # ==============================================================
         # DISCONTINUOUS SAMPLE TIMELINE
@@ -578,42 +415,26 @@ class NodeEventDetector:
         # ==============================================================
 
         if (
-            self._previous_end_sample
-            is not None
-            and block.sample_index
-            != self._previous_end_sample
+            self._previous_end_sample is not None
+            and block.sample_index != self._previous_end_sample
         ):
-
-            self._previous_spectrum = (
-                None
-            )
+            self._previous_spectrum = None
 
         # ==============================================================
         # SIGNAL FEATURES
         # ==============================================================
 
-        rms_dbfs = (
-            self._rms_dbfs(
-                block.samples
-            )
-        )
+        rms_dbfs = self._rms_dbfs(block.samples)
 
-        spectral_flux = (
-            self._spectral_flux(
-                block.samples
-            )
-        )
+        spectral_flux = self._spectral_flux(block.samples)
 
-        self._previous_end_sample = (
-            block.end_sample
-        )
+        self._previous_end_sample = block.end_sample
 
         # ==============================================================
         # ADAPTIVE NOISE FLOOR
         # ==============================================================
 
         if self._noise:
-
             noise_floor_dbfs = float(
                 np.quantile(
                     np.asarray(
@@ -625,29 +446,17 @@ class NodeEventDetector:
             )
 
         else:
-
-            noise_floor_dbfs = float(
-                self.config.initial_noise_dbfs
-            )
+            noise_floor_dbfs = float(self.config.initial_noise_dbfs)
 
         # ==============================================================
         # THRESHOLDS
         # ==============================================================
 
-        trigger_threshold = (
-            noise_floor_dbfs
-            + self.config.trigger_margin_db
-        )
+        trigger_threshold = noise_floor_dbfs + self.config.trigger_margin_db
 
-        release_threshold = (
-            noise_floor_dbfs
-            + self.config.release_margin_db
-        )
+        release_threshold = noise_floor_dbfs + self.config.release_margin_db
 
-        strong_threshold = (
-            noise_floor_dbfs
-            + self.config.strong_energy_margin_db
-        )
+        strong_threshold = noise_floor_dbfs + self.config.strong_energy_margin_db
 
         # ==============================================================
         # EVENT CANDIDATE
@@ -655,15 +464,10 @@ class NodeEventDetector:
 
         candidate = bool(
             (
-                rms_dbfs
-                >= trigger_threshold
-                and spectral_flux
-                >= self.config.min_spectral_flux
+                rms_dbfs >= trigger_threshold
+                and spectral_flux >= self.config.min_spectral_flux
             )
-            or (
-                rms_dbfs
-                >= strong_threshold
-            )
+            or (rms_dbfs >= strong_threshold)
         )
 
         # ==============================================================
@@ -671,69 +475,34 @@ class NodeEventDetector:
         # ==============================================================
 
         if self._active:
-
-            if (
-                rms_dbfs
-                < release_threshold
-            ):
-
-                self._release_count += (
-                    1
-                )
+            if rms_dbfs < release_threshold:
+                self._release_count += 1
 
             else:
+                self._release_count = 0
 
-                self._release_count = (
-                    0
-                )
+            if self._release_count >= self.config.release_blocks:
+                self._active = False
 
-            if (
-                self._release_count
-                >= self.config.release_blocks
-            ):
+                self._release_count = 0
 
-                self._active = (
-                    False
-                )
-
-                self._release_count = (
-                    0
-                )
-
-                self._attack_count = (
-                    0
-                )
+                self._attack_count = 0
 
         # ==============================================================
         # INACTIVE → ATTACK
         # ==============================================================
 
         else:
-
             if candidate:
-
-                self._attack_count += (
-                    1
-                )
+                self._attack_count += 1
 
             else:
+                self._attack_count = 0
 
-                self._attack_count = (
-                    0
-                )
+            if self._attack_count >= self.config.attack_blocks:
+                self._active = True
 
-            if (
-                self._attack_count
-                >= self.config.attack_blocks
-            ):
-
-                self._active = (
-                    True
-                )
-
-                self._attack_count = (
-                    0
-                )
+                self._attack_count = 0
 
         # ==============================================================
         # BACKGROUND MODEL UPDATE
@@ -748,43 +517,22 @@ class NodeEventDetector:
         # background estimate before attack_blocks is satisfied.
         # ==============================================================
 
-        if (
-            not self._active
-            and not candidate
-        ):
-
-            self._noise.append(
-                rms_dbfs
-            )
+        if not self._active and not candidate:
+            self._noise.append(rms_dbfs)
 
         # ==============================================================
         # RESULT
         # ==============================================================
 
         return BlockDetection(
-            node_id=
-                block.node_id,
-
-            sample_index=
-                block.sample_index,
-
-            end_sample=
-                block.end_sample,
-
-            rms_dbfs=
-                rms_dbfs,
-
-            noise_floor_dbfs=
-                noise_floor_dbfs,
-
-            threshold_dbfs=
-                trigger_threshold,
-
-            spectral_flux=
-                spectral_flux,
-
-            active=
-                self._active,
+            node_id=block.node_id,
+            sample_index=block.sample_index,
+            end_sample=block.end_sample,
+            rms_dbfs=rms_dbfs,
+            noise_floor_dbfs=noise_floor_dbfs,
+            threshold_dbfs=trigger_threshold,
+            spectral_flux=spectral_flux,
+            active=self._active,
         )
 
 
@@ -845,81 +593,26 @@ class MultiNodeEventDetector:
             audio,
             AudioConfig,
         ):
-
-            raise TypeError(
-                (
-                    "audio must be "
-                    "an AudioConfig instance"
-                )
-            )
+            raise TypeError(("audio must be an AudioConfig instance"))
 
         if not isinstance(
             config,
             EventDetectionConfig,
         ):
+            raise TypeError(("config must be an EventDetectionConfig instance"))
 
-            raise TypeError(
-                (
-                    "config must be an "
-                    "EventDetectionConfig instance"
-                )
-            )
-
-        normalized_nodes = tuple(
-            int(
-                node_id
-            )
-            for node_id
-            in node_ids
-        )
+        normalized_nodes = tuple(int(node_id) for node_id in node_ids)
 
         if not normalized_nodes:
+            raise ValueError(("At least one detector node is required"))
 
-            raise ValueError(
-                (
-                    "At least one detector "
-                    "node is required"
-                )
-            )
+        if any(node_id <= 0 for node_id in normalized_nodes):
+            raise ValueError(("Detector node IDs must be greater than 0"))
 
-        if any(
-            node_id <= 0
-            for node_id
-            in normalized_nodes
-        ):
+        if len(set(normalized_nodes)) != len(normalized_nodes):
+            raise ValueError(("Detector node IDs cannot contain duplicates"))
 
-            raise ValueError(
-                (
-                    "Detector node IDs must "
-                    "be greater than 0"
-                )
-            )
-
-        if (
-            len(
-                set(
-                    normalized_nodes
-                )
-            )
-            != len(
-                normalized_nodes
-            )
-        ):
-
-            raise ValueError(
-                (
-                    "Detector node IDs "
-                    "cannot contain duplicates"
-                )
-            )
-
-        if (
-            config.min_nodes
-            > len(
-                normalized_nodes
-            )
-        ):
-
+        if config.min_nodes > len(normalized_nodes):
             raise ValueError(
                 (
                     "Event detector min_nodes "
@@ -928,43 +621,27 @@ class MultiNodeEventDetector:
                 )
             )
 
-        if (
-            audio.sync_tolerance_samples
-            >= audio.frames_per_block
-        ):
-
+        if audio.sync_tolerance_samples >= audio.frames_per_block:
             raise ValueError(
-                (
-                    "sync_tolerance_samples must "
-                    "remain smaller than one "
-                    "audio block"
-                )
+                ("sync_tolerance_samples must remain smaller than one audio block")
             )
 
-        self.audio = (
-            audio
-        )
+        self.audio = audio
 
-        self.config = (
-            config
-        )
+        self.config = config
 
-        self.node_ids = (
-            normalized_nodes
-        )
+        self.node_ids = normalized_nodes
 
         # ==============================================================
         # PER-NODE DETECTORS
         # ==============================================================
 
         self.detectors = {
-            node_id:
-                NodeEventDetector(
-                    node_id,
-                    config,
-                )
-            for node_id
-            in self.node_ids
+            node_id: NodeEventDetector(
+                node_id,
+                config,
+            )
+            for node_id in self.node_ids
         }
 
         # ==============================================================
@@ -994,19 +671,13 @@ class MultiNodeEventDetector:
         # ACTIVE EVENT
         # ==============================================================
 
-        self._active_event: (
-            _ActiveEventState
-            | None
-        ) = None
+        self._active_event: _ActiveEventState | None = None
 
         # ==============================================================
         # SESSION TRACKING
         # ==============================================================
 
-        self._session_id: (
-            int
-            | None
-        ) = None
+        self._session_id: int | None = None
 
         # ==============================================================
         # PER-NODE PROCESSED TIMELINE
@@ -1021,9 +692,7 @@ class MultiNodeEventDetector:
         # EVENT IDENTIFIER
         # ==============================================================
 
-        self._next_event_id = (
-            1
-        )
+        self._next_event_id = 1
 
     # ==================================================================
     # PADDING / DURATION PROPERTIES
@@ -1039,12 +708,7 @@ class MultiNodeEventDetector:
 
         return max(
             0,
-            int(
-                round(
-                    self.config.pre_pad_s
-                    * self.audio.sample_rate
-                )
-            ),
+            int(round(self.config.pre_pad_s * self.audio.sample_rate)),
         )
 
     @property
@@ -1057,12 +721,7 @@ class MultiNodeEventDetector:
 
         return max(
             0,
-            int(
-                round(
-                    self.config.post_pad_s
-                    * self.audio.sample_rate
-                )
-            ),
+            int(round(self.config.post_pad_s * self.audio.sample_rate)),
         )
 
     @property
@@ -1076,13 +735,7 @@ class MultiNodeEventDetector:
         return max(
             1,
             int(
-                math.ceil(
-                    (
-                        self.config.min_event_ms
-                        / 1000.0
-                    )
-                    * self.audio.sample_rate
-                )
+                math.ceil((self.config.min_event_ms / 1000.0) * self.audio.sample_rate)
             ),
         )
 
@@ -1096,12 +749,7 @@ class MultiNodeEventDetector:
 
         return max(
             1,
-            int(
-                round(
-                    self.config.max_event_s
-                    * self.audio.sample_rate
-                )
-            ),
+            int(round(self.config.max_event_s * self.audio.sample_rate)),
         )
 
     # ==================================================================
@@ -1120,24 +768,18 @@ class MultiNodeEventDetector:
 
         self._pending.clear()
 
-        self._active_event = (
-            None
-        )
+        self._active_event = None
 
-        self._session_id = (
-            None
-        )
+        self._session_id = None
 
         self._last_processed_end.clear()
 
         self.detectors = {
-            node_id:
-                NodeEventDetector(
-                    node_id,
-                    self.config,
-                )
-            for node_id
-            in self.node_ids
+            node_id: NodeEventDetector(
+                node_id,
+                self.config,
+            )
+            for node_id in self.node_ids
         }
 
     # ==================================================================
@@ -1155,24 +797,14 @@ class MultiNodeEventDetector:
 
         self._pending.clear()
 
-        self._active_event = (
-            None
-        )
+        self._active_event = None
 
         self._last_processed_end.clear()
 
-        self._session_id = (
-            session_id
-        )
+        self._session_id = session_id
 
-        for detector in (
-            self.detectors.values()
-        ):
-
-            detector.reset(
-                session_id=
-                    session_id
-            )
+        for detector in self.detectors.values():
+            detector.reset(session_id=session_id)
 
     # ==================================================================
     # FIND SYNCHRONIZED PENDING GROUP
@@ -1183,10 +815,13 @@ class MultiNodeEventDetector:
         *,
         session_id: int,
         detection: BlockDetection,
-    ) -> tuple[
-        int,
-        int,
-    ] | None:
+    ) -> (
+        tuple[
+            int,
+            int,
+        ]
+        | None
+    ):
         """
         Find the best pending multi-node group for one block detection.
 
@@ -1194,10 +829,7 @@ class MultiNodeEventDetector:
         spread after insertion remains inside synchronization tolerance.
         """
 
-        tolerance = (
-            self.audio
-            .sync_tolerance_samples
-        )
+        tolerance = self.audio.sync_tolerance_samples
 
         candidates: list[
             tuple[
@@ -1213,66 +845,33 @@ class MultiNodeEventDetector:
         for (
             key,
             bucket,
-        ) in (
-            self._pending.items()
-        ):
-
-            bucket_session_id, anchor = (
-                key
-            )
+        ) in self._pending.items():
+            bucket_session_id, anchor = key
 
             # ----------------------------------------------------------
             # SESSION
             # ----------------------------------------------------------
 
-            if (
-                bucket_session_id
-                != session_id
-            ):
-
+            if bucket_session_id != session_id:
                 continue
 
             # ----------------------------------------------------------
             # ONE DECISION PER NODE PER GROUP
             # ----------------------------------------------------------
 
-            if (
-                detection.node_id
-                in bucket
-            ):
-
+            if detection.node_id in bucket:
                 continue
 
-            starts = [
-                item.sample_index
-                for item
-                in bucket.values()
-            ]
+            starts = [item.sample_index for item in bucket.values()]
 
-            starts.append(
-                detection.sample_index
-            )
+            starts.append(detection.sample_index)
 
-            spread = (
-                max(
-                    starts
-                )
-                - min(
-                    starts
-                )
-            )
+            spread = max(starts) - min(starts)
 
-            if (
-                spread
-                > tolerance
-            ):
-
+            if spread > tolerance:
                 continue
 
-            anchor_distance = abs(
-                detection.sample_index
-                - anchor
-            )
+            anchor_distance = abs(detection.sample_index - anchor)
 
             candidates.append(
                 (
@@ -1283,7 +882,6 @@ class MultiNodeEventDetector:
             )
 
         if not candidates:
-
             return None
 
         candidates.sort(
@@ -1294,9 +892,7 @@ class MultiNodeEventDetector:
             )
         )
 
-        return (
-            candidates[0][2]
-        )
+        return candidates[0][2]
 
     # ==================================================================
     # PROCESS AUDIO BLOCK
@@ -1305,9 +901,7 @@ class MultiNodeEventDetector:
     def process(
         self,
         block: AudioBlock,
-    ) -> list[
-        AcousticEvent
-    ]:
+    ) -> list[AcousticEvent]:
         """
         Process one node AUDIO block.
 
@@ -1318,39 +912,22 @@ class MultiNodeEventDetector:
         # MASTER SWITCH / NODE FILTER
         # ==============================================================
 
-        if not (
-            self.config.enabled
-        ):
-
+        if not (self.config.enabled):
             return []
 
-        if (
-            block.node_id
-            not in self.detectors
-        ):
-
+        if block.node_id not in self.detectors:
             return []
 
         # AUDIO acquisition packets should carry a real non-zero session.
-        if (
-            block.session_id
-            == 0
-        ):
-
+        if block.session_id == 0:
             return []
 
         # ==============================================================
         # SESSION
         # ==============================================================
 
-        if (
-            self._session_id
-            != block.session_id
-        ):
-
-            self._begin_session(
-                block.session_id
-            )
+        if self._session_id != block.session_id:
+            self._begin_session(block.session_id)
 
         # ==============================================================
         # DUPLICATE / OLD / OVERLAPPING BLOCK
@@ -1362,76 +939,39 @@ class MultiNodeEventDetector:
         # Therefore the detector protects its own timeline as well.
         # ==============================================================
 
-        previous_end = (
-            self._last_processed_end.get(
-                block.node_id
-            )
-        )
+        previous_end = self._last_processed_end.get(block.node_id)
 
-        if (
-            previous_end
-            is not None
-            and block.sample_index
-            < previous_end
-        ):
-
+        if previous_end is not None and block.sample_index < previous_end:
             return []
 
-        self._last_processed_end[
-            block.node_id
-        ] = (
-            block.end_sample
-        )
+        self._last_processed_end[block.node_id] = block.end_sample
 
         # ==============================================================
         # NODE-LEVEL DECISION
         # ==============================================================
 
-        detection = (
-            self.detectors[
-                block.node_id
-            ]
-            .process(
-                block
-            )
-        )
+        detection = self.detectors[block.node_id].process(block)
 
         # ==============================================================
         # ASSOCIATE WITH SYNCHRONIZED GROUP
         # ==============================================================
 
-        key = (
-            self._find_pending_key(
-                session_id=
-                    block.session_id,
-
-                detection=
-                    detection,
-            )
+        key = self._find_pending_key(
+            session_id=block.session_id,
+            detection=detection,
         )
 
         if key is None:
-
             key = (
                 block.session_id,
                 block.sample_index,
             )
 
-            self._pending[
-                key
-            ] = {}
+            self._pending[key] = {}
 
-        bucket = (
-            self._pending[
-                key
-            ]
-        )
+        bucket = self._pending[key]
 
-        bucket[
-            block.node_id
-        ] = (
-            detection
-        )
+        bucket[block.node_id] = detection
 
         # ==============================================================
         # WAIT FOR COMPLETE LAB-ARRAY DECISION
@@ -1447,34 +987,19 @@ class MultiNodeEventDetector:
         # ACTIVE.
         # ==============================================================
 
-        if not all(
-            node_id
-            in bucket
-            for node_id
-            in self.node_ids
-        ):
-
+        if not all(node_id in bucket for node_id in self.node_ids):
             self._prune(
-                latest_sample=
-                    block.sample_index,
-
-                session_id=
-                    block.session_id,
+                latest_sample=block.sample_index,
+                session_id=block.session_id,
             )
 
             return []
 
-        decisions = (
-            self._pending.pop(
-                key
-            )
-        )
+        decisions = self._pending.pop(key)
 
-        return (
-            self._evaluate(
-                block.session_id,
-                decisions,
-            )
+        return self._evaluate(
+            block.session_id,
+            decisions,
         )
 
     # ==================================================================
@@ -1488,15 +1013,12 @@ class MultiNodeEventDetector:
             int,
             BlockDetection,
         ],
-    ) -> list[
-        AcousticEvent
-    ]:
+    ) -> list[AcousticEvent]:
         """
         Update/finalize the current multi-node acoustic event.
         """
 
         if not decisions:
-
             return []
 
         # ==============================================================
@@ -1509,8 +1031,7 @@ class MultiNodeEventDetector:
                 for (
                     node_id,
                     detection,
-                )
-                in decisions.items()
+                ) in decisions.items()
                 if detection.active
             )
         )
@@ -1519,66 +1040,28 @@ class MultiNodeEventDetector:
         # COMMON BLOCK REGION
         # ==============================================================
 
-        block_start = min(
-            detection.sample_index
-            for detection
-            in decisions.values()
-        )
+        block_start = min(detection.sample_index for detection in decisions.values())
 
-        block_end = max(
-            detection.end_sample
-            for detection
-            in decisions.values()
-        )
+        block_end = max(detection.end_sample for detection in decisions.values())
 
-        peak_rms = max(
-            detection.rms_dbfs
-            for detection
-            in decisions.values()
-        )
+        peak_rms = max(detection.rms_dbfs for detection in decisions.values())
 
         # ==============================================================
         # NO ACTIVE EVENT
         # ==============================================================
 
-        if (
-            self._active_event
-            is None
-        ):
-
-            if (
-                len(
-                    active_nodes
-                )
-                >= self.config.min_nodes
-            ):
-
-                self._active_event = (
-                    _ActiveEventState(
-                        session_id=
-                            session_id,
-
-                        start_sample=
-                            max(
-                                0,
-                                block_start
-                                - self.pre_pad_samples,
-                            ),
-
-                        active_start_sample=
-                            block_start,
-
-                        last_active_end=
-                            block_end,
-
-                        trigger_nodes=
-                            set(
-                                active_nodes
-                            ),
-
-                        peak_rms_dbfs=
-                            peak_rms,
-                    )
+        if self._active_event is None:
+            if len(active_nodes) >= self.config.min_nodes:
+                self._active_event = _ActiveEventState(
+                    session_id=session_id,
+                    start_sample=max(
+                        0,
+                        block_start - self.pre_pad_samples,
+                    ),
+                    active_start_sample=block_start,
+                    last_active_end=block_end,
+                    trigger_nodes=set(active_nodes),
+                    peak_rms_dbfs=peak_rms,
                 )
 
             return []
@@ -1587,53 +1070,23 @@ class MultiNodeEventDetector:
         # SESSION SAFETY
         # ==============================================================
 
-        event = (
-            self._active_event
-        )
+        event = self._active_event
 
-        if (
-            event.session_id
-            != session_id
-        ):
-
-            self._active_event = (
-                None
-            )
+        if event.session_id != session_id:
+            self._active_event = None
 
             # Do not discard the first block of the replacement session.
-            if (
-                len(
-                    active_nodes
-                )
-                >= self.config.min_nodes
-            ):
-
-                self._active_event = (
-                    _ActiveEventState(
-                        session_id=
-                            session_id,
-
-                        start_sample=
-                            max(
-                                0,
-                                block_start
-                                - self.pre_pad_samples,
-                            ),
-
-                        active_start_sample=
-                            block_start,
-
-                        last_active_end=
-                            block_end,
-
-                        trigger_nodes=
-                            set(
-                                active_nodes
-                            ),
-
-                        peak_rms_dbfs=
-                            peak_rms,
-                    )
+            if len(active_nodes) >= self.config.min_nodes:
+                self._active_event = _ActiveEventState(
+                    session_id=session_id,
+                    start_sample=max(
+                        0,
+                        block_start - self.pre_pad_samples,
+                    ),
+                    active_start_sample=block_start,
+                    last_active_end=block_end,
+                    trigger_nodes=set(active_nodes),
+                    peak_rms_dbfs=peak_rms,
                 )
 
             return []
@@ -1647,52 +1100,26 @@ class MultiNodeEventDetector:
             peak_rms,
         )
 
-        event.trigger_nodes.update(
-            active_nodes
-        )
+        event.trigger_nodes.update(active_nodes)
 
         # ==============================================================
         # LAST CONFIRMED MULTI-NODE ACTIVITY
         # ==============================================================
 
-        if (
-            len(
-                active_nodes
-            )
-            >= self.config.min_nodes
-        ):
-
-            event.last_active_end = (
-                block_end
-            )
+        if len(active_nodes) >= self.config.min_nodes:
+            event.last_active_end = block_end
 
         # ==============================================================
         # COMPLETION CONDITIONS
         # ==============================================================
 
-        max_reached = (
-            block_end
-            - event.start_sample
-            >= self.max_event_samples
+        max_reached = block_end - event.start_sample >= self.max_event_samples
+
+        released = len(active_nodes) < self.config.min_nodes and block_end >= (
+            event.last_active_end + self.post_pad_samples
         )
 
-        released = (
-            len(
-                active_nodes
-            )
-            < self.config.min_nodes
-            and block_end
-            >= (
-                event.last_active_end
-                + self.post_pad_samples
-            )
-        )
-
-        if not (
-            max_reached
-            or released
-        ):
-
+        if not (max_reached or released):
             return []
 
         # ==============================================================
@@ -1700,31 +1127,21 @@ class MultiNodeEventDetector:
         # ==============================================================
 
         if max_reached:
-
-            requested_end = (
-                block_end
-            )
+            requested_end = block_end
 
         else:
-
-            requested_end = (
-                event.last_active_end
-                + self.post_pad_samples
-            )
+            requested_end = event.last_active_end + self.post_pad_samples
 
         end_sample = min(
             requested_end,
-            event.start_sample
-            + self.max_event_samples,
+            event.start_sample + self.max_event_samples,
         )
 
         # ==============================================================
         # CLEAR ACTIVE EVENT
         # ==============================================================
 
-        self._active_event = (
-            None
-        )
+        self._active_event = None
 
         # ==============================================================
         # MINIMUM ACTIVE DURATION
@@ -1732,15 +1149,10 @@ class MultiNodeEventDetector:
 
         active_duration = max(
             0,
-            event.last_active_end
-            - event.active_start_sample,
+            event.last_active_end - event.active_start_sample,
         )
 
-        if (
-            active_duration
-            < self.min_event_samples
-        ):
-
+        if active_duration < self.min_event_samples:
             return []
 
         # ==============================================================
@@ -1748,38 +1160,17 @@ class MultiNodeEventDetector:
         # ==============================================================
 
         result = AcousticEvent(
-            event_id=
-                self._next_event_id,
-
-            session_id=
-                session_id,
-
-            start_sample=
-                event.start_sample,
-
-            end_sample=
-                end_sample,
-
-            trigger_nodes=
-                tuple(
-                    sorted(
-                        event.trigger_nodes
-                    )
-                ),
-
-            peak_rms_dbfs=
-                float(
-                    event.peak_rms_dbfs
-                ),
+            event_id=self._next_event_id,
+            session_id=session_id,
+            start_sample=event.start_sample,
+            end_sample=end_sample,
+            trigger_nodes=tuple(sorted(event.trigger_nodes)),
+            peak_rms_dbfs=float(event.peak_rms_dbfs),
         )
 
-        self._next_event_id += (
-            1
-        )
+        self._next_event_id += 1
 
-        return [
-            result
-        ]
+        return [result]
 
     # ==================================================================
     # PRUNE INCOMPLETE ASSOCIATION GROUPS
@@ -1799,10 +1190,7 @@ class MultiNodeEventDetector:
         enough to bound memory use.
         """
 
-        horizon = (
-            self.audio.frames_per_block
-            * 8
-        )
+        horizon = self.audio.frames_per_block * 8
 
         stale_keys: list[
             tuple[
@@ -1815,13 +1203,8 @@ class MultiNodeEventDetector:
             key_session,
             anchor_sample,
         ) in self._pending:
-
             # Old session pending decisions are never useful.
-            if (
-                key_session
-                != session_id
-            ):
-
+            if key_session != session_id:
                 stale_keys.append(
                     (
                         key_session,
@@ -1831,12 +1214,7 @@ class MultiNodeEventDetector:
 
                 continue
 
-            if (
-                latest_sample
-                - anchor_sample
-                > horizon
-            ):
-
+            if latest_sample - anchor_sample > horizon:
                 stale_keys.append(
                     (
                         key_session,
@@ -1844,10 +1222,7 @@ class MultiNodeEventDetector:
                     )
                 )
 
-        for key in (
-            stale_keys
-        ):
-
+        for key in stale_keys:
             self._pending.pop(
                 key,
                 None,

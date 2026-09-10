@@ -84,9 +84,7 @@ from .tdoa import (
 # ======================================================================
 
 
-MIN_LOCALIZATION_WINDOW_SAMPLES = (
-    64
-)
+MIN_LOCALIZATION_WINDOW_SAMPLES = 64
 
 
 # ======================================================================
@@ -187,9 +185,7 @@ class LocalizationResult:
         Convenience view of nonlinear solver success.
         """
 
-        return bool(
-            self.position.success
-        )
+        return bool(self.position.success)
 
 
 # ======================================================================
@@ -276,33 +272,17 @@ class LocalizationEngine:
             streams,
             StreamManager,
         ):
-
-            raise TypeError(
-                (
-                    "streams must be a "
-                    "StreamManager instance."
-                )
-            )
+            raise TypeError(("streams must be a StreamManager instance."))
 
         if not isinstance(
             config,
             LocalizationConfig,
         ):
+            raise TypeError(("config must be a LocalizationConfig instance."))
 
-            raise TypeError(
-                (
-                    "config must be a "
-                    "LocalizationConfig instance."
-                )
-            )
+        self.streams = streams
 
-        self.streams = (
-            streams
-        )
-
-        self.config = (
-            config
-        )
+        self.config = config
 
     # ==================================================================
     # WINDOW LENGTH
@@ -316,44 +296,22 @@ class LocalizationEngine:
         Resolve and validate one localization-window length.
         """
 
-        if (
-            length
-            is None
-        ):
-
-            result = int(
-                self.config.window_samples
-            )
+        if length is None:
+            result = int(self.config.window_samples)
 
         else:
-
-            if (
-                isinstance(
-                    length,
-                    bool,
-                )
-                or not isinstance(
-                    length,
-                    int,
-                )
+            if isinstance(
+                length,
+                bool,
+            ) or not isinstance(
+                length,
+                int,
             ):
+                raise TypeError(("localization window length must be an integer."))
 
-                raise TypeError(
-                    (
-                        "localization window length "
-                        "must be an integer."
-                    )
-                )
+            result = int(length)
 
-            result = int(
-                length
-            )
-
-        if (
-            result
-            < MIN_LOCALIZATION_WINDOW_SAMPLES
-        ):
-
+        if result < MIN_LOCALIZATION_WINDOW_SAMPLES:
             raise ValueError(
                 (
                     "localization window must "
@@ -363,9 +321,7 @@ class LocalizationEngine:
                 )
             )
 
-        return (
-            result
-        )
+        return result
 
     # ==================================================================
     # START SAMPLE
@@ -379,43 +335,21 @@ class LocalizationEngine:
         Validate one non-negative absolute sampleIndex.
         """
 
-        if (
-            isinstance(
-                start_sample,
-                bool,
-            )
-            or not isinstance(
-                start_sample,
-                int,
-            )
+        if isinstance(
+            start_sample,
+            bool,
+        ) or not isinstance(
+            start_sample,
+            int,
         ):
+            raise TypeError(("start_sample must be an integer."))
 
-            raise TypeError(
-                (
-                    "start_sample must be "
-                    "an integer."
-                )
-            )
+        start_sample = int(start_sample)
 
-        start_sample = int(
-            start_sample
-        )
+        if start_sample < 0:
+            raise ValueError(("start_sample cannot be negative."))
 
-        if (
-            start_sample
-            < 0
-        ):
-
-            raise ValueError(
-                (
-                    "start_sample cannot "
-                    "be negative."
-                )
-            )
-
-        return (
-            start_sample
-        )
+        return start_sample
 
     # ==================================================================
     # ARRAY BOUNDS
@@ -440,60 +374,23 @@ class LocalizationEngine:
         Build optional position-solver bounds from microphone geometry.
         """
 
-        if not (
-            self.config.constrain_to_array_bounds
-        ):
+        if not (self.config.constrain_to_array_bounds):
+            return None
 
-            return (
-                None
-            )
+        xs = [float(xy[0]) for xy in self.config.node_positions.values()]
 
-        xs = [
-            float(
-                xy[
-                    0
-                ]
-            )
-            for xy
-            in self.config.node_positions.values()
-        ]
+        ys = [float(xy[1]) for xy in self.config.node_positions.values()]
 
-        ys = [
-            float(
-                xy[
-                    1
-                ]
-            )
-            for xy
-            in self.config.node_positions.values()
-        ]
-
-        margin = float(
-            self.config.bounds_margin_m
-        )
+        margin = float(self.config.bounds_margin_m)
 
         return (
             (
-                min(
-                    xs
-                )
-                - margin,
-
-                min(
-                    ys
-                )
-                - margin,
+                min(xs) - margin,
+                min(ys) - margin,
             ),
             (
-                max(
-                    xs
-                )
-                + margin,
-
-                max(
-                    ys
-                )
-                + margin,
+                max(xs) + margin,
+                max(ys) + margin,
             ),
         )
 
@@ -518,66 +415,25 @@ class LocalizationEngine:
         merely because their numerical values happen to overlap.
         """
 
-        session_ids: set[
-            int
-        ] = set()
+        session_ids: set[int] = set()
 
-        for node_id in (
-            self.config.node_positions
-        ):
+        for node_id in self.config.node_positions:
+            state = self.streams.nodes.get(node_id)
 
-            state = (
-                self.streams.nodes.get(
-                    node_id
-                )
-            )
+            if state is None:
+                return None
 
-            if (
-                state
-                is None
-            ):
+            session_id = state.session_id
 
-                return (
-                    None
-                )
+            if session_id is None or session_id == 0:
+                return None
 
-            session_id = (
-                state.session_id
-            )
+            session_ids.add(int(session_id))
 
-            if (
-                session_id
-                is None
-                or session_id
-                == 0
-            ):
+        if len(session_ids) != 1:
+            return None
 
-                return (
-                    None
-                )
-
-            session_ids.add(
-                int(
-                    session_id
-                )
-            )
-
-        if (
-            len(
-                session_ids
-            )
-            != 1
-        ):
-
-            return (
-                None
-            )
-
-        return next(
-            iter(
-                session_ids
-            )
-        )
+        return next(iter(session_ids))
 
     # ==================================================================
     # SPEED OF SOUND VALIDATION
@@ -594,41 +450,18 @@ class LocalizationEngine:
         """
 
         try:
-
-            value = float(
-                value
-            )
+            value = float(value)
 
         except (
             TypeError,
             ValueError,
         ) as exc:
+            raise TypeError((f"{name} must be a numeric value.")) from exc
 
-            raise TypeError(
-                (
-                    f"{name} must be "
-                    "a numeric value."
-                )
-            ) from exc
+        if not math.isfinite(value) or value <= 0.0:
+            raise ValueError((f"{name} must be finite and greater than 0."))
 
-        if (
-            not math.isfinite(
-                value
-            )
-            or value
-            <= 0.0
-        ):
-
-            raise ValueError(
-                (
-                    f"{name} must be finite "
-                    "and greater than 0."
-                )
-            )
-
-        return (
-            value
-        )
+        return value
 
     # ==================================================================
     # SPEED OF SOUND RESOLUTION
@@ -665,17 +498,10 @@ class LocalizationEngine:
         # EXPLICIT OVERRIDE
         # ==============================================================
 
-        if (
-            speed_of_sound_mps
-            is not None
-        ):
-
-            speed = (
-                self._validate_speed_of_sound(
-                    speed_of_sound_mps,
-                    name=
-                        "speed_of_sound_mps",
-                )
+        if speed_of_sound_mps is not None:
+            speed = self._validate_speed_of_sound(
+                speed_of_sound_mps,
+                name="speed_of_sound_mps",
             )
 
             return (
@@ -687,41 +513,20 @@ class LocalizationEngine:
         # ENVIRONMENTAL CORRECTION
         # ==============================================================
 
-        if (
-            self.config.use_environmental_speed
-        ):
+        if self.config.use_environmental_speed:
+            environment = self.streams.get_environment_near(sample_index)
 
-            environment = (
-                self.streams
-                .get_environment_near(
-                    sample_index
-                )
-            )
-
-            if (
-                environment
-                is not None
-            ):
-
+            if environment is not None:
                 try:
-
-                    speed = (
-                        calculate_speed_of_sound_mps(
-                            environment.temperature_c,
-                            environment.humidity_percent,
-                            environment.pressure_hpa,
-                        )
+                    speed = calculate_speed_of_sound_mps(
+                        environment.temperature_c,
+                        environment.humidity_percent,
+                        environment.pressure_hpa,
                     )
 
-                    speed = (
-                        self._validate_speed_of_sound(
-                            speed,
-                            name=
-                                (
-                                    "environmental "
-                                    "speed_of_sound_mps"
-                                ),
-                        )
+                    speed = self._validate_speed_of_sound(
+                        speed,
+                        name=("environmental speed_of_sound_mps"),
                     )
 
                 except (
@@ -729,7 +534,6 @@ class LocalizationEngine:
                     TypeError,
                     ValueError,
                 ):
-
                     # --------------------------------------------------
                     # Invalid environmental telemetry must not destroy
                     # localization. Fall through to configured fallback.
@@ -738,17 +542,10 @@ class LocalizationEngine:
                     pass
 
                 else:
-
                     environment_used = (
-                        float(
-                            environment.temperature_c
-                        ),
-                        float(
-                            environment.humidity_percent
-                        ),
-                        float(
-                            environment.pressure_hpa
-                        ),
+                        float(environment.temperature_c),
+                        float(environment.humidity_percent),
+                        float(environment.pressure_hpa),
                     )
 
                     return (
@@ -760,15 +557,9 @@ class LocalizationEngine:
         # CONFIGURED FALLBACK
         # ==============================================================
 
-        fallback = (
-            self._validate_speed_of_sound(
-                self.config.speed_of_sound_mps,
-                name=
-                    (
-                        "configured "
-                        "speed_of_sound_mps"
-                    ),
-            )
+        fallback = self._validate_speed_of_sound(
+            self.config.speed_of_sound_mps,
+            name=("configured speed_of_sound_mps"),
         )
 
         return (
@@ -797,26 +588,18 @@ class LocalizationEngine:
         With calibration disabled this method returns exactly zero.
         """
 
-        offset = (
-            self.config
-            .tdoa_calibration
-            .pair_offset_s(
-                node_a,
-                node_b,
-            )
+        offset = self.config.tdoa_calibration.pair_offset_s(
+            node_a,
+            node_b,
         )
 
         try:
-
-            offset = float(
-                offset
-            )
+            offset = float(offset)
 
         except (
             TypeError,
             ValueError,
         ) as exc:
-
             raise TypeError(
                 (
                     "Configured TDOA calibration "
@@ -826,10 +609,7 @@ class LocalizationEngine:
                 )
             ) from exc
 
-        if not math.isfinite(
-            offset
-        ):
-
+        if not math.isfinite(offset):
             raise ValueError(
                 (
                     "Configured TDOA calibration "
@@ -839,9 +619,7 @@ class LocalizationEngine:
                 )
             )
 
-        return (
-            offset
-        )
+        return offset
 
     # ==================================================================
     # CALIBRATION CORRECTION
@@ -862,62 +640,29 @@ class LocalizationEngine:
         """
 
         try:
-
-            measured = float(
-                measured_delay_s
-            )
+            measured = float(measured_delay_s)
 
         except (
             TypeError,
             ValueError,
         ) as exc:
+            raise TypeError(("GCC-PHAT delay must be numeric.")) from exc
 
-            raise TypeError(
-                (
-                    "GCC-PHAT delay must "
-                    "be numeric."
-                )
-            ) from exc
+        if not math.isfinite(measured):
+            raise ValueError(("GCC-PHAT delay must be finite."))
 
-        if not math.isfinite(
-            measured
-        ):
-
-            raise ValueError(
-                (
-                    "GCC-PHAT delay must "
-                    "be finite."
-                )
-            )
-
-        corrected = (
-            self.config
-            .tdoa_calibration
-            .correct_tdoa_s(
-                node_a,
-                node_b,
-                measured,
-            )
+        corrected = self.config.tdoa_calibration.correct_tdoa_s(
+            node_a,
+            node_b,
+            measured,
         )
 
-        corrected = float(
-            corrected
-        )
+        corrected = float(corrected)
 
-        if not math.isfinite(
-            corrected
-        ):
+        if not math.isfinite(corrected):
+            raise ValueError(("Calibrated TDOA must be finite."))
 
-            raise ValueError(
-                (
-                    "Calibrated TDOA must "
-                    "be finite."
-                )
-            )
-
-        return (
-            corrected
-        )
+        return corrected
 
     # ==================================================================
     # GCC SEARCH LIMIT
@@ -953,46 +698,17 @@ class LocalizationEngine:
         delay is checked against the original physical limit.
         """
 
-        physical_limit = float(
-            physical_max_delay_s
-        )
+        physical_limit = float(physical_max_delay_s)
 
-        offset = float(
-            calibration_offset_s
-        )
+        offset = float(calibration_offset_s)
 
-        if (
-            not math.isfinite(
-                physical_limit
-            )
-            or physical_limit
-            < 0.0
-        ):
+        if not math.isfinite(physical_limit) or physical_limit < 0.0:
+            raise ValueError(("physical_max_delay_s must be finite and non-negative."))
 
-            raise ValueError(
-                (
-                    "physical_max_delay_s must "
-                    "be finite and non-negative."
-                )
-            )
+        if not math.isfinite(offset):
+            raise ValueError(("calibration_offset_s must be finite."))
 
-        if not math.isfinite(
-            offset
-        ):
-
-            raise ValueError(
-                (
-                    "calibration_offset_s must "
-                    "be finite."
-                )
-            )
-
-        return (
-            physical_limit
-            + abs(
-                offset
-            )
-        )
+        return physical_limit + abs(offset)
 
     # ==================================================================
     # LOCALIZE EXPLICIT WINDOW
@@ -1014,31 +730,17 @@ class LocalizationEngine:
         # WINDOW
         # ==============================================================
 
-        start_sample = (
-            self._validate_start_sample(
-                start_sample
-            )
-        )
+        start_sample = self._validate_start_sample(start_sample)
 
-        window_samples = (
-            self._resolve_window_length(
-                length
-            )
-        )
+        window_samples = self._resolve_window_length(length)
 
         # ==============================================================
         # SESSION CONSISTENCY
         # ==============================================================
 
-        common_session = (
-            self._common_stream_session()
-        )
+        common_session = self._common_stream_session()
 
-        if (
-            common_session
-            is None
-        ):
-
+        if common_session is None:
             raise RuntimeError(
                 (
                     "Localization requires all "
@@ -1056,11 +758,7 @@ class LocalizationEngine:
         # edge when selecting nearby environmental telemetry.
         # ==============================================================
 
-        environment_lookup_sample = (
-            start_sample
-            + window_samples
-            // 2
-        )
+        environment_lookup_sample = start_sample + window_samples // 2
 
         # ==============================================================
         # SPEED OF SOUND
@@ -1069,40 +767,19 @@ class LocalizationEngine:
         (
             speed_of_sound,
             environment_used,
-        ) = (
-            self._resolve_speed(
-                sample_index=
-                    environment_lookup_sample,
-
-                speed_of_sound_mps=
-                    speed_of_sound_mps,
-            )
+        ) = self._resolve_speed(
+            sample_index=environment_lookup_sample,
+            speed_of_sound_mps=speed_of_sound_mps,
         )
 
         # ==============================================================
         # SAMPLE RATE
         # ==============================================================
 
-        sample_rate = float(
-            self.streams
-            .audio_config
-            .sample_rate
-        )
+        sample_rate = float(self.streams.audio_config.sample_rate)
 
-        if (
-            not math.isfinite(
-                sample_rate
-            )
-            or sample_rate
-            <= 0.0
-        ):
-
-            raise ValueError(
-                (
-                    "StreamManager sample rate "
-                    "must be finite and positive."
-                )
-            )
+        if not math.isfinite(sample_rate) or sample_rate <= 0.0:
+            raise ValueError(("StreamManager sample rate must be finite and positive."))
 
         # ==============================================================
         # EXTRACT NODE WINDOWS
@@ -1118,27 +795,14 @@ class LocalizationEngine:
             float,
         ] = {}
 
-        for node_id in sorted(
-            self.config.node_positions
-        ):
-
+        for node_id in sorted(self.config.node_positions):
             # ----------------------------------------------------------
             # RECHECK SESSION IMMEDIATELY BEFORE EXTRACTION
             # ----------------------------------------------------------
 
-            state = (
-                self.streams.nodes.get(
-                    node_id
-                )
-            )
+            state = self.streams.nodes.get(node_id)
 
-            if (
-                state
-                is None
-                or state.session_id
-                != common_session
-            ):
-
+            if state is None or state.session_id != common_session:
                 raise RuntimeError(
                     (
                         "Node session changed while "
@@ -1151,132 +815,67 @@ class LocalizationEngine:
             # ABSOLUTE PCM WINDOW
             # ----------------------------------------------------------
 
-            raw = (
-                self.streams
-                .get_window(
-                    node_id,
-                    start_sample,
-                    window_samples,
-                )
-                .astype(
-                    np.float64,
-                    copy=False,
-                )
+            raw = self.streams.get_window(
+                node_id,
+                start_sample,
+                window_samples,
+            ).astype(
+                np.float64,
+                copy=False,
             )
 
-            if (
-                raw.ndim
-                != 1
-                or raw.size
-                != window_samples
-            ):
-
+            if raw.ndim != 1 or raw.size != window_samples:
                 raise RuntimeError(
-                    (
-                        f"node {node_id} returned "
-                        "an invalid localization "
-                        "window shape."
-                    )
+                    (f"node {node_id} returned an invalid localization window shape.")
                 )
 
-            if not np.all(
-                np.isfinite(
-                    raw
-                )
-            ):
-
+            if not np.all(np.isfinite(raw)):
                 raise ValueError(
-                    (
-                        f"node {node_id} localization "
-                        "window contains non-finite "
-                        "samples."
-                    )
+                    (f"node {node_id} localization window contains non-finite samples.")
                 )
 
             # ----------------------------------------------------------
             # RAW RMS
             # ----------------------------------------------------------
 
-            if (
-                raw.size
-                > 0
-            ):
-
+            if raw.size > 0:
                 raw_rms = float(
                     np.sqrt(
                         np.mean(
-                            raw
-                            * raw,
+                            raw * raw,
                             dtype=np.float64,
                         )
                     )
                 )
 
             else:
+                raw_rms = 0.0
 
-                raw_rms = (
-                    0.0
-                )
+            if not math.isfinite(raw_rms):
+                raw_rms = 0.0
 
-            if not math.isfinite(
-                raw_rms
-            ):
-
-                raw_rms = (
-                    0.0
-                )
-
-            node_rms[
-                node_id
-            ] = (
-                raw_rms
-            )
+            node_rms[node_id] = raw_rms
 
             # ----------------------------------------------------------
             # LOCALIZATION CONDITIONING
             # ----------------------------------------------------------
 
-            if (
-                self.config.bandpass_enabled
-            ):
-
-                conditioned = (
-                    bandpass_filter(
-                        raw,
-
-                        sample_rate=
-                            sample_rate,
-
-                        low_hz=
-                            self.config
-                            .bandpass_low_hz,
-
-                        high_hz=
-                            self.config
-                            .bandpass_high_hz,
-
-                        order=
-                            self.config
-                            .bandpass_order,
-                    )
+            if self.config.bandpass_enabled:
+                conditioned = bandpass_filter(
+                    raw,
+                    sample_rate=sample_rate,
+                    low_hz=self.config.bandpass_low_hz,
+                    high_hz=self.config.bandpass_high_hz,
+                    order=self.config.bandpass_order,
                 )
 
             else:
-
-                conditioned = (
-                    np.ascontiguousarray(
-                        raw,
-                        dtype=np.float64,
-                    )
+                conditioned = np.ascontiguousarray(
+                    raw,
+                    dtype=np.float64,
                 )
 
-            if (
-                conditioned.ndim
-                != 1
-                or conditioned.size
-                != window_samples
-            ):
-
+            if conditioned.ndim != 1 or conditioned.size != window_samples:
                 raise RuntimeError(
                     (
                         f"node {node_id} conditioned "
@@ -1285,12 +884,7 @@ class LocalizationEngine:
                     )
                 )
 
-            if not np.all(
-                np.isfinite(
-                    conditioned
-                )
-            ):
-
+            if not np.all(np.isfinite(conditioned)):
                 raise ValueError(
                     (
                         f"node {node_id} conditioned "
@@ -1299,46 +893,28 @@ class LocalizationEngine:
                     )
                 )
 
-            windows[
-                node_id
-            ] = (
-                conditioned
-            )
+            windows[node_id] = conditioned
 
         # ==============================================================
         # VERIFY SESSION DID NOT CHANGE DURING EXTRACTION
         # ==============================================================
 
-        if (
-            self._common_stream_session()
-            != common_session
-        ):
-
-            raise RuntimeError(
-                (
-                    "Acquisition session changed "
-                    "during localization."
-                )
-            )
+        if self._common_stream_session() != common_session:
+            raise RuntimeError(("Acquisition session changed during localization."))
 
         # ==============================================================
         # PAIRWISE TDOA
         # ==============================================================
 
-        measurements: list[
-            TDOAMeasurement
-        ] = []
+        measurements: list[TDOAMeasurement] = []
 
         for (
             node_a,
             node_b,
         ) in itertools.combinations(
-            sorted(
-                windows
-            ),
+            sorted(windows),
             2,
         ):
-
             # ----------------------------------------------------------
             # GEOMETRIC PHYSICAL PAIR LIMIT
             # ----------------------------------------------------------
@@ -1347,35 +923,18 @@ class LocalizationEngine:
             # propagation delay between the microphones.
             # ----------------------------------------------------------
 
-            physical_max_delay_seconds = (
-                physical_max_delay(
-                    self.config
-                    .node_positions[
-                        node_a
-                    ],
-
-                    self.config
-                    .node_positions[
-                        node_b
-                    ],
-
-                    speed_of_sound_mps=
-                        speed_of_sound,
-                )
+            physical_max_delay_seconds = physical_max_delay(
+                self.config.node_positions[node_a],
+                self.config.node_positions[node_b],
+                speed_of_sound_mps=speed_of_sound,
             )
 
-            physical_max_delay_seconds = float(
-                physical_max_delay_seconds
-            )
+            physical_max_delay_seconds = float(physical_max_delay_seconds)
 
             if (
-                not math.isfinite(
-                    physical_max_delay_seconds
-                )
-                or physical_max_delay_seconds
-                < 0.0
+                not math.isfinite(physical_max_delay_seconds)
+                or physical_max_delay_seconds < 0.0
             ):
-
                 raise ValueError(
                     (
                         "physical_max_delay returned "
@@ -1388,11 +947,9 @@ class LocalizationEngine:
             # CONFIGURED PAIR CALIBRATION OFFSET
             # ----------------------------------------------------------
 
-            calibration_offset_s = (
-                self._pair_calibration_offset_s(
-                    node_a,
-                    node_b,
-                )
+            calibration_offset_s = self._pair_calibration_offset_s(
+                node_a,
+                node_b,
             )
 
             # ----------------------------------------------------------
@@ -1409,14 +966,9 @@ class LocalizationEngine:
             # and this becomes exactly the original physical limit.
             # ----------------------------------------------------------
 
-            gcc_search_limit_s = (
-                self._gcc_search_limit_s(
-                    physical_max_delay_s=
-                        physical_max_delay_seconds,
-
-                    calibration_offset_s=
-                        calibration_offset_s,
-                )
+            gcc_search_limit_s = self._gcc_search_limit_s(
+                physical_max_delay_s=physical_max_delay_seconds,
+                calibration_offset_s=calibration_offset_s,
             )
 
             # ----------------------------------------------------------
@@ -1425,44 +977,21 @@ class LocalizationEngine:
 
             if (
                 min(
-                    node_rms[
-                        node_a
-                    ],
-                    node_rms[
-                        node_b
-                    ],
+                    node_rms[node_a],
+                    node_rms[node_b],
                 )
                 < self.config.min_rms
             ):
-
                 measurements.append(
                     TDOAMeasurement(
-                        node_a=
-                            node_a,
-
-                        node_b=
-                            node_b,
-
-                        delay_seconds=
-                            0.0,
-
-                        delay_samples=
-                            0.0,
-
-                        peak_ratio=
-                            0.0,
-
-                        max_delay_seconds=
-                            physical_max_delay_seconds,
-
-                        valid=
-                            False,
-
-                        reason=
-                            (
-                                "insufficient "
-                                "signal energy"
-                            ),
+                        node_a=node_a,
+                        node_b=node_b,
+                        delay_seconds=0.0,
+                        delay_samples=0.0,
+                        peak_ratio=0.0,
+                        max_delay_seconds=physical_max_delay_seconds,
+                        valid=False,
+                        reason=("insufficient signal energy"),
                     )
                 )
 
@@ -1491,54 +1020,25 @@ class LocalizationEngine:
             # GCC returns RAW measured channel delay.
             # ----------------------------------------------------------
 
-            gcc_result = (
-                gcc_phat(
-                    windows[
-                        node_b
-                    ],
-
-                    windows[
-                        node_a
-                    ],
-
-                    sample_rate=
-                        sample_rate,
-
-                    max_delay_seconds=
-                        gcc_search_limit_s,
-
-                    interpolation=
-                        self.config.interpolation,
-
-                    min_peak_ratio=
-                        self.config.min_peak_ratio,
-
-                    beta=
-                        self.config.gcc_beta,
-
-                    frequency_band_hz=
-                        self.config.gcc_frequency_band_hz,
-                )
+            gcc_result = gcc_phat(
+                windows[node_b],
+                windows[node_a],
+                sample_rate=sample_rate,
+                max_delay_seconds=gcc_search_limit_s,
+                interpolation=self.config.interpolation,
+                min_peak_ratio=self.config.min_peak_ratio,
+                beta=self.config.gcc_beta,
+                frequency_band_hz=self.config.gcc_frequency_band_hz,
             )
 
             # ----------------------------------------------------------
             # RAW DELAY
             # ----------------------------------------------------------
 
-            raw_delay_seconds = float(
-                gcc_result.delay_seconds
-            )
+            raw_delay_seconds = float(gcc_result.delay_seconds)
 
-            if not math.isfinite(
-                raw_delay_seconds
-            ):
-
-                raise ValueError(
-                    (
-                        "GCC-PHAT produced a "
-                        "non-finite delay."
-                    )
-                )
+            if not math.isfinite(raw_delay_seconds):
+                raise ValueError(("GCC-PHAT produced a non-finite delay."))
 
             # ----------------------------------------------------------
             # TIMING CALIBRATION
@@ -1553,18 +1053,13 @@ class LocalizationEngine:
             #     corrected = raw
             # ----------------------------------------------------------
 
-            corrected_delay_seconds = (
-                self._correct_pair_delay_s(
-                    node_a,
-                    node_b,
-                    raw_delay_seconds,
-                )
+            corrected_delay_seconds = self._correct_pair_delay_s(
+                node_a,
+                node_b,
+                raw_delay_seconds,
             )
 
-            corrected_delay_samples = (
-                corrected_delay_seconds
-                * sample_rate
-            )
+            corrected_delay_samples = corrected_delay_seconds * sample_rate
 
             # ----------------------------------------------------------
             # DEFENSIVE PHYSICAL CHECK
@@ -1580,34 +1075,20 @@ class LocalizationEngine:
 
             physical_tolerance = max(
                 1e-12,
-
-                physical_max_delay_seconds
-                * 1e-9,
+                physical_max_delay_seconds * 1e-9,
             )
 
-            physically_valid = (
-                abs(
-                    corrected_delay_seconds
-                )
-                <= (
-                    physical_max_delay_seconds
-                    + physical_tolerance
-                )
+            physically_valid = abs(corrected_delay_seconds) <= (
+                physical_max_delay_seconds + physical_tolerance
             )
 
-            valid = bool(
-                gcc_result.valid
-                and physically_valid
-            )
+            valid = bool(gcc_result.valid and physically_valid)
 
             # ----------------------------------------------------------
             # REASON
             # ----------------------------------------------------------
 
-            if not (
-                physically_valid
-            ):
-
+            if not (physically_valid):
                 reason = (
                     "delay outside physical pair limit"
                     if calibration_offset_s == 0.0
@@ -1615,35 +1096,21 @@ class LocalizationEngine:
                 )
 
             else:
-
-                reason = (
-                    gcc_result.reason
-                )
+                reason = gcc_result.reason
 
             # ----------------------------------------------------------
             # PEAK RATIO
             # ----------------------------------------------------------
 
-            peak_ratio = float(
-                gcc_result.peak_ratio
-            )
+            peak_ratio = float(gcc_result.peak_ratio)
 
-            if not math.isfinite(
-                peak_ratio
-            ):
-
+            if not math.isfinite(peak_ratio):
                 # TDOAMeasurement deliberately stores finite diagnostic
                 # values.
                 #
                 # A saturated uniqueness ratio is represented by a large
                 # finite number instead of infinity.
-                peak_ratio = (
-                    float(
-                        np.finfo(
-                            np.float64
-                        ).max
-                    )
-                )
+                peak_ratio = float(np.finfo(np.float64).max)
 
             # ----------------------------------------------------------
             # CALIBRATED MEASUREMENT
@@ -1657,29 +1124,14 @@ class LocalizationEngine:
 
             measurements.append(
                 TDOAMeasurement(
-                    node_a=
-                        node_a,
-
-                    node_b=
-                        node_b,
-
-                    delay_seconds=
-                        corrected_delay_seconds,
-
-                    delay_samples=
-                        corrected_delay_samples,
-
-                    peak_ratio=
-                        peak_ratio,
-
-                    max_delay_seconds=
-                        physical_max_delay_seconds,
-
-                    valid=
-                        valid,
-
-                    reason=
-                        reason,
+                    node_a=node_a,
+                    node_b=node_b,
+                    delay_seconds=corrected_delay_seconds,
+                    delay_samples=corrected_delay_samples,
+                    peak_ratio=peak_ratio,
+                    max_delay_seconds=physical_max_delay_seconds,
+                    valid=valid,
+                    reason=reason,
                 )
             )
 
@@ -1693,17 +1145,8 @@ class LocalizationEngine:
         # the one from which the waveforms were extracted.
         # ==============================================================
 
-        if (
-            self._common_stream_session()
-            != common_session
-        ):
-
-            raise RuntimeError(
-                (
-                    "Acquisition session changed "
-                    "during TDOA estimation."
-                )
-            )
+        if self._common_stream_session() != common_session:
+            raise RuntimeError(("Acquisition session changed during TDOA estimation."))
 
         # ==============================================================
         # NONLINEAR POSITION SOLVE
@@ -1713,17 +1156,11 @@ class LocalizationEngine:
         # enabled.
         # ==============================================================
 
-        position = (
-            solve_position(
-                self.config.node_positions,
-                measurements,
-
-                speed_of_sound_mps=
-                    speed_of_sound,
-
-                bounds=
-                    self._bounds(),
-            )
+        position = solve_position(
+            self.config.node_positions,
+            measurements,
+            speed_of_sound_mps=speed_of_sound,
+            bounds=self._bounds(),
         )
 
         # ==============================================================
@@ -1731,28 +1168,13 @@ class LocalizationEngine:
         # ==============================================================
 
         return LocalizationResult(
-            position=
-                position,
-
-            measurements=
-                tuple(
-                    measurements
-                ),
-
-            window_start_sample=
-                start_sample,
-
-            window_samples=
-                window_samples,
-
-            speed_of_sound_mps=
-                speed_of_sound,
-
-            node_rms=
-                node_rms,
-
-            environment_used=
-                environment_used,
+            position=position,
+            measurements=tuple(measurements),
+            window_start_sample=start_sample,
+            window_samples=window_samples,
+            speed_of_sound_mps=speed_of_sound,
+            node_rms=node_rms,
+            environment_used=environment_used,
         )
 
     # ==================================================================
@@ -1772,121 +1194,59 @@ class LocalizationEngine:
         not yet available.
         """
 
-        window_samples = (
-            self._resolve_window_length(
-                length
-            )
-        )
+        window_samples = self._resolve_window_length(length)
 
         # ==============================================================
         # COMMON SESSION
         # ==============================================================
 
-        common_session = (
-            self._common_stream_session()
-        )
+        common_session = self._common_stream_session()
 
-        if (
-            common_session
-            is None
-        ):
-
-            return (
-                None
-            )
+        if common_session is None:
+            return None
 
         # ==============================================================
         # NEWEST AVAILABLE END PER NODE
         # ==============================================================
 
-        latest_ends: list[
-            int
-        ] = []
+        latest_ends: list[int] = []
 
-        for node_id in (
-            self.config.node_positions
-        ):
-
-            state = (
-                self.streams.nodes.get(
-                    node_id
-                )
-            )
+        for node_id in self.config.node_positions:
+            state = self.streams.nodes.get(node_id)
 
             if (
-                state
-                is None
-                or state.session_id
-                != common_session
+                state is None
+                or state.session_id != common_session
                 or not state.audio_blocks
             ):
+                return None
 
-                return (
-                    None
-                )
+            latest_block = state.audio_blocks[-1]
 
-            latest_block = (
-                state.audio_blocks[
-                    -1
-                ]
-            )
+            if latest_block.session_id != common_session:
+                return None
 
-            if (
-                latest_block.session_id
-                != common_session
-            ):
-
-                return (
-                    None
-                )
-
-            latest_ends.append(
-                int(
-                    latest_block.end_sample
-                )
-            )
+            latest_ends.append(int(latest_block.end_sample))
 
         # ==============================================================
         # COMMON END
         # ==============================================================
 
-        common_end = min(
-            latest_ends
-        )
+        common_end = min(latest_ends)
 
-        if (
-            common_end
-            < window_samples
-        ):
+        if common_end < window_samples:
+            return None
 
-            return (
-                None
-            )
-
-        start_sample = (
-            common_end
-            - window_samples
-        )
+        start_sample = common_end - window_samples
 
         # ==============================================================
         # SESSION RECHECK
         # ==============================================================
 
-        if (
-            self._common_stream_session()
-            != common_session
-        ):
+        if self._common_stream_session() != common_session:
+            return None
 
-            return (
-                None
-            )
-
-        return (
-            self.locate_window(
-                start_sample=
-                    start_sample,
-
-                length=
-                    window_samples,
-            )
+        return self.locate_window(
+            start_sample=start_sample,
+            length=window_samples,
         )

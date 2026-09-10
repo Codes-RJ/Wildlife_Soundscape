@@ -75,7 +75,6 @@ This module does NOT perform:
 Those remain responsibilities of the core backend.
 """
 
-
 from __future__ import annotations
 
 
@@ -113,11 +112,7 @@ from typing import (
 SOURCE_ROOT = Path(__file__).resolve().parents[2]
 
 
-if (
-    str(SOURCE_ROOT)
-    not in sys.path
-):
-
+if str(SOURCE_ROOT) not in sys.path:
     sys.path.insert(0, str(SOURCE_ROOT))
 
 
@@ -151,6 +146,15 @@ from wildlife_soundscape.dashboard.data_access import (
 from wildlife_soundscape.dashboard.live_view import (
     render_live_view,
 )
+from wildlife_soundscape.dashboard.preflight import render_preflight_checks
+from wildlife_soundscape.dashboard.review_view import render_review_view
+
+from wildlife_soundscape.dashboard.theme import (
+    get_theme_css,
+    render_complete_guide_view,
+    render_indian_wildlife_banner,
+    render_student_sidebar_guide,
+)
 
 
 # ======================================================================
@@ -158,19 +162,20 @@ from wildlife_soundscape.dashboard.live_view import (
 # ======================================================================
 
 
-LIVE_VIEW = (
-    "Live Monitor"
-)
+LIVE_VIEW = "Live Monitor"
 
 
-ANALYSIS_VIEW = (
-    "Research Analysis"
-)
+ANALYSIS_VIEW = "Research Analysis"
+
+
+GUIDE_VIEW = "Student & Human Analysis Guide"
 
 
 AVAILABLE_VIEWS = (
     LIVE_VIEW,
     ANALYSIS_VIEW,
+    "Review recordings",
+    GUIDE_VIEW,
 )
 
 
@@ -192,25 +197,13 @@ def configure_page(
         config,
         AppConfig,
     ):
-
-        raise TypeError(
-            "config must be an AppConfig."
-        )
+        raise TypeError("config must be an AppConfig.")
 
     st.set_page_config(
-        page_title=
-            config
-            .dashboard
-            .page_title,
-
-        page_icon=
-            "🎙️",
-
-        layout=
-            "wide",
-
-        initial_sidebar_state=
-            "expanded",
+        page_title=config.dashboard.page_title,
+        page_icon=":material/graphic_eq:",
+        layout="wide",
+        initial_sidebar_state="expanded",
     )
 
 
@@ -219,10 +212,7 @@ def configure_page(
 # ======================================================================
 
 
-@st.cache_resource(
-    show_spinner=
-        False
-)
+@st.cache_resource(show_spinner=False)
 def get_dashboard_data_access() -> DashboardDataAccess:
     """
     Create and cache the dashboard read service.
@@ -232,10 +222,7 @@ def get_dashboard_data_access() -> DashboardDataAccess:
     retain one permanent SQLite connection.
     """
 
-    return create_dashboard_data_access(
-        config=
-            CONFIG
-    )
+    return create_dashboard_data_access(config=CONFIG)
 
 
 # ======================================================================
@@ -250,29 +237,17 @@ def _human_file_size(
     Convert byte count into human-readable storage text.
     """
 
-    if (
-        isinstance(
-            size_bytes,
-            bool,
-        )
-        or not isinstance(
-            size_bytes,
-            int,
-        )
+    if isinstance(
+        size_bytes,
+        bool,
+    ) or not isinstance(
+        size_bytes,
+        int,
     ):
+        return "—"
 
-        return (
-            "—"
-        )
-
-    if (
-        size_bytes
-        < 0
-    ):
-
-        return (
-            "—"
-        )
+    if size_bytes < 0:
+        return "—"
 
     units = (
         "B",
@@ -282,46 +257,19 @@ def _human_file_size(
         "TiB",
     )
 
-    value = float(
-        size_bytes
-    )
+    value = float(size_bytes)
 
-    unit_index = (
-        0
-    )
+    unit_index = 0
 
-    while (
-        value
-        >= 1024.0
-        and unit_index
-        < len(
-            units
-        )
-        - 1
-    ):
+    while value >= 1024.0 and unit_index < len(units) - 1:
+        value /= 1024.0
 
-        value /= (
-            1024.0
-        )
+        unit_index += 1
 
-        unit_index += (
-            1
-        )
+    if unit_index == 0:
+        return f"{int(value)} {units[unit_index]}"
 
-    if (
-        unit_index
-        == 0
-    ):
-
-        return (
-            f"{int(value)} "
-            f"{units[unit_index]}"
-        )
-
-    return (
-        f"{value:.2f} "
-        f"{units[unit_index]}"
-    )
+    return f"{value:.2f} {units[unit_index]}"
 
 
 # ======================================================================
@@ -339,34 +287,16 @@ def _database_status(
     Build lightweight database status for sidebar display.
     """
 
-    path = (
-        data_access.database_path
-    )
+    path = data_access.database_path
 
-    exists = (
-        path.exists()
-        and path.is_file()
-    )
+    exists = path.exists() and path.is_file()
 
-    size_bytes = (
-        int(
-            path.stat().st_size
-        )
-
-        if exists
-
-        else 0
-    )
+    size_bytes = int(path.stat().st_size) if exists else 0
 
     return {
-        "path":
-            path,
-
-        "exists":
-            exists,
-
-        "size_bytes":
-            size_bytes,
+        "path": path,
+        "exists": exists,
+        "size_bytes": size_bytes,
     }
 
 
@@ -386,92 +316,35 @@ def _render_system_information(
 
     with st.sidebar.expander(
         "System Configuration",
-        expanded=
-            False,
+        expanded=False,
     ):
+        st.markdown("**Acquisition**")
 
-        st.markdown(
-            "**Acquisition**"
-        )
+        st.write(f"{config.audio.sample_rate:,} Hz")
 
-        st.write(
-            f"{config.audio.sample_rate:,} Hz"
-        )
+        st.write((f"{config.audio.frames_per_block} samples / packet"))
 
-        st.write(
-            (
-                f"{config.audio.frames_per_block} "
-                "samples / packet"
-            )
-        )
+        st.write((f"{len(config.expected_nodes)} acoustic nodes"))
 
-        st.write(
-            (
-                f"{len(config.expected_nodes)} "
-                "acoustic nodes"
-            )
-        )
+        st.write(("PCM16 mono per node"))
 
-        st.write(
-            (
-                "PCM16 mono per node"
-            )
-        )
+        st.markdown("**Localization**")
 
-        st.markdown(
-            "**Localization**"
-        )
+        st.write("GCC-PHAT / TDOA")
 
-        st.write(
-            "GCC-PHAT / TDOA"
-        )
+        st.write((f"Reference node: {config.localization.reference_node}"))
 
-        st.write(
-            (
-                f"Reference node: "
-                f"{config.localization.reference_node}"
-            )
-        )
+        st.write((f"Window: {config.localization.window_samples} samples"))
 
-        st.write(
-            (
-                "Window: "
-                f"{config.localization.window_samples} "
-                "samples"
-            )
-        )
+        st.markdown("**Analytics**")
 
-        st.markdown(
-            "**Analytics**"
-        )
+        st.write((f"Activity bin: {config.analytics.bucket_seconds} s"))
 
-        st.write(
-            (
-                "Activity bin: "
-                f"{config.analytics.bucket_seconds} s"
-            )
-        )
+        st.write((f"Spatial cell: {config.analytics.cell_size_m:.3f} m"))
 
-        st.write(
-            (
-                "Spatial cell: "
-                f"{config.analytics.cell_size_m:.3f} m"
-            )
-        )
+        st.write((f"Environmental node: {config.analytics.environmental_node_id}"))
 
-        st.write(
-            (
-                "Environmental node: "
-                f"{config.analytics.environmental_node_id}"
-            )
-        )
-
-        st.write(
-            (
-                "Spearman α: "
-                f"{config.analytics.environmental_alpha:.3f}"
-            )
-        )
+        st.write((f"Spearman α: {config.analytics.environmental_alpha:.3f}"))
 
     # ==============================================================
     # DATABASE
@@ -479,49 +352,15 @@ def _render_system_information(
 
     with st.sidebar.expander(
         "Database",
-        expanded=
-            False,
+        expanded=False,
     ):
+        status = _database_status(data_access)
 
-        status = (
-            _database_status(
-                data_access
-            )
-        )
+        st.write(("Status: " + ("Available" if status["exists"] else "Not created")))
 
-        st.write(
-            (
-                "Status: "
-                + (
-                    "Available"
+        st.write(("Size: " + _human_file_size(status["size_bytes"])))
 
-                    if status[
-                        "exists"
-                    ]
-
-                    else "Not created"
-                )
-            )
-        )
-
-        st.write(
-            (
-                "Size: "
-                + _human_file_size(
-                    status[
-                        "size_bytes"
-                    ]
-                )
-            )
-        )
-
-        st.caption(
-            str(
-                status[
-                    "path"
-                ]
-            )
-        )
+        st.caption(str(status["path"]))
 
 
 # ======================================================================
@@ -537,94 +376,43 @@ def _render_session_summary(
     """
 
     try:
-
-        latest_session = (
-            data_access.latest_session()
-        )
+        latest_session = data_access.latest_session()
 
     except Exception as exc:
-
-        st.sidebar.warning(
-            (
-                "Unable to read session "
-                f"metadata: {exc}"
-            )
-        )
+        st.sidebar.warning((f"Unable to read session metadata: {exc}"))
 
         return
 
     with st.sidebar.expander(
         "Latest Session",
-        expanded=
-            False,
+        expanded=False,
     ):
-
-        if (
-            latest_session
-            is None
-        ):
-
-            st.caption(
-                "No acquisition session recorded."
-            )
+        if latest_session is None:
+            st.caption("No acquisition session recorded.")
 
             return
 
         try:
+            session_id = int(latest_session["session_id"])
 
-            session_id = int(
-                latest_session[
-                    "session_id"
-                ]
-            )
-
-            session_text = (
-                f"0x{session_id:08X}"
-            )
+            session_text = f"0x{session_id:08X}"
 
         except (
             KeyError,
             TypeError,
             ValueError,
         ):
+            session_text = "Unknown"
 
-            session_text = (
-                "Unknown"
-            )
-
-        state = (
-            "Active"
-
-            if latest_session.get(
-                "stopped_at"
-            )
-            is None
-
-            else "Stopped"
-        )
+        state = "Active" if latest_session.get("stopped_at") is None else "Stopped"
 
         st.write(
             {
-                "session":
-                    session_text,
-
-                "label":
-                    latest_session.get(
-                        "label"
-                    ),
-
-                "state":
-                    state,
-
-                "started_at":
-                    latest_session.get(
-                        "started_at"
-                    ),
-
-                "stopped_at":
-                    latest_session.get(
-                        "stopped_at"
-                    ),
+                "session": session_text,
+                "label": latest_session.get("label"),
+                "state": state,
+                "started_at": latest_session.get("started_at"),
+                "stopped_at": latest_session.get("stopped_at"),
             }
         )
 
@@ -648,58 +436,49 @@ def render_sidebar(
         Selected dashboard view.
     """
 
-    st.sidebar.title(
-        "Wildlife Soundscape"
-    )
+    st.sidebar.title("Wildlife Soundscape")
 
-    st.sidebar.caption(
-        (
-            "Acoustic Monitoring & "
-            "Behavior Analysis"
-        )
-    )
+    st.sidebar.caption(("Acoustic Monitoring & Behavior Analysis"))
 
     st.sidebar.divider()
 
     selected_view = st.sidebar.radio(
         "Dashboard View",
-
-        options=
-            AVAILABLE_VIEWS,
-
-        index=
-            0,
-
-        key=
-            "dashboard_navigation",
+        options=AVAILABLE_VIEWS,
+        index=0,
+        key="dashboard_navigation",
     )
 
     st.sidebar.divider()
 
-    _render_session_summary(
-        data_access
+    st.sidebar.caption("Black & white interface · color identifies chart data")
+    st.markdown(get_theme_css(), unsafe_allow_html=True)
+
+    student_mode = st.sidebar.checkbox(
+        "Student Learning Mode",
+        value=True,
+        key="student_mode_active",
+        help="Enable simple explanations, tooltips, and real-world examples.",
     )
+    if student_mode:
+        render_student_sidebar_guide()
+
+    st.sidebar.divider()
+
+    _render_session_summary(data_access)
 
     _render_system_information(
-        config=
-            config,
-
-        data_access=
-            data_access,
+        config=config,
+        data_access=data_access,
     )
+
+    render_preflight_checks(config)
 
     st.sidebar.divider()
 
-    st.sidebar.caption(
-        (
-            "Local research dashboard. "
-            "No cloud connection is required."
-        )
-    )
+    st.sidebar.caption(("Local research dashboard. No cloud connection is required."))
 
-    return (
-        selected_view
-    )
+    return selected_view
 
 
 # ======================================================================
@@ -736,27 +515,13 @@ def _render_disabled_dashboard(
     Render configuration-disabled state.
     """
 
-    st.title(
-        config
-        .dashboard
-        .page_title
-    )
+    st.title(config.dashboard.page_title)
 
-    st.warning(
-        (
-            "Dashboard functionality is disabled "
-            "in DashboardConfig."
-        )
-    )
+    st.warning(("Dashboard functionality is disabled in DashboardConfig."))
 
     st.code(
-        (
-            "DashboardConfig(\n"
-            "    enabled=True,\n"
-            ")"
-        ),
-        language=
-            "python",
+        ("DashboardConfig(\n    enabled=True,\n)"),
+        language="python",
     )
 
 
@@ -770,31 +535,20 @@ def main() -> None:
     Run the complete Streamlit dashboard.
     """
 
-    config = (
-        CONFIG
-    )
+    config = CONFIG
 
     # ==============================================================
     # PAGE CONFIG
     # ==============================================================
 
-    configure_page(
-        config
-    )
+    configure_page(config)
 
     # ==============================================================
     # DASHBOARD ENABLED
     # ==============================================================
 
-    if not (
-        config
-        .dashboard
-        .enabled
-    ):
-
-        _render_disabled_dashboard(
-            config
-        )
+    if not (config.dashboard.enabled):
+        _render_disabled_dashboard(config)
 
         return
 
@@ -803,29 +557,14 @@ def main() -> None:
     # ==============================================================
 
     try:
-
-        data_access = (
-            get_dashboard_data_access()
-        )
+        data_access = get_dashboard_data_access()
 
     except Exception as exc:
+        st.title(config.dashboard.page_title)
 
-        st.title(
-            config
-            .dashboard
-            .page_title
-        )
+        st.error(("Dashboard initialization failed while opening the event database."))
 
-        st.error(
-            (
-                "Dashboard initialization failed "
-                "while opening the event database."
-            )
-        )
-
-        st.exception(
-            exc
-        )
+        st.exception(exc)
 
         return
 
@@ -833,60 +572,53 @@ def main() -> None:
     # SIDEBAR / NAVIGATION
     # ==============================================================
 
-    selected_view = (
-        render_sidebar(
-            config=
-                config,
-
-            data_access=
-                data_access,
-        )
+    selected_view = render_sidebar(
+        config=config,
+        data_access=data_access,
     )
+
+    # ==============================================================
+    # INDIAN WILDLIFE HEADER BANNER
+    # ==============================================================
+
+    render_indian_wildlife_banner()
 
     # ==============================================================
     # LIVE VIEW
     # ==============================================================
 
-    if (
-        selected_view
-        == LIVE_VIEW
-    ):
-
+    if selected_view == LIVE_VIEW:
         render_live_view(
             data_access,
-
-            config=
-                config,
+            config=config,
         )
 
     # ==============================================================
     # RESEARCH VIEW
     # ==============================================================
 
-    elif (
-        selected_view
-        == ANALYSIS_VIEW
-    ):
-
+    elif selected_view == ANALYSIS_VIEW:
         render_analysis_view(
             data_access,
-
-            config=
-                config,
+            config=config,
         )
+
+    # ==============================================================
+    # STUDENT & HUMAN ANALYSIS GUIDE
+    # ==============================================================
+
+    elif selected_view == "Review recordings":
+        render_review_view(data_access)
+
+    elif selected_view == GUIDE_VIEW:
+        render_complete_guide_view()
 
     # ==============================================================
     # DEFENSIVE FALLBACK
     # ==============================================================
 
     else:
-
-        st.error(
-            (
-                "Unknown dashboard view: "
-                f"{selected_view!r}"
-            )
-        )
+        st.error((f"Unknown dashboard view: {selected_view!r}"))
 
     # ==============================================================
     # FOOTER
@@ -900,9 +632,5 @@ def main() -> None:
 # ======================================================================
 
 
-if (
-    __name__
-    == "__main__"
-):
-
+if __name__ == "__main__":
     main()

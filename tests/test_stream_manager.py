@@ -31,7 +31,6 @@ It must never remove the physical acoustic propagation delay.
 Fine inter-node delay remains available to GCC-PHAT/TDOA.
 """
 
-
 from __future__ import annotations
 
 
@@ -88,14 +87,10 @@ from wildlife_soundscape.acquisition.stream_manager import (
 # ======================================================================
 
 
-TEST_SESSION_ID = (
-    0x12345678
-)
+TEST_SESSION_ID = 0x12345678
 
 
-SECOND_SESSION_ID = (
-    0x87654321
-)
+SECOND_SESSION_ID = 0x87654321
 
 
 # ======================================================================
@@ -109,26 +104,13 @@ def make_config() -> AudioConfig:
     """
 
     return AudioConfig(
-        sample_rate=
-            48_000,
-
-        frames_per_block=
-            16,
-
-        channels=
-            1,
-
-        sample_width_bytes=
-            2,
-
-        buffer_seconds=
-            1,
-
-        sync_tolerance_samples=
-            10,
-
-        record_wav=
-            False,
+        sample_rate=48_000,
+        frames_per_block=16,
+        channels=1,
+        sample_width_bytes=2,
+        buffer_seconds=1,
+        sync_tolerance_samples=10,
+        record_wav=False,
     )
 
 
@@ -144,8 +126,7 @@ def make_samples(
     return np.ascontiguousarray(
         np.arange(
             start_value,
-            start_value
-            + length,
+            start_value + length,
             dtype=np.int16,
         )
     )
@@ -163,42 +144,21 @@ def make_block(
     Build one valid mono PCM16 AudioBlock.
     """
 
-    if (
-        samples
-        is None
-    ):
-
-        samples = (
-            make_samples()
-        )
+    if samples is None:
+        samples = make_samples()
 
     return AudioBlock(
-        node_id=
-            node_id,
-
-        sequence=
-            sequence,
-
-        session_id=
-            session_id,
-
-        sample_index=
-            start,
-
-        local_micros=
-            0,
-
-        i2s_error_count=
-            0,
-
-        flags=
-            0,
-
-        samples=
-            np.ascontiguousarray(
-                samples,
-                dtype=np.int16,
-            ),
+        node_id=node_id,
+        sequence=sequence,
+        session_id=session_id,
+        sample_index=start,
+        local_micros=0,
+        i2s_error_count=0,
+        flags=0,
+        samples=np.ascontiguousarray(
+            samples,
+            dtype=np.int16,
+        ),
     )
 
 
@@ -213,15 +173,9 @@ def make_manager() -> tuple[
     Build a StreamManager with Nodes 1, 2 and 3 registered.
     """
 
-    config = (
-        make_config()
-    )
+    config = make_config()
 
-    manager = (
-        StreamManager(
-            config
-        )
-    )
+    manager = StreamManager(config)
 
     states: dict[
         int,
@@ -233,29 +187,16 @@ def make_manager() -> tuple[
         2,
         3,
     ):
-
         state = NodeState(
-            node_id=
-                node_id,
-
-            audio_config=
-                config,
+            node_id=node_id,
+            audio_config=config,
         )
 
-        state.reset_stream_tracking(
-            session_id=
-                TEST_SESSION_ID
-        )
+        state.reset_stream_tracking(session_id=TEST_SESSION_ID)
 
-        manager.register_state(
-            state
-        )
+        manager.register_state(state)
 
-        states[
-            node_id
-        ] = (
-            state
-        )
+        states[node_id] = state
 
     return (
         manager,
@@ -270,78 +211,41 @@ def make_manager() -> tuple[
 
 def test_register_state() -> None:
 
-    config = (
-        make_config()
-    )
+    config = make_config()
 
-    manager = (
-        StreamManager(
-            config
-        )
-    )
+    manager = StreamManager(config)
 
     state = NodeState(
-        node_id=
-            1,
-
-        audio_config=
-            config,
+        node_id=1,
+        audio_config=config,
     )
 
-    manager.register_state(
-        state
-    )
+    manager.register_state(state)
 
-    assert (
-        manager.nodes[
-            1
-        ]
-        is state
-    )
+    assert manager.nodes[1] is state
 
 
 def test_register_state_replaces_existing_state() -> None:
 
-    config = (
-        make_config()
-    )
+    config = make_config()
 
-    manager = (
-        StreamManager(
-            config
-        )
-    )
+    manager = StreamManager(config)
 
     first = NodeState(
-        node_id=
-            1,
-
-        audio_config=
-            config,
+        node_id=1,
+        audio_config=config,
     )
 
     second = NodeState(
-        node_id=
-            1,
-
-        audio_config=
-            config,
+        node_id=1,
+        audio_config=config,
     )
 
-    manager.register_state(
-        first
-    )
+    manager.register_state(first)
 
-    manager.register_state(
-        second
-    )
+    manager.register_state(second)
 
-    assert (
-        manager.nodes[
-            1
-        ]
-        is second
-    )
+    assert manager.nodes[1] is second
 
 
 # ======================================================================
@@ -354,80 +258,37 @@ def test_add_audio_routes_block_to_correct_node() -> None:
     (
         manager,
         states,
-    ) = (
-        make_manager()
-    )
+    ) = make_manager()
 
     block = make_block(
         2,
         0,
     )
 
-    manager.add_audio(
-        block
-    )
+    manager.add_audio(block)
 
-    assert (
-        len(
-            states[
-                1
-            ].audio_blocks
-        )
-        == 0
-    )
+    assert len(states[1].audio_blocks) == 0
 
-    assert (
-        len(
-            states[
-                2
-            ].audio_blocks
-        )
-        == 1
-    )
+    assert len(states[2].audio_blocks) == 1
 
-    assert (
-        len(
-            states[
-                3
-            ].audio_blocks
-        )
-        == 0
-    )
+    assert len(states[3].audio_blocks) == 0
 
-    assert (
-        states[
-            2
-        ].audio_blocks[
-            0
-        ]
-        is block
-    )
+    assert states[2].audio_blocks[0] is block
 
 
 def test_add_audio_rejects_unregistered_node() -> None:
 
-    config = (
-        make_config()
-    )
+    config = make_config()
 
-    manager = (
-        StreamManager(
-            config
-        )
-    )
+    manager = StreamManager(config)
 
     block = make_block(
         1,
         0,
     )
 
-    with pytest.raises(
-        KeyError
-    ):
-
-        manager.add_audio(
-            block
-        )
+    with pytest.raises(KeyError):
+        manager.add_audio(block)
 
 
 # ======================================================================
@@ -456,9 +317,7 @@ def test_alignment_within_tolerance() -> None:
     (
         manager,
         _,
-    ) = (
-        make_manager()
-    )
+    ) = make_manager()
 
     manager.add_audio(
         make_block(
@@ -481,28 +340,17 @@ def test_alignment_within_tolerance() -> None:
         )
     )
 
-    aligned = (
-        manager.latest_aligned_blocks()
-    )
+    aligned = manager.latest_aligned_blocks()
 
-    assert (
-        aligned
-        is not None
-    )
+    assert aligned is not None
 
-    assert (
-        aligned.target_sample_index
-        == 98
-    )
+    assert aligned.target_sample_index == 98
 
-    assert (
-        aligned.offsets
-        == {
-            1: 2,
-            2: 5,
-            3: 0,
-        }
-    )
+    assert aligned.offsets == {
+        1: 2,
+        2: 5,
+        3: 0,
+    }
 
 
 def test_alignment_at_exact_tolerance_is_valid() -> None:
@@ -510,9 +358,7 @@ def test_alignment_at_exact_tolerance_is_valid() -> None:
     (
         manager,
         _,
-    ) = (
-        make_manager()
-    )
+    ) = make_manager()
 
     manager.add_audio(
         make_block(
@@ -535,29 +381,13 @@ def test_alignment_at_exact_tolerance_is_valid() -> None:
         )
     )
 
-    aligned = (
-        manager.latest_aligned_blocks(
-            tolerance_samples=
-                10
-        )
-    )
+    aligned = manager.latest_aligned_blocks(tolerance_samples=10)
 
-    assert (
-        aligned
-        is not None
-    )
+    assert aligned is not None
 
-    assert (
-        aligned.target_sample_index
-        == 100
-    )
+    assert aligned.target_sample_index == 100
 
-    assert (
-        aligned.offsets[
-            2
-        ]
-        == 10
-    )
+    assert aligned.offsets[2] == 10
 
 
 def test_alignment_outside_tolerance_returns_none() -> None:
@@ -565,9 +395,7 @@ def test_alignment_outside_tolerance_returns_none() -> None:
     (
         manager,
         _,
-    ) = (
-        make_manager()
-    )
+    ) = make_manager()
 
     manager.add_audio(
         make_block(
@@ -590,17 +418,9 @@ def test_alignment_outside_tolerance_returns_none() -> None:
         )
     )
 
-    aligned = (
-        manager.latest_aligned_blocks(
-            tolerance_samples=
-                10
-        )
-    )
+    aligned = manager.latest_aligned_blocks(tolerance_samples=10)
 
-    assert (
-        aligned
-        is None
-    )
+    assert aligned is None
 
 
 def test_alignment_returns_none_when_requested_node_has_no_audio() -> None:
@@ -608,9 +428,7 @@ def test_alignment_returns_none_when_requested_node_has_no_audio() -> None:
     (
         manager,
         _,
-    ) = (
-        make_manager()
-    )
+    ) = make_manager()
 
     manager.add_audio(
         make_block(
@@ -628,10 +446,7 @@ def test_alignment_returns_none_when_requested_node_has_no_audio() -> None:
 
     # Node 3 deliberately has no block.
 
-    assert (
-        manager.latest_aligned_blocks()
-        is None
-    )
+    assert manager.latest_aligned_blocks() is None
 
 
 def test_alignment_selects_older_buffered_block_nearest_common_target() -> None:
@@ -648,9 +463,7 @@ def test_alignment_selects_older_buffered_block_nearest_common_target() -> None:
     (
         manager,
         _,
-    ) = (
-        make_manager()
-    )
+    ) = make_manager()
 
     # --------------------------------------------------------------
     # NODE 1 IS ONE PACKET AHEAD
@@ -660,8 +473,7 @@ def test_alignment_selects_older_buffered_block_nearest_common_target() -> None:
         make_block(
             1,
             100,
-            sequence=
-                1,
+            sequence=1,
         )
     )
 
@@ -669,8 +481,7 @@ def test_alignment_selects_older_buffered_block_nearest_common_target() -> None:
         make_block(
             1,
             116,
-            sequence=
-                2,
+            sequence=2,
         )
     )
 
@@ -682,8 +493,7 @@ def test_alignment_selects_older_buffered_block_nearest_common_target() -> None:
         make_block(
             2,
             100,
-            sequence=
-                1,
+            sequence=1,
         )
     )
 
@@ -691,40 +501,23 @@ def test_alignment_selects_older_buffered_block_nearest_common_target() -> None:
         make_block(
             3,
             100,
-            sequence=
-                1,
+            sequence=1,
         )
     )
 
-    aligned = (
-        manager.latest_aligned_blocks()
-    )
+    aligned = manager.latest_aligned_blocks()
 
-    assert (
-        aligned
-        is not None
-    )
+    assert aligned is not None
 
-    assert (
-        aligned.target_sample_index
-        == 100
-    )
+    assert aligned.target_sample_index == 100
 
-    assert (
-        aligned.blocks[
-            1
-        ].sample_index
-        == 100
-    )
+    assert aligned.blocks[1].sample_index == 100
 
-    assert (
-        aligned.offsets
-        == {
-            1: 0,
-            2: 0,
-            3: 0,
-        }
-    )
+    assert aligned.offsets == {
+        1: 0,
+        2: 0,
+        3: 0,
+    }
 
 
 def test_alignment_rejects_mixed_sessions() -> None:
@@ -733,15 +526,9 @@ def test_alignment_rejects_mixed_sessions() -> None:
     do not represent the same physical time.
     """
 
-    config = (
-        make_config()
-    )
+    config = make_config()
 
-    manager = (
-        StreamManager(
-            config
-        )
-    )
+    manager = StreamManager(config)
 
     for (
         node_id,
@@ -760,37 +547,24 @@ def test_alignment_rejects_mixed_sessions() -> None:
             SECOND_SESSION_ID,
         ),
     ):
-
         state = NodeState(
-            node_id=
-                node_id,
-
-            audio_config=
-                config,
+            node_id=node_id,
+            audio_config=config,
         )
 
-        state.reset_stream_tracking(
-            session_id=
-                session_id
-        )
+        state.reset_stream_tracking(session_id=session_id)
 
-        manager.register_state(
-            state
-        )
+        manager.register_state(state)
 
         manager.add_audio(
             make_block(
                 node_id,
                 100,
-                session_id=
-                    session_id,
+                session_id=session_id,
             )
         )
 
-    assert (
-        manager.latest_aligned_blocks()
-        is None
-    )
+    assert manager.latest_aligned_blocks() is None
 
 
 def test_alignment_rejects_negative_tolerance() -> None:
@@ -798,16 +572,13 @@ def test_alignment_rejects_negative_tolerance() -> None:
     (
         manager,
         _,
-    ) = (
-        make_manager()
-    )
+    ) = make_manager()
 
     for node_id in (
         1,
         2,
         3,
     ):
-
         manager.add_audio(
             make_block(
                 node_id,
@@ -815,14 +586,8 @@ def test_alignment_rejects_negative_tolerance() -> None:
             )
         )
 
-    with pytest.raises(
-        ValueError
-    ):
-
-        manager.latest_aligned_blocks(
-            tolerance_samples=
-                -1
-        )
+    with pytest.raises(ValueError):
+        manager.latest_aligned_blocks(tolerance_samples=-1)
 
 
 def test_alignment_rejects_duplicate_requested_nodes() -> None:
@@ -830,14 +595,9 @@ def test_alignment_rejects_duplicate_requested_nodes() -> None:
     (
         manager,
         _,
-    ) = (
-        make_manager()
-    )
+    ) = make_manager()
 
-    with pytest.raises(
-        ValueError
-    ):
-
+    with pytest.raises(ValueError):
         manager.latest_aligned_blocks(
             node_ids=(
                 1,
@@ -857,23 +617,18 @@ def test_get_window_exact_block() -> None:
     (
         manager,
         _,
-    ) = (
-        make_manager()
-    )
+    ) = make_manager()
 
     samples = make_samples(
-        length=
-            16,
-        start_value=
-            100,
+        length=16,
+        start_value=100,
     )
 
     manager.add_audio(
         make_block(
             1,
             1000,
-            samples=
-                samples,
+            samples=samples,
         )
     )
 
@@ -888,10 +643,7 @@ def test_get_window_exact_block() -> None:
         samples,
     )
 
-    assert (
-        result.dtype
-        == np.int16
-    )
+    assert result.dtype == np.int16
 
 
 def test_get_window_extracts_partial_block() -> None:
@@ -899,23 +651,18 @@ def test_get_window_extracts_partial_block() -> None:
     (
         manager,
         _,
-    ) = (
-        make_manager()
-    )
+    ) = make_manager()
 
     samples = make_samples(
-        length=
-            16,
-        start_value=
-            10,
+        length=16,
+        start_value=10,
     )
 
     manager.add_audio(
         make_block(
             1,
             100,
-            samples=
-                samples,
+            samples=samples,
         )
     )
 
@@ -927,9 +674,7 @@ def test_get_window_extracts_partial_block() -> None:
 
     np.testing.assert_array_equal(
         result,
-        samples[
-            4:12
-        ],
+        samples[4:12],
     )
 
 
@@ -947,9 +692,7 @@ def test_get_window_preserves_sample_gap_as_silence() -> None:
     (
         manager,
         _,
-    ) = (
-        make_manager()
-    )
+    ) = make_manager()
 
     first = np.full(
         16,
@@ -967,10 +710,8 @@ def test_get_window_preserves_sample_gap_as_silence() -> None:
         make_block(
             1,
             0,
-            sequence=
-                1,
-            samples=
-                first,
+            sequence=1,
+            samples=first,
         )
     )
 
@@ -978,10 +719,8 @@ def test_get_window_preserves_sample_gap_as_silence() -> None:
         make_block(
             1,
             32,
-            sequence=
-                2,
-            samples=
-                second,
+            sequence=2,
+            samples=second,
         )
     )
 
@@ -992,16 +731,12 @@ def test_get_window_preserves_sample_gap_as_silence() -> None:
     )
 
     np.testing.assert_array_equal(
-        result[
-            0:16
-        ],
+        result[0:16],
         first,
     )
 
     np.testing.assert_array_equal(
-        result[
-            16:32
-        ],
+        result[16:32],
         np.zeros(
             16,
             dtype=np.int16,
@@ -1009,9 +744,7 @@ def test_get_window_preserves_sample_gap_as_silence() -> None:
     )
 
     np.testing.assert_array_equal(
-        result[
-            32:48
-        ],
+        result[32:48],
         second,
     )
 
@@ -1021,16 +754,13 @@ def test_get_window_uses_custom_fill_value() -> None:
     (
         manager,
         _,
-    ) = (
-        make_manager()
-    )
+    ) = make_manager()
 
     result = manager.get_window(
         1,
         100,
         8,
-        fill_value=
-            -1234,
+        fill_value=-1234,
     )
 
     np.testing.assert_array_equal(
@@ -1048,9 +778,7 @@ def test_get_window_before_first_block_contains_fill_then_pcm() -> None:
     (
         manager,
         _,
-    ) = (
-        make_manager()
-    )
+    ) = make_manager()
 
     samples = np.array(
         [
@@ -1066,8 +794,7 @@ def test_get_window_before_first_block_contains_fill_then_pcm() -> None:
         make_block(
             1,
             104,
-            samples=
-                samples,
+            samples=samples,
         )
     )
 
@@ -1102,9 +829,7 @@ def test_get_window_zero_length_returns_empty_pcm16() -> None:
     (
         manager,
         _,
-    ) = (
-        make_manager()
-    )
+    ) = make_manager()
 
     result = manager.get_window(
         1,
@@ -1112,15 +837,9 @@ def test_get_window_zero_length_returns_empty_pcm16() -> None:
         0,
     )
 
-    assert (
-        result.size
-        == 0
-    )
+    assert result.size == 0
 
-    assert (
-        result.dtype
-        == np.int16
-    )
+    assert result.dtype == np.int16
 
 
 def test_get_window_rejects_negative_start_sample() -> None:
@@ -1128,14 +847,9 @@ def test_get_window_rejects_negative_start_sample() -> None:
     (
         manager,
         _,
-    ) = (
-        make_manager()
-    )
+    ) = make_manager()
 
-    with pytest.raises(
-        ValueError
-    ):
-
+    with pytest.raises(ValueError):
         manager.get_window(
             1,
             -1,
@@ -1157,39 +871,24 @@ def test_get_window_rejects_fill_value_outside_pcm16(
     (
         manager,
         _,
-    ) = (
-        make_manager()
-    )
+    ) = make_manager()
 
-    with pytest.raises(
-        ValueError
-    ):
-
+    with pytest.raises(ValueError):
         manager.get_window(
             1,
             0,
             16,
-            fill_value=
-                fill_value,
+            fill_value=fill_value,
         )
 
 
 def test_get_window_rejects_unregistered_node() -> None:
 
-    config = (
-        make_config()
-    )
+    config = make_config()
 
-    manager = (
-        StreamManager(
-            config
-        )
-    )
+    manager = StreamManager(config)
 
-    with pytest.raises(
-        KeyError
-    ):
-
+    with pytest.raises(KeyError):
         manager.get_window(
             1,
             0,
@@ -1215,15 +914,9 @@ def test_reset_audio_buffers_clears_sample_timeline_state() -> None:
     (
         manager,
         states,
-    ) = (
-        make_manager()
-    )
+    ) = make_manager()
 
-    state = (
-        states[
-            1
-        ]
-    )
+    state = states[1]
 
     manager.add_audio(
         make_block(
@@ -1232,71 +925,37 @@ def test_reset_audio_buffers_clears_sample_timeline_state() -> None:
         )
     )
 
-    state.last_sequence = (
-        77
-    )
+    state.last_sequence = 77
 
-    state.last_sample_index = (
-        100
-    )
+    state.last_sample_index = 100
 
     state.latest_sync = SyncPayload(
-        session_id=
-            TEST_SESSION_ID,
-
-        sync_id=
-            1,
-
-        sample_index=
-            100,
-
-        local_micros=
-            12345,
+        session_id=TEST_SESSION_ID,
+        sync_id=1,
+        sample_index=100,
+        local_micros=12345,
     )
 
-    assert (
-        state.expected_next_audio_sample
-        is not None
-    )
+    assert state.expected_next_audio_sample is not None
 
     manager.reset_audio_buffers()
 
-    assert (
-        len(
-            state.audio_blocks
-        )
-        == 0
-    )
+    assert len(state.audio_blocks) == 0
 
-    assert (
-        state.expected_next_audio_sample
-        is None
-    )
+    assert state.expected_next_audio_sample is None
 
-    assert (
-        state.last_sample_index
-        is None
-    )
+    assert state.last_sample_index is None
 
-    assert (
-        state.latest_sync
-        is None
-    )
+    assert state.latest_sync is None
 
     # --------------------------------------------------------------
     # Session identity and network sequence diagnostics are deliberately
     # retained until the actual session-transition packet is observed.
     # --------------------------------------------------------------
 
-    assert (
-        state.session_id
-        == TEST_SESSION_ID
-    )
+    assert state.session_id == TEST_SESSION_ID
 
-    assert (
-        state.last_sequence
-        == 77
-    )
+    assert state.last_sequence == 77
 
 
 def test_reset_audio_buffers_affects_all_registered_nodes() -> None:
@@ -1304,16 +963,13 @@ def test_reset_audio_buffers_affects_all_registered_nodes() -> None:
     (
         manager,
         states,
-    ) = (
-        make_manager()
-    )
+    ) = make_manager()
 
     for node_id in (
         1,
         2,
         3,
     ):
-
         manager.add_audio(
             make_block(
                 node_id,
@@ -1323,21 +979,10 @@ def test_reset_audio_buffers_affects_all_registered_nodes() -> None:
 
     manager.reset_audio_buffers()
 
-    for state in (
-        states.values()
-    ):
+    for state in states.values():
+        assert len(state.audio_blocks) == 0
 
-        assert (
-            len(
-                state.audio_blocks
-            )
-            == 0
-        )
-
-        assert (
-            state.expected_next_audio_sample
-            is None
-        )
+        assert state.expected_next_audio_sample is None
 
 
 # ======================================================================
@@ -1358,31 +1003,18 @@ def read_pcm16_wav(
     """
 
     with wave.open(
-        str(
-            path
-        ),
+        str(path),
         "rb",
     ) as wav:
+        channels = wav.getnchannels()
 
-        channels = (
-            wav.getnchannels()
-        )
+        sample_width = wav.getsampwidth()
 
-        sample_width = (
-            wav.getsampwidth()
-        )
+        sample_rate = wav.getframerate()
 
-        sample_rate = (
-            wav.getframerate()
-        )
+        frame_count = wav.getnframes()
 
-        frame_count = (
-            wav.getnframes()
-        )
-
-        raw = wav.readframes(
-            frame_count
-        )
+        raw = wav.readframes(frame_count)
 
     samples = np.frombuffer(
         raw,
@@ -1406,18 +1038,14 @@ def test_wav_recorder_start_and_stop(
     tmp_path: Path,
 ) -> None:
 
-    config = (
-        make_config()
-    )
+    config = make_config()
 
     recorder = WavRecorder(
         tmp_path,
         config,
     )
 
-    assert not (
-        recorder.is_recording
-    )
+    assert not (recorder.is_recording)
 
     recorder.start(
         "session_test",
@@ -1428,36 +1056,25 @@ def test_wav_recorder_start_and_stop(
         ),
     )
 
-    assert (
-        recorder.is_recording
-    )
+    assert recorder.is_recording
 
     for node_id in (
         1,
         2,
         3,
     ):
-
-        assert (
-            tmp_path
-            / "session_test"
-            / f"node_{node_id}.wav"
-        ).exists()
+        assert (tmp_path / "session_test" / f"node_{node_id}.wav").exists()
 
     recorder.stop()
 
-    assert not (
-        recorder.is_recording
-    )
+    assert not (recorder.is_recording)
 
 
 def test_wav_recorder_metadata(
     tmp_path: Path,
 ) -> None:
 
-    config = (
-        make_config()
-    )
+    config = make_config()
 
     recorder = WavRecorder(
         tmp_path,
@@ -1466,25 +1083,22 @@ def test_wav_recorder_metadata(
 
     recorder.start(
         "metadata",
-        (
-            1,
-        ),
+        (1,),
     )
 
     recorder.write(
         make_block(
             1,
             0,
-            samples=
-                np.array(
-                    [
-                        1,
-                        2,
-                        3,
-                        4,
-                    ],
-                    dtype=np.int16,
-                ),
+            samples=np.array(
+                [
+                    1,
+                    2,
+                    3,
+                    4,
+                ],
+                dtype=np.int16,
+            ),
         )
     )
 
@@ -1495,26 +1109,13 @@ def test_wav_recorder_metadata(
         sample_width,
         sample_rate,
         samples,
-    ) = read_pcm16_wav(
-        tmp_path
-        / "metadata"
-        / "node_1.wav"
-    )
+    ) = read_pcm16_wav(tmp_path / "metadata" / "node_1.wav")
 
-    assert (
-        channels
-        == 1
-    )
+    assert channels == 1
 
-    assert (
-        sample_width
-        == 2
-    )
+    assert sample_width == 2
 
-    assert (
-        sample_rate
-        == 48_000
-    )
+    assert sample_rate == 48_000
 
     np.testing.assert_array_equal(
         samples,
@@ -1534,9 +1135,7 @@ def test_wav_recorder_preserves_leading_gap_as_silence(
     tmp_path: Path,
 ) -> None:
 
-    config = (
-        make_config()
-    )
+    config = make_config()
 
     recorder = WavRecorder(
         tmp_path,
@@ -1545,9 +1144,7 @@ def test_wav_recorder_preserves_leading_gap_as_silence(
 
     recorder.start(
         "gap_test",
-        (
-            1,
-        ),
+        (1,),
     )
 
     block_samples = np.array(
@@ -1564,8 +1161,7 @@ def test_wav_recorder_preserves_leading_gap_as_silence(
         make_block(
             1,
             4,
-            samples=
-                block_samples,
+            samples=block_samples,
         )
     )
 
@@ -1576,11 +1172,7 @@ def test_wav_recorder_preserves_leading_gap_as_silence(
         _,
         _,
         samples,
-    ) = read_pcm16_wav(
-        tmp_path
-        / "gap_test"
-        / "node_1.wav"
-    )
+    ) = read_pcm16_wav(tmp_path / "gap_test" / "node_1.wav")
 
     expected = np.array(
         [
@@ -1606,9 +1198,7 @@ def test_wav_recorder_skips_overlapping_prefix(
     tmp_path: Path,
 ) -> None:
 
-    config = (
-        make_config()
-    )
+    config = make_config()
 
     recorder = WavRecorder(
         tmp_path,
@@ -1617,9 +1207,7 @@ def test_wav_recorder_skips_overlapping_prefix(
 
     recorder.start(
         "overlap_test",
-        (
-            1,
-        ),
+        (1,),
     )
 
     first = np.array(
@@ -1646,10 +1234,8 @@ def test_wav_recorder_skips_overlapping_prefix(
         make_block(
             1,
             0,
-            sequence=
-                1,
-            samples=
-                first,
+            sequence=1,
+            samples=first,
         )
     )
 
@@ -1664,10 +1250,8 @@ def test_wav_recorder_skips_overlapping_prefix(
         make_block(
             1,
             2,
-            sequence=
-                2,
-            samples=
-                overlapping,
+            sequence=2,
+            samples=overlapping,
         )
     )
 
@@ -1678,11 +1262,7 @@ def test_wav_recorder_skips_overlapping_prefix(
         _,
         _,
         samples,
-    ) = read_pcm16_wav(
-        tmp_path
-        / "overlap_test"
-        / "node_1.wav"
-    )
+    ) = read_pcm16_wav(tmp_path / "overlap_test" / "node_1.wav")
 
     expected = np.array(
         [
@@ -1706,9 +1286,7 @@ def test_wav_recorder_ignores_fully_duplicate_block(
     tmp_path: Path,
 ) -> None:
 
-    config = (
-        make_config()
-    )
+    config = make_config()
 
     recorder = WavRecorder(
         tmp_path,
@@ -1717,9 +1295,7 @@ def test_wav_recorder_ignores_fully_duplicate_block(
 
     recorder.start(
         "duplicate_test",
-        (
-            1,
-        ),
+        (1,),
     )
 
     original = np.array(
@@ -1746,10 +1322,8 @@ def test_wav_recorder_ignores_fully_duplicate_block(
         make_block(
             1,
             0,
-            sequence=
-                1,
-            samples=
-                original,
+            sequence=1,
+            samples=original,
         )
     )
 
@@ -1757,10 +1331,8 @@ def test_wav_recorder_ignores_fully_duplicate_block(
         make_block(
             1,
             0,
-            sequence=
-                2,
-            samples=
-                duplicate,
+            sequence=2,
+            samples=duplicate,
         )
     )
 
@@ -1771,11 +1343,7 @@ def test_wav_recorder_ignores_fully_duplicate_block(
         _,
         _,
         samples,
-    ) = read_pcm16_wav(
-        tmp_path
-        / "duplicate_test"
-        / "node_1.wav"
-    )
+    ) = read_pcm16_wav(tmp_path / "duplicate_test" / "node_1.wav")
 
     np.testing.assert_array_equal(
         samples,
@@ -1804,15 +1372,10 @@ def test_wav_recorder_rejects_invalid_session_label(
         make_config(),
     )
 
-    with pytest.raises(
-        ValueError
-    ):
-
+    with pytest.raises(ValueError):
         recorder.start(
             session_label,
-            (
-                1,
-            ),
+            (1,),
         )
 
 
@@ -1825,10 +1388,7 @@ def test_wav_recorder_rejects_duplicate_node_ids(
         make_config(),
     )
 
-    with pytest.raises(
-        ValueError
-    ):
-
+    with pytest.raises(ValueError):
         recorder.start(
             "duplicate_nodes",
             (

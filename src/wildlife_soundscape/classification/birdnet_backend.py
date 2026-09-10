@@ -176,7 +176,6 @@ This allows the remainder of the Wildlife Soundscape system to operate
 without BirdNET installed.
 """
 
-
 from __future__ import annotations
 
 
@@ -242,29 +241,19 @@ from .classifier import (
 # ======================================================================
 
 
-DEFAULT_MODEL_VERSION = (
-    "3.0"
-)
+DEFAULT_MODEL_VERSION = "3.0"
 
 
-DEFAULT_MODEL_BACKEND = (
-    "onnx"
-)
+DEFAULT_MODEL_BACKEND = "onnx"
 
 
-DEFAULT_MODEL_PRECISION = (
-    "fp32"
-)
+DEFAULT_MODEL_PRECISION = "fp32"
 
 
-DEFAULT_MIN_CONFIDENCE = (
-    0.20
-)
+DEFAULT_MIN_CONFIDENCE = 0.20
 
 
-DEFAULT_TOP_K = (
-    5
-)
+DEFAULT_TOP_K = 5
 
 
 # ======================================================================
@@ -317,29 +306,12 @@ class BirdNETSpeciesPrediction:
             self.species_name,
             str,
         ):
+            raise TypeError(("species_name must be a string."))
 
-            raise TypeError(
-                (
-                    "species_name must "
-                    "be a string."
-                )
-            )
+        species_name = self.species_name.strip()
 
-        species_name = (
-            self.species_name
-            .strip()
-        )
-
-        if not (
-            species_name
-        ):
-
-            raise ValueError(
-                (
-                    "species_name cannot "
-                    "be empty."
-                )
-            )
+        if not (species_name):
+            raise ValueError(("species_name cannot be empty."))
 
         object.__setattr__(
             self,
@@ -352,46 +324,19 @@ class BirdNETSpeciesPrediction:
         # ==============================================================
 
         try:
-
-            confidence = float(
-                self.confidence
-            )
+            confidence = float(self.confidence)
 
         except (
             TypeError,
             ValueError,
         ) as exc:
+            raise TypeError(("confidence must be numeric.")) from exc
 
-            raise TypeError(
-                (
-                    "confidence must "
-                    "be numeric."
-                )
-            ) from exc
+        if not math.isfinite(confidence):
+            raise ValueError(("confidence must be finite."))
 
-        if not math.isfinite(
-            confidence
-        ):
-
-            raise ValueError(
-                (
-                    "confidence must "
-                    "be finite."
-                )
-            )
-
-        if not (
-            0.0
-            <= confidence
-            <= 1.0
-        ):
-
-            raise ValueError(
-                (
-                    "confidence must lie "
-                    "between 0 and 1."
-                )
-            )
+        if not (0.0 <= confidence <= 1.0):
+            raise ValueError(("confidence must lie between 0 and 1."))
 
         object.__setattr__(
             self,
@@ -403,35 +348,17 @@ class BirdNETSpeciesPrediction:
         # DETECTION COUNT
         # ==============================================================
 
-        if (
-            isinstance(
-                self.detection_count,
-                bool,
-            )
-            or not isinstance(
-                self.detection_count,
-                int,
-            )
+        if isinstance(
+            self.detection_count,
+            bool,
+        ) or not isinstance(
+            self.detection_count,
+            int,
         ):
+            raise TypeError(("detection_count must be an integer."))
 
-            raise TypeError(
-                (
-                    "detection_count must "
-                    "be an integer."
-                )
-            )
-
-        if (
-            self.detection_count
-            <= 0
-        ):
-
-            raise ValueError(
-                (
-                    "detection_count must "
-                    "be greater than zero."
-                )
-            )
+        if self.detection_count <= 0:
+            raise ValueError(("detection_count must be greater than zero."))
 
     # ==================================================================
     # SCIENTIFIC NAME
@@ -445,25 +372,13 @@ class BirdNETSpeciesPrediction:
         Extract scientific component from BirdNET taxonomy label.
         """
 
-        if (
-            "_"
-            in self.species_name
-        ):
+        if "_" in self.species_name:
+            return self.species_name.split(
+                "_",
+                1,
+            )[0].strip()
 
-            return (
-                self.species_name
-                .split(
-                    "_",
-                    1,
-                )[
-                    0
-                ]
-                .strip()
-            )
-
-        return (
-            self.species_name
-        )
+        return self.species_name
 
     # ==================================================================
     # COMMON NAME
@@ -477,31 +392,15 @@ class BirdNETSpeciesPrediction:
         Extract common-name component when present.
         """
 
-        if (
-            "_"
-            not in self.species_name
-        ):
+        if "_" not in self.species_name:
+            return None
 
-            return (
-                None
-            )
+        common_name = self.species_name.split(
+            "_",
+            1,
+        )[1].strip()
 
-        common_name = (
-            self.species_name
-            .split(
-                "_",
-                1,
-            )[
-                1
-            ]
-            .strip()
-        )
-
-        return (
-            common_name
-            if common_name
-            else None
-        )
+        return common_name if common_name else None
 
 
 # ======================================================================
@@ -509,9 +408,7 @@ class BirdNETSpeciesPrediction:
 # ======================================================================
 
 
-class BirdNETClassifierBackend(
-    ClassifierBackend
-):
+class BirdNETClassifierBackend(ClassifierBackend):
     """
     Optional BirdNET waveform-classification backend.
 
@@ -549,29 +446,12 @@ class BirdNETClassifierBackend(
             model_version,
             str,
         ):
+            raise TypeError(("model_version must be a string."))
 
-            raise TypeError(
-                (
-                    "model_version must "
-                    "be a string."
-                )
-            )
+        model_version = model_version.strip()
 
-        model_version = (
-            model_version
-            .strip()
-        )
-
-        if not (
-            model_version
-        ):
-
-            raise ValueError(
-                (
-                    "model_version cannot "
-                    "be empty."
-                )
-            )
+        if not (model_version):
+            raise ValueError(("model_version cannot be empty."))
 
         # ==============================================================
         # MODEL BACKEND
@@ -581,30 +461,12 @@ class BirdNETClassifierBackend(
             model_backend,
             str,
         ):
+            raise TypeError(("model_backend must be a string."))
 
-            raise TypeError(
-                (
-                    "model_backend must "
-                    "be a string."
-                )
-            )
+        model_backend = model_backend.strip().lower()
 
-        model_backend = (
-            model_backend
-            .strip()
-            .lower()
-        )
-
-        if not (
-            model_backend
-        ):
-
-            raise ValueError(
-                (
-                    "model_backend cannot "
-                    "be empty."
-                )
-            )
+        if not (model_backend):
+            raise ValueError(("model_backend cannot be empty."))
 
         # ==============================================================
         # MODEL PRECISION
@@ -614,193 +476,89 @@ class BirdNETClassifierBackend(
             model_precision,
             str,
         ):
+            raise TypeError(("model_precision must be a string."))
 
-            raise TypeError(
-                (
-                    "model_precision must "
-                    "be a string."
-                )
-            )
+        model_precision = model_precision.strip().lower()
 
-        model_precision = (
-            model_precision
-            .strip()
-            .lower()
-        )
-
-        if not (
-            model_precision
-        ):
-
-            raise ValueError(
-                (
-                    "model_precision cannot "
-                    "be empty."
-                )
-            )
+        if not (model_precision):
+            raise ValueError(("model_precision cannot be empty."))
 
         # ==============================================================
         # MINIMUM CONFIDENCE
         # ==============================================================
 
         try:
-
-            min_confidence = float(
-                min_confidence
-            )
+            min_confidence = float(min_confidence)
 
         except (
             TypeError,
             ValueError,
         ) as exc:
+            raise TypeError(("min_confidence must be numeric.")) from exc
 
-            raise TypeError(
-                (
-                    "min_confidence must "
-                    "be numeric."
-                )
-            ) from exc
-
-        if (
-            not math.isfinite(
-                min_confidence
-            )
-            or not (
-                0.0
-                <= min_confidence
-                <= 1.0
-            )
-        ):
-
-            raise ValueError(
-                (
-                    "min_confidence must lie "
-                    "between 0 and 1."
-                )
-            )
+        if not math.isfinite(min_confidence) or not (0.0 <= min_confidence <= 1.0):
+            raise ValueError(("min_confidence must lie between 0 and 1."))
 
         # ==============================================================
         # TOP K
         # ==============================================================
 
-        if (
-            isinstance(
-                top_k,
-                bool,
-            )
-            or not isinstance(
-                top_k,
-                int,
-            )
+        if isinstance(
+            top_k,
+            bool,
+        ) or not isinstance(
+            top_k,
+            int,
         ):
+            raise TypeError(("top_k must be an integer."))
 
-            raise TypeError(
-                (
-                    "top_k must "
-                    "be an integer."
-                )
-            )
-
-        if (
-            top_k
-            <= 0
-        ):
-
-            raise ValueError(
-                (
-                    "top_k must be "
-                    "greater than zero."
-                )
-            )
+        if top_k <= 0:
+            raise ValueError(("top_k must be greater than zero."))
 
         # ==============================================================
         # CUSTOM SPECIES LIST
         # ==============================================================
 
-        if (
-            custom_species_list
-            is not None
-        ):
-
+        if custom_species_list is not None:
             if not isinstance(
                 custom_species_list,
                 Path,
             ):
+                raise TypeError(("custom_species_list must be pathlib.Path or None."))
 
-                raise TypeError(
-                    (
-                        "custom_species_list must "
-                        "be pathlib.Path or None."
-                    )
-                )
-
-            custom_species_list = (
-                custom_species_list
-                .expanduser()
-            )
+            custom_species_list = custom_species_list.expanduser()
 
         # ==============================================================
         # STATE
         # ==============================================================
 
-        self.model_version = (
-            model_version
-        )
+        self.model_version = model_version
 
-        self.model_backend = (
-            model_backend
-        )
+        self.model_backend = model_backend
 
-        self.model_precision = (
-            model_precision
-        )
+        self.model_precision = model_precision
 
-        self.min_confidence = (
-            min_confidence
-        )
+        self.min_confidence = min_confidence
 
-        self.top_k = (
-            top_k
-        )
+        self.top_k = top_k
 
-        self.custom_species_list = (
-            custom_species_list
-        )
+        self.custom_species_list = custom_species_list
 
-        self.taxonomy = (
-            taxonomy
-            if taxonomy is not None
-            else BirdNETTaxonomy()
-        )
+        self.taxonomy = taxonomy if taxonomy is not None else BirdNETTaxonomy()
 
         self.geo_context = (
-            geo_context
-            if geo_context is not None
-            else BirdNETGeoContext()
+            geo_context if geo_context is not None else BirdNETGeoContext()
         )
 
-        self._geo_model = (
-            geo_model
-        )
+        self._geo_model = geo_model
 
-        self._geo_model_attempted = (
-            geo_model is not None
-        )
+        self._geo_model_attempted = geo_model is not None
 
-        self._geo_model_error: str | None = (
-            None
-        )
+        self._geo_model_error: str | None = None
 
-        self._model = (
-            model
-        )
+        self._model = model
 
-        self._birdnet_package_version: (
-            str
-            | None
-        ) = (
-            None
-        )
+        self._birdnet_package_version: str | None = None
 
     # ==================================================================
     # IDENTITY
@@ -814,9 +572,7 @@ class BirdNETClassifierBackend(
         Backend identity used by persistence and logs.
         """
 
-        return (
-            "birdnet"
-        )
+        return "birdnet"
 
     @property
     def version(
@@ -826,34 +582,14 @@ class BirdNETClassifierBackend(
         Human-readable model/runtime version.
         """
 
-        package_version = (
-            self._birdnet_package_version
-        )
+        package_version = self._birdnet_package_version
 
-        if (
-            package_version
-            is None
-        ):
-
+        if package_version is None:
             try:
+                package_version = importlib.metadata.version("birdnet")
 
-                package_version = (
-                    importlib
-                    .metadata
-                    .version(
-                        "birdnet"
-                    )
-                )
-
-            except (
-                importlib
-                .metadata
-                .PackageNotFoundError
-            ):
-
-                package_version = (
-                    "not-loaded"
-                )
+            except importlib.metadata.PackageNotFoundError:
+                package_version = "not-loaded"
 
         return (
             f"model-{self.model_version}"
@@ -874,9 +610,7 @@ class BirdNETClassifierBackend(
         BirdNET requires waveform audio.
         """
 
-        return (
-            True
-        )
+        return True
 
     @property
     def requires_features(
@@ -886,9 +620,7 @@ class BirdNETClassifierBackend(
         BirdNET does not require handcrafted project DSP features.
         """
 
-        return (
-            False
-        )
+        return False
 
     # ==================================================================
     # OPTIONAL DEPENDENCY LOAD
@@ -902,15 +634,9 @@ class BirdNETClassifierBackend(
         """
 
         try:
-
-            birdnet = (
-                importlib.import_module(
-                    "birdnet"
-                )
-            )
+            birdnet = importlib.import_module("birdnet")
 
         except ImportError as exc:
-
             raise RuntimeError(
                 (
                     "BirdNET backend is selected but "
@@ -920,28 +646,12 @@ class BirdNETClassifierBackend(
             ) from exc
 
         try:
+            self._birdnet_package_version = importlib.metadata.version("birdnet")
 
-            self._birdnet_package_version = (
-                importlib
-                .metadata
-                .version(
-                    "birdnet"
-                )
-            )
+        except importlib.metadata.PackageNotFoundError:
+            self._birdnet_package_version = "unknown"
 
-        except (
-            importlib
-            .metadata
-            .PackageNotFoundError
-        ):
-
-            self._birdnet_package_version = (
-                "unknown"
-            )
-
-        return (
-            birdnet
-        )
+        return birdnet
 
     # ==================================================================
     # MODEL LOAD
@@ -960,18 +670,10 @@ class BirdNETClassifierBackend(
             FP32
         """
 
-        if (
-            self._model
-            is not None
-        ):
+        if self._model is not None:
+            return self._model
 
-            return (
-                self._model
-            )
-
-        birdnet = (
-            self._load_birdnet_module()
-        )
+        birdnet = self._load_birdnet_module()
 
         load_function = getattr(
             birdnet,
@@ -979,31 +681,20 @@ class BirdNETClassifierBackend(
             None,
         )
 
-        if not callable(
-            load_function
-        ):
-
+        if not callable(load_function):
             raise RuntimeError(
-                (
-                    "Installed BirdNET package "
-                    "does not expose birdnet.load()."
-                )
+                ("Installed BirdNET package does not expose birdnet.load().")
             )
 
         try:
-
-            self._model = (
-                load_function(
-                    "acoustic",
-                    self.model_version,
-                    self.model_backend,
-                    precision=
-                        self.model_precision,
-                )
+            self._model = load_function(
+                "acoustic",
+                self.model_version,
+                self.model_backend,
+                precision=self.model_precision,
             )
 
         except Exception as exc:
-
             raise RuntimeError(
                 (
                     "Unable to initialize BirdNET "
@@ -1016,9 +707,7 @@ class BirdNETClassifierBackend(
                 )
             ) from exc
 
-        return (
-            self._model
-        )
+        return self._model
 
     # ==================================================================
     # OPTIONAL GEOGRAPHIC MODEL LOAD
@@ -1079,48 +768,16 @@ class BirdNETClassifierBackend(
         Values outside that interval are clipped defensively.
         """
 
-        waveform = (
-            np.asarray(
-                audio
-            )
-        )
+        waveform = np.asarray(audio)
 
-        if (
-            waveform.ndim
-            != 1
-        ):
+        if waveform.ndim != 1:
+            raise ValueError(("BirdNET model audio must be one-dimensional."))
 
-            raise ValueError(
-                (
-                    "BirdNET model audio "
-                    "must be one-dimensional."
-                )
-            )
+        if waveform.size == 0:
+            raise ValueError(("BirdNET model audio cannot be empty."))
 
-        if (
-            waveform.size
-            == 0
-        ):
-
-            raise ValueError(
-                (
-                    "BirdNET model audio "
-                    "cannot be empty."
-                )
-            )
-
-        if not np.all(
-            np.isfinite(
-                waveform
-            )
-        ):
-
-            raise ValueError(
-                (
-                    "BirdNET model audio contains "
-                    "non-finite samples."
-                )
-            )
+        if not np.all(np.isfinite(waveform)):
+            raise ValueError(("BirdNET model audio contains non-finite samples."))
 
         # ==============================================================
         # INTEGER AUDIO
@@ -1130,41 +787,30 @@ class BirdNETClassifierBackend(
             waveform.dtype,
             np.integer,
         ):
-
-            clipped = (
-                np.clip(
-                    waveform,
-                    -32768,
-                    32767,
-                )
+            clipped = np.clip(
+                waveform,
+                -32768,
+                32767,
             )
 
-            return (
-                np.ascontiguousarray(
-                    clipped,
-                    dtype=
-                        "<i2",
-                )
+            return np.ascontiguousarray(
+                clipped,
+                dtype="<i2",
             )
 
         # ==============================================================
         # FLOAT AUDIO
         # ==============================================================
 
-        floating = (
-            np.asarray(
-                waveform,
-                dtype=
-                    np.float64,
-            )
+        floating = np.asarray(
+            waveform,
+            dtype=np.float64,
         )
 
-        clipped = (
-            np.clip(
-                floating,
-                -1.0,
-                1.0,
-            )
+        clipped = np.clip(
+            floating,
+            -1.0,
+            1.0,
         )
 
         # --------------------------------------------------------------
@@ -1175,19 +821,11 @@ class BirdNETClassifierBackend(
         # asymmetric multiplication branch.
         # --------------------------------------------------------------
 
-        pcm = (
-            np.rint(
-                clipped
-                * 32767.0
-            )
-        )
+        pcm = np.rint(clipped * 32767.0)
 
-        return (
-            np.ascontiguousarray(
-                pcm,
-                dtype=
-                    "<i2",
-            )
+        return np.ascontiguousarray(
+            pcm,
+            dtype="<i2",
         )
 
     # ==================================================================
@@ -1209,97 +847,43 @@ class BirdNETClassifierBackend(
             path,
             Path,
         ):
+            raise TypeError("path must be pathlib.Path.")
 
-            raise TypeError(
-                "path must be pathlib.Path."
-            )
-
-        if (
-            isinstance(
-                sample_rate,
-                bool,
-            )
-            or not isinstance(
-                sample_rate,
-                int,
-            )
+        if isinstance(
+            sample_rate,
+            bool,
+        ) or not isinstance(
+            sample_rate,
+            int,
         ):
+            raise TypeError(("sample_rate must be an integer."))
 
-            raise TypeError(
-                (
-                    "sample_rate must "
-                    "be an integer."
-                )
-            )
+        if sample_rate <= 0:
+            raise ValueError(("sample_rate must be greater than zero."))
 
-        if (
-            sample_rate
-            <= 0
-        ):
+        pcm16 = np.asarray(pcm16)
 
-            raise ValueError(
-                (
-                    "sample_rate must be "
-                    "greater than zero."
-                )
-            )
+        if pcm16.ndim != 1:
+            raise ValueError(("pcm16 must be one-dimensional."))
 
-        pcm16 = (
-            np.asarray(
-                pcm16
-            )
-        )
-
-        if (
-            pcm16.ndim
-            != 1
-        ):
-
-            raise ValueError(
-                (
-                    "pcm16 must be "
-                    "one-dimensional."
-                )
-            )
-
-        if (
-            pcm16.size
-            == 0
-        ):
-
-            raise ValueError(
-                (
-                    "pcm16 cannot "
-                    "be empty."
-                )
-            )
+        if pcm16.size == 0:
+            raise ValueError(("pcm16 cannot be empty."))
 
         with wave.open(
-            str(
-                path
-            ),
+            str(path),
             "wb",
         ) as wav_file:
+            wav_file.setnchannels(1)
 
-            wav_file.setnchannels(
-                1
-            )
+            wav_file.setsampwidth(2)
 
-            wav_file.setsampwidth(
-                2
-            )
-
-            wav_file.setframerate(
-                sample_rate
-            )
+            wav_file.setframerate(sample_rate)
 
             wav_file.writeframes(
                 pcm16.astype(
                     "<i2",
-                    copy=
-                        False,
-                )
-                .tobytes()
+                    copy=False,
+                ).tobytes()
             )
 
     # ==================================================================
@@ -1313,48 +897,20 @@ class BirdNETClassifierBackend(
         Validate and return optional BirdNET custom-species-list path.
         """
 
-        if (
-            self.custom_species_list
-            is None
-        ):
+        if self.custom_species_list is None:
+            return None
 
-            return (
-                None
-            )
+        path = self.custom_species_list
 
-        path = (
-            self.custom_species_list
-        )
-
-        if not (
-            path.exists()
-        ):
-
+        if not (path.exists()):
             raise FileNotFoundError(
-                (
-                    "BirdNET custom species "
-                    "list does not exist: "
-                    f"{path}"
-                )
+                (f"BirdNET custom species list does not exist: {path}")
             )
 
-        if not (
-            path.is_file()
-        ):
+        if not (path.is_file()):
+            raise ValueError((f"BirdNET custom species list is not a file: {path}"))
 
-            raise ValueError(
-                (
-                    "BirdNET custom species "
-                    "list is not a file: "
-                    f"{path}"
-                )
-            )
-
-        return (
-            str(
-                path
-            )
-        )
+        return str(path)
 
     # ==================================================================
     # RUN MODEL
@@ -1376,9 +932,7 @@ class BirdNETClassifierBackend(
         discard predictions internally before returning its result.
         """
 
-        model = (
-            self._ensure_model()
-        )
+        model = self._ensure_model()
 
         predict_function = getattr(
             model,
@@ -1386,62 +940,32 @@ class BirdNETClassifierBackend(
             None,
         )
 
-        if not callable(
-            predict_function
-        ):
-
+        if not callable(predict_function):
             raise RuntimeError(
-                (
-                    "Loaded BirdNET acoustic model "
-                    "does not expose predict()."
-                )
+                ("Loaded BirdNET acoustic model does not expose predict().")
             )
 
         prediction_arguments: dict[
             str,
             Any,
         ] = {
-            "top_k":
-                self.top_k,
-
-            "default_confidence_threshold":
-                self.min_confidence,
+            "top_k": self.top_k,
+            "default_confidence_threshold": self.min_confidence,
         }
 
-        custom_species_list = (
-            self._custom_species_list_argument()
-        )
+        custom_species_list = self._custom_species_list_argument()
 
-        if (
-            custom_species_list
-            is not None
-        ):
-
-            prediction_arguments[
-                "custom_species_list"
-            ] = (
-                custom_species_list
-            )
+        if custom_species_list is not None:
+            prediction_arguments["custom_species_list"] = custom_species_list
 
         try:
-
-            return (
-                predict_function(
-                    str(
-                        audio_path
-                    ),
-                    **prediction_arguments,
-                )
+            return predict_function(
+                str(audio_path),
+                **prediction_arguments,
             )
 
         except Exception as exc:
-
-            raise RuntimeError(
-                (
-                    "BirdNET acoustic prediction "
-                    "failed."
-                )
-            ) from exc
+            raise RuntimeError(("BirdNET acoustic prediction failed.")) from exc
 
     # ==================================================================
     # EXPORT BIRDNET RESULT TO CSV
@@ -1462,72 +986,31 @@ class BirdNETClassifierBackend(
             None,
         )
 
-        if not callable(
-            to_csv
-        ):
-
-            raise RuntimeError(
-                (
-                    "BirdNET prediction result "
-                    "does not expose to_csv()."
-                )
-            )
+        if not callable(to_csv):
+            raise RuntimeError(("BirdNET prediction result does not expose to_csv()."))
 
         try:
-
-            to_csv(
-                str(
-                    output_path
-                )
-            )
+            to_csv(str(output_path))
 
         except TypeError:
-
             try:
-
-                to_csv(
-                    output_path
-                )
+                to_csv(output_path)
 
             except Exception as exc:
-
                 raise RuntimeError(
-                    (
-                        "Unable to convert BirdNET "
-                        "predictions to CSV."
-                    )
+                    ("Unable to convert BirdNET predictions to CSV.")
                 ) from exc
 
         except Exception as exc:
-
             raise RuntimeError(
-                (
-                    "Unable to convert BirdNET "
-                    "predictions to CSV."
-                )
+                ("Unable to convert BirdNET predictions to CSV.")
             ) from exc
 
-        if not (
-            output_path.exists()
-        ):
+        if not (output_path.exists()):
+            raise RuntimeError(("BirdNET prediction CSV was not created."))
 
-            raise RuntimeError(
-                (
-                    "BirdNET prediction CSV "
-                    "was not created."
-                )
-            )
-
-        if not (
-            output_path.is_file()
-        ):
-
-            raise RuntimeError(
-                (
-                    "BirdNET prediction CSV path "
-                    "is not a file."
-                )
-            )
+        if not (output_path.is_file()):
+            raise RuntimeError(("BirdNET prediction CSV path is not a file."))
 
     # ==================================================================
     # PARSE BIRDNET CSV
@@ -1548,55 +1031,26 @@ class BirdNETClassifierBackend(
 
         with csv_path.open(
             "r",
-            encoding=
-                "utf-8-sig",
-            newline=
-                "",
+            encoding="utf-8-sig",
+            newline="",
         ) as handle:
+            reader = csv.DictReader(handle)
 
-            reader = (
-                csv.DictReader(
-                    handle
-                )
-            )
-
-            if (
-                reader.fieldnames
-                is None
-            ):
-
-                return (
-                    []
-                )
+            if reader.fieldnames is None:
+                return []
 
             rows = [
                 {
-                    str(
-                        key
-                    ):
-                        (
-                            ""
-                            if value
-                            is None
-                            else str(
-                                value
-                            )
-                        )
-
+                    str(key): ("" if value is None else str(value))
                     for (
                         key,
                         value,
-                    )
-                    in row.items()
+                    ) in row.items()
                 }
-
-                for row
-                in reader
+                for row in reader
             ]
 
-        return (
-            rows
-        )
+        return rows
 
     # ==================================================================
     # COLUMN LOOKUP
@@ -1622,26 +1076,18 @@ class BirdNETClassifierBackend(
         """
 
         normalized = {
-            key
-            .strip()
+            key.strip()
             .lower()
             .replace(
                 " ",
                 "_",
-            ):
-                key
-
-            for key
-            in row
+            ): key
+            for key in row
         }
 
-        for candidate in (
-            candidates
-        ):
-
+        for candidate in candidates:
             normalized_candidate = (
-                candidate
-                .strip()
+                candidate.strip()
                 .lower()
                 .replace(
                     " ",
@@ -1649,20 +1095,10 @@ class BirdNETClassifierBackend(
                 )
             )
 
-            if (
-                normalized_candidate
-                in normalized
-            ):
+            if normalized_candidate in normalized:
+                return normalized[normalized_candidate]
 
-                return (
-                    normalized[
-                        normalized_candidate
-                    ]
-                )
-
-        return (
-            None
-        )
+        return None
 
     # ==================================================================
     # AGGREGATE SPECIES
@@ -1701,44 +1137,28 @@ class BirdNETClassifierBackend(
             int,
         ] = {}
 
-        for row in (
-            rows
-        ):
-
-            if not (
-                row
-            ):
-
+        for row in rows:
+            if not (row):
                 continue
 
             # ==========================================================
             # REQUIRED COLUMNS
             # ==========================================================
 
-            species_column = (
-                self._column_name(
-                    row,
-                    "species_name",
-                    "species",
-                    "label",
-                )
+            species_column = self._column_name(
+                row,
+                "species_name",
+                "species",
+                "label",
             )
 
-            confidence_column = (
-                self._column_name(
-                    row,
-                    "confidence",
-                    "score",
-                )
+            confidence_column = self._column_name(
+                row,
+                "confidence",
+                "score",
             )
 
-            if (
-                species_column
-                is None
-                or confidence_column
-                is None
-            ):
-
+            if species_column is None or confidence_column is None:
                 raise RuntimeError(
                     (
                         "BirdNET prediction table "
@@ -1747,49 +1167,26 @@ class BirdNETClassifierBackend(
                     )
                 )
 
-            species_name = (
-                row[
-                    species_column
-                ]
-                .strip()
-            )
+            species_name = row[species_column].strip()
 
-            if not (
-                species_name
-            ):
-
+            if not (species_name):
                 continue
 
             try:
-
-                confidence = float(
-                    row[
-                        confidence_column
-                    ]
-                )
+                confidence = float(row[confidence_column])
 
             except (
                 TypeError,
                 ValueError,
             ):
-
                 continue
 
-            if (
-                not math.isfinite(
-                    confidence
-                )
-                or confidence
-                < 0.0
-            ):
-
+            if not math.isfinite(confidence) or confidence < 0.0:
                 continue
 
-            confidence = (
-                min(
-                    1.0,
-                    confidence,
-                )
+            confidence = min(
+                1.0,
+                confidence,
             )
 
             # ==========================================================
@@ -1803,39 +1200,19 @@ class BirdNETClassifierBackend(
             # diagnostic reasons.
             # ==============================================================
 
-            if (
-                confidence
-                < self.min_confidence
-            ):
-
+            if confidence < self.min_confidence:
                 continue
 
             # ==========================================================
             # MAXIMUM PER SPECIES
             # ==========================================================
 
-            previous = (
-                maximum_scores.get(
-                    species_name
-                )
-            )
+            previous = maximum_scores.get(species_name)
 
-            if (
-                previous
-                is None
-                or confidence
-                > previous
-            ):
+            if previous is None or confidence > previous:
+                maximum_scores[species_name] = confidence
 
-                maximum_scores[
-                    species_name
-                ] = (
-                    confidence
-                )
-
-            detection_counts[
-                species_name
-            ] = (
+            detection_counts[species_name] = (
                 detection_counts.get(
                     species_name,
                     0,
@@ -1849,44 +1226,24 @@ class BirdNETClassifierBackend(
 
         ranking = sorted(
             maximum_scores.items(),
-
-            key=
-                lambda item: (
-                    -item[
-                        1
-                    ],
-                    item[
-                        0
-                    ],
-                ),
+            key=lambda item: (
+                -item[1],
+                item[0],
+            ),
         )
 
-        ranking = (
-            ranking[
-                :
-                self.top_k
-            ]
-        )
+        ranking = ranking[: self.top_k]
 
         return tuple(
             BirdNETSpeciesPrediction(
-                species_name=
-                    species_name,
-
-                confidence=
-                    confidence,
-
-                detection_count=
-                    detection_counts[
-                        species_name
-                    ],
+                species_name=species_name,
+                confidence=confidence,
+                detection_count=detection_counts[species_name],
             )
-
             for (
                 species_name,
                 confidence,
-            )
-            in ranking
+            ) in ranking
         )
 
     # ==================================================================
@@ -1904,53 +1261,25 @@ class BirdNETClassifierBackend(
         Run BirdNET and return ranked event-level species predictions.
         """
 
-        self.validate_input(
-            classification_input
-        )
+        self.validate_input(classification_input)
 
-        if (
-            classification_input.model_audio
-            is None
-        ):
+        if classification_input.model_audio is None:
+            raise ValueError(("BirdNET requires classification_input.model_audio."))
 
-            raise ValueError(
-                (
-                    "BirdNET requires "
-                    "classification_input.model_audio."
-                )
-            )
-
-        pcm16 = (
-            self._audio_to_pcm16(
-                classification_input
-                .model_audio
-            )
-        )
+        pcm16 = self._audio_to_pcm16(classification_input.model_audio)
 
         # ==============================================================
         # TEMPORARY INFERENCE DIRECTORY
         # ==============================================================
 
         with tempfile.TemporaryDirectory(
-            prefix=
-                "wildlife_birdnet_"
+            prefix="wildlife_birdnet_"
         ) as temporary_directory:
+            root = Path(temporary_directory)
 
-            root = (
-                Path(
-                    temporary_directory
-                )
-            )
+            audio_path = root / "event.wav"
 
-            audio_path = (
-                root
-                / "event.wav"
-            )
-
-            prediction_path = (
-                root
-                / "predictions.csv"
-            )
+            prediction_path = root / "predictions.csv"
 
             # ==========================================================
             # WAV
@@ -1959,21 +1288,14 @@ class BirdNETClassifierBackend(
             self._write_wave_file(
                 audio_path,
                 pcm16,
-
-                sample_rate=
-                    classification_input
-                    .sample_rate,
+                sample_rate=classification_input.sample_rate,
             )
 
             # ==========================================================
             # BIRDNET
             # ==============================================================
 
-            prediction_result = (
-                self._predict_file(
-                    audio_path
-                )
-            )
+            prediction_result = self._predict_file(audio_path)
 
             # ==========================================================
             # TABULAR INTERFACE
@@ -1984,17 +1306,9 @@ class BirdNETClassifierBackend(
                 prediction_path,
             )
 
-            rows = (
-                self._read_prediction_rows(
-                    prediction_path
-                )
-            )
+            rows = self._read_prediction_rows(prediction_path)
 
-        return (
-            self._aggregate_species_predictions(
-                rows
-            )
-        )
+        return self._aggregate_species_predictions(rows)
 
     # ==================================================================
     # UNKNOWN / ABSTENTION RESULT
@@ -2018,40 +1332,19 @@ class BirdNETClassifierBackend(
         classifier over all project acoustic categories.
         """
 
-        return (
-            ClassificationResult(
-                label=
-                    AcousticClass.UNKNOWN,
-
-                confidence=
-                    0.0,
-
-                second_label=
-                    None,
-
-                second_confidence=
-                    None,
-
-                margin=
-                    0.0,
-
-                scores={
-                    AcousticClass.BIRD.value:
-                        0.0,
-
-                    AcousticClass.UNKNOWN.value:
-                        0.0,
-                },
-
-                reasons=
-                    reasons,
-
-                classifier_name=
-                    self.name,
-
-                classifier_version=
-                    self.version,
-            )
+        return ClassificationResult(
+            label=AcousticClass.UNKNOWN,
+            confidence=0.0,
+            second_label=None,
+            second_confidence=None,
+            margin=0.0,
+            scores={
+                AcousticClass.BIRD.value: 0.0,
+                AcousticClass.UNKNOWN.value: 0.0,
+            },
+            reasons=reasons,
+            classifier_name=self.name,
+            classifier_version=self.version,
         )
 
     # ==================================================================
@@ -2098,47 +1391,35 @@ class BirdNETClassifierBackend(
         # INPUT CONTRACT
         # ==============================================================
 
-        self.validate_input(
-            classification_input
-        )
+        self.validate_input(classification_input)
 
         # ==============================================================
         # SPECIES INFERENCE
         # ==============================================================
 
-        predictions = (
-            self.predict_species(
-                classification_input
-            )
-        )
+        predictions = self.predict_species(classification_input)
 
         # ==============================================================
         # NO ACCEPTED SPECIES
         # ==============================================================
 
-        if not (
-            predictions
-        ):
-
-            return (
-                self._unknown_result(
-                    reasons=(
-                        (
-                            "BirdNET produced no "
-                            "species detection at or "
-                            "above the configured "
-                            "minimum confidence "
-                            f"{self.min_confidence:.3f}"
-                        ),
-
-                        (
-                            "no BirdNET detection is "
-                            "treated as classifier "
-                            "abstention rather than "
-                            "strong evidence for another "
-                            "broad acoustic class"
-                        ),
-                    )
+        if not (predictions):
+            return self._unknown_result(
+                reasons=(
+                    (
+                        "BirdNET produced no "
+                        "species detection at or "
+                        "above the configured "
+                        "minimum confidence "
+                        f"{self.min_confidence:.3f}"
+                    ),
+                    (
+                        "no BirdNET detection is "
+                        "treated as classifier "
+                        "abstention rather than "
+                        "strong evidence for another "
+                        "broad acoustic class"
+                    ),
                 )
             )
 
@@ -2146,48 +1427,23 @@ class BirdNETClassifierBackend(
         # TOP SPECIES
         # ==============================================================
 
-        top_prediction = (
-            predictions[
-                0
-            ]
-        )
+        top_prediction = predictions[0]
 
         # ==============================================================
         # SECOND SPECIES / SPECIES MARGIN
         # ==============================================================
 
-        second_species: (
-            BirdNETSpeciesPrediction
-            | None
-        )
+        second_species: BirdNETSpeciesPrediction | None
 
-        if (
-            len(
-                predictions
-            )
-            >= 2
-        ):
+        if len(predictions) >= 2:
+            second_species = predictions[1]
 
-            second_species = (
-                predictions[
-                    1
-                ]
-            )
-
-            species_margin = (
-                top_prediction.confidence
-                - second_species.confidence
-            )
+            species_margin = top_prediction.confidence - second_species.confidence
 
         else:
+            second_species = None
 
-            second_species = (
-                None
-            )
-
-            species_margin = (
-                top_prediction.confidence
-            )
+            species_margin = top_prediction.confidence
 
         species_margin = float(
             max(
@@ -2203,13 +1459,9 @@ class BirdNETClassifierBackend(
         # TAXONOMY RESOLUTION & BROAD SCORE MAP
         # ==============================================================
 
-        broad_class = self.taxonomy.get_broad_class(
-            top_prediction.species_name
-        )
+        broad_class = self.taxonomy.get_broad_class(top_prediction.species_name)
 
-        taxon_group = self.taxonomy.get_taxon_group(
-            top_prediction.species_name
-        )
+        taxon_group = self.taxonomy.get_taxon_group(top_prediction.species_name)
 
         if broad_class == AcousticClass.UNKNOWN:
             broad_label = AcousticClass.UNKNOWN
@@ -2228,11 +1480,8 @@ class BirdNETClassifierBackend(
             str,
             float,
         ] = {
-            broad_label.value:
-                broad_confidence,
-
-            "birdnet:species_margin":
-                species_margin,
+            broad_label.value: broad_confidence,
+            "birdnet:species_margin": species_margin,
         }
 
         if broad_label != AcousticClass.UNKNOWN:
@@ -2242,25 +1491,10 @@ class BirdNETClassifierBackend(
         # SPECIES & ACOUSTIC SCORES
         # ==============================================================
 
-        for prediction in (
-            predictions
-        ):
+        for prediction in predictions:
+            scores[(f"species:{prediction.species_name}")] = prediction.confidence
 
-            scores[
-                (
-                    "species:"
-                    f"{prediction.species_name}"
-                )
-            ] = (
-                prediction.confidence
-            )
-
-            scores[
-                (
-                    "birdnet:acoustic:"
-                    f"{prediction.species_name}"
-                )
-            ] = (
+            scores[(f"birdnet:acoustic:{prediction.species_name}")] = (
                 prediction.confidence
             )
 
@@ -2294,9 +1528,7 @@ class BirdNETClassifierBackend(
         # EXPLANATION
         # ==============================================================
 
-        reasons: list[
-            str
-        ] = [
+        reasons: list[str] = [
             (
                 "BirdNET top species prediction: "
                 f"{top_prediction.species_name} "
@@ -2323,23 +1555,10 @@ class BirdNETClassifierBackend(
                 )
             )
 
-        if (
-            top_prediction.common_name
-            is not None
-        ):
+        if top_prediction.common_name is not None:
+            reasons.append((f"top common name: {top_prediction.common_name}"))
 
-            reasons.append(
-                (
-                    "top common name: "
-                    f"{top_prediction.common_name}"
-                )
-            )
-
-        if (
-            second_species
-            is not None
-        ):
-
+        if second_species is not None:
             reasons.append(
                 (
                     "second BirdNET species prediction: "
@@ -2350,19 +1569,12 @@ class BirdNETClassifierBackend(
             )
 
             reasons.append(
-                (
-                    "top-vs-second species confidence "
-                    f"margin={species_margin:.3f}"
-                )
+                (f"top-vs-second species confidence margin={species_margin:.3f}")
             )
 
         else:
-
             reasons.append(
-                (
-                    "no second accepted BirdNET "
-                    "species prediction was available"
-                )
+                ("no second accepted BirdNET species prediction was available")
             )
 
         reasons.append(
@@ -2388,35 +1600,14 @@ class BirdNETClassifierBackend(
         # PROJECT CLASSIFICATION RESULT
         # ==============================================================
 
-        return (
-            ClassificationResult(
-                label=
-                    broad_label,
-
-                confidence=
-                    broad_confidence,
-
-                second_label=
-                    second_label,
-
-                second_confidence=
-                    second_confidence,
-
-                margin=
-                    broad_margin,
-
-                scores=
-                    scores,
-
-                reasons=
-                    tuple(
-                        reasons
-                    ),
-
-                classifier_name=
-                    self.name,
-
-                classifier_version=
-                    self.version,
-            )
+        return ClassificationResult(
+            label=broad_label,
+            confidence=broad_confidence,
+            second_label=second_label,
+            second_confidence=second_confidence,
+            margin=broad_margin,
+            scores=scores,
+            reasons=tuple(reasons),
+            classifier_name=self.name,
+            classifier_version=self.version,
         )

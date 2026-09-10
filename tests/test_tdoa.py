@@ -50,7 +50,6 @@ This convention must remain consistent with:
     solve_position()
 """
 
-
 from __future__ import annotations
 
 
@@ -86,14 +85,10 @@ from wildlife_soundscape.localization.tdoa import (
 # ======================================================================
 
 
-SAMPLE_RATE = (
-    48_000.0
-)
+SAMPLE_RATE = 48_000.0
 
 
-SPEED_OF_SOUND_MPS = (
-    343.0
-)
+SPEED_OF_SOUND_MPS = 343.0
 
 
 # ======================================================================
@@ -118,39 +113,17 @@ def make_measurement(
     representations numerically consistent.
     """
 
-    delay_seconds = (
-        float(
-            delay_samples
-        )
-        / SAMPLE_RATE
-    )
+    delay_seconds = float(delay_samples) / SAMPLE_RATE
 
     return TDOAMeasurement(
-        node_a=
-            node_a,
-
-        node_b=
-            node_b,
-
-        delay_seconds=
-            delay_seconds,
-
-        delay_samples=
-            float(
-                delay_samples
-            ),
-
-        peak_ratio=
-            peak_ratio,
-
-        max_delay_seconds=
-            max_delay_seconds,
-
-        valid=
-            valid,
-
-        reason=
-            reason,
+        node_a=node_a,
+        node_b=node_b,
+        delay_seconds=delay_seconds,
+        delay_samples=float(delay_samples),
+        peak_ratio=peak_ratio,
+        max_delay_seconds=max_delay_seconds,
+        valid=valid,
+        reason=reason,
     )
 
 
@@ -162,70 +135,28 @@ def make_measurement(
 def test_tdoa_measurement_accepts_valid_values() -> None:
 
     measurement = make_measurement(
-        node_a=
-            1,
-
-        node_b=
-            2,
-
-        delay_samples=
-            5.5,
-
-        peak_ratio=
-            2.25,
-
-        max_delay_seconds=
-            0.002,
+        node_a=1,
+        node_b=2,
+        delay_samples=5.5,
+        peak_ratio=2.25,
+        max_delay_seconds=0.002,
     )
 
-    assert (
-        measurement.node_a
-        == 1
-    )
+    assert measurement.node_a == 1
 
-    assert (
-        measurement.node_b
-        == 2
-    )
+    assert measurement.node_b == 2
 
-    assert (
-        measurement.delay_samples
-        == pytest.approx(
-            5.5
-        )
-    )
+    assert measurement.delay_samples == pytest.approx(5.5)
 
-    assert (
-        measurement.delay_seconds
-        == pytest.approx(
-            5.5
-            / SAMPLE_RATE
-        )
-    )
+    assert measurement.delay_seconds == pytest.approx(5.5 / SAMPLE_RATE)
 
-    assert (
-        measurement.peak_ratio
-        == pytest.approx(
-            2.25
-        )
-    )
+    assert measurement.peak_ratio == pytest.approx(2.25)
 
-    assert (
-        measurement.max_delay_seconds
-        == pytest.approx(
-            0.002
-        )
-    )
+    assert measurement.max_delay_seconds == pytest.approx(0.002)
 
-    assert (
-        measurement.valid
-        is True
-    )
+    assert measurement.valid is True
 
-    assert (
-        measurement.reason
-        == ""
-    )
+    assert measurement.reason == ""
 
 
 # ======================================================================
@@ -240,20 +171,11 @@ def test_positive_delay_is_preserved() -> None:
         arrival_B > arrival_A
     """
 
-    measurement = make_measurement(
-        delay_samples=
-            12.0
-    )
+    measurement = make_measurement(delay_samples=12.0)
 
-    assert (
-        measurement.delay_samples
-        > 0.0
-    )
+    assert measurement.delay_samples > 0.0
 
-    assert (
-        measurement.delay_seconds
-        > 0.0
-    )
+    assert measurement.delay_seconds > 0.0
 
 
 def test_negative_delay_is_preserved() -> None:
@@ -263,42 +185,22 @@ def test_negative_delay_is_preserved() -> None:
         arrival_B < arrival_A
     """
 
-    measurement = make_measurement(
-        delay_samples=
-            -12.0
-    )
+    measurement = make_measurement(delay_samples=-12.0)
 
-    assert (
-        measurement.delay_samples
-        < 0.0
-    )
+    assert measurement.delay_samples < 0.0
 
-    assert (
-        measurement.delay_seconds
-        < 0.0
-    )
+    assert measurement.delay_seconds < 0.0
 
 
 def test_zero_delay_is_valid() -> None:
 
-    measurement = make_measurement(
-        delay_samples=
-            0.0
-    )
+    measurement = make_measurement(delay_samples=0.0)
 
-    assert (
-        measurement.delay_samples
-        == 0.0
-    )
+    assert measurement.delay_samples == 0.0
 
-    assert (
-        measurement.delay_seconds
-        == 0.0
-    )
+    assert measurement.delay_seconds == 0.0
 
-    assert (
-        measurement.valid
-    )
+    assert measurement.valid
 
 
 # ======================================================================
@@ -319,25 +221,14 @@ def test_valid_node_ids_are_accepted(
     node_id: int,
 ) -> None:
 
-    other_node = (
-        1
-        if node_id
-        != 1
-        else 2
-    )
+    other_node = 1 if node_id != 1 else 2
 
     measurement = make_measurement(
-        node_a=
-            node_id,
-
-        node_b=
-            other_node,
+        node_a=node_id,
+        node_b=other_node,
     )
 
-    assert (
-        measurement.node_a
-        == node_id
-    )
+    assert measurement.node_a == node_id
 
 
 @pytest.mark.parametrize(
@@ -353,16 +244,10 @@ def test_rejects_invalid_node_a(
     node_id: int,
 ) -> None:
 
-    with pytest.raises(
-        ValueError
-    ):
-
+    with pytest.raises(ValueError):
         make_measurement(
-            node_a=
-                node_id,
-
-            node_b=
-                2,
+            node_a=node_id,
+            node_b=2,
         )
 
 
@@ -379,16 +264,10 @@ def test_rejects_invalid_node_b(
     node_id: int,
 ) -> None:
 
-    with pytest.raises(
-        ValueError
-    ):
-
+    with pytest.raises(ValueError):
         make_measurement(
-            node_a=
-                1,
-
-            node_b=
-                node_id,
+            node_a=1,
+            node_b=node_id,
         )
 
 
@@ -406,16 +285,10 @@ def test_rejects_non_integer_node_id(
     node_id,
 ) -> None:
 
-    with pytest.raises(
-        TypeError
-    ):
-
+    with pytest.raises(TypeError):
         make_measurement(
-            node_a=
-                node_id,
-
-            node_b=
-                2,
+            node_a=node_id,
+            node_b=2,
         )
 
 
@@ -424,16 +297,10 @@ def test_rejects_same_node_pair() -> None:
     TDOA requires two different sensors.
     """
 
-    with pytest.raises(
-        ValueError
-    ):
-
+    with pytest.raises(ValueError):
         make_measurement(
-            node_a=
-                2,
-
-            node_b=
-                2,
+            node_a=2,
+            node_b=2,
         )
 
 
@@ -445,98 +312,50 @@ def test_rejects_same_node_pair() -> None:
 @pytest.mark.parametrize(
     "bad_delay_seconds",
     [
-        float(
-            "nan"
-        ),
-        float(
-            "inf"
-        ),
-        float(
-            "-inf"
-        ),
+        float("nan"),
+        float("inf"),
+        float("-inf"),
     ],
 )
 def test_rejects_non_finite_delay_seconds(
     bad_delay_seconds: float,
 ) -> None:
 
-    with pytest.raises(
-        ValueError
-    ):
-
+    with pytest.raises(ValueError):
         TDOAMeasurement(
-            node_a=
-                1,
-
-            node_b=
-                2,
-
-            delay_seconds=
-                bad_delay_seconds,
-
-            delay_samples=
-                1.0,
-
-            peak_ratio=
-                2.0,
-
-            max_delay_seconds=
-                0.001,
-
-            valid=
-                True,
-
-            reason=
-                "",
+            node_a=1,
+            node_b=2,
+            delay_seconds=bad_delay_seconds,
+            delay_samples=1.0,
+            peak_ratio=2.0,
+            max_delay_seconds=0.001,
+            valid=True,
+            reason="",
         )
 
 
 @pytest.mark.parametrize(
     "bad_delay_samples",
     [
-        float(
-            "nan"
-        ),
-        float(
-            "inf"
-        ),
-        float(
-            "-inf"
-        ),
+        float("nan"),
+        float("inf"),
+        float("-inf"),
     ],
 )
 def test_rejects_non_finite_delay_samples(
     bad_delay_samples: float,
 ) -> None:
 
-    with pytest.raises(
-        ValueError
-    ):
-
+    with pytest.raises(ValueError):
         TDOAMeasurement(
-            node_a=
-                1,
-
-            node_b=
-                2,
-
-            delay_seconds=
-                0.0001,
-
-            delay_samples=
-                bad_delay_samples,
-
-            peak_ratio=
-                2.0,
-
-            max_delay_seconds=
-                0.001,
-
-            valid=
-                True,
-
-            reason=
-                "",
+            node_a=1,
+            node_b=2,
+            delay_seconds=0.0001,
+            delay_samples=bad_delay_samples,
+            peak_ratio=2.0,
+            max_delay_seconds=0.001,
+            valid=True,
+            reason="",
         )
 
 
@@ -548,24 +367,14 @@ def test_rejects_non_finite_delay_samples(
 def test_zero_peak_ratio_can_be_stored_for_rejected_measurement() -> None:
 
     measurement = make_measurement(
-        peak_ratio=
-            0.0,
-
-        valid=
-            False,
-
-        reason=
-            "weak correlation",
+        peak_ratio=0.0,
+        valid=False,
+        reason="weak correlation",
     )
 
-    assert (
-        measurement.peak_ratio
-        == 0.0
-    )
+    assert measurement.peak_ratio == 0.0
 
-    assert not (
-        measurement.valid
-    )
+    assert not (measurement.valid)
 
 
 @pytest.mark.parametrize(
@@ -579,47 +388,29 @@ def test_rejects_negative_peak_ratio(
     peak_ratio: float,
 ) -> None:
 
-    with pytest.raises(
-        ValueError
-    ):
-
+    with pytest.raises(ValueError):
         make_measurement(
-            peak_ratio=
-                peak_ratio,
-
-            valid=
-                False,
+            peak_ratio=peak_ratio,
+            valid=False,
         )
 
 
 @pytest.mark.parametrize(
     "peak_ratio",
     [
-        float(
-            "nan"
-        ),
-        float(
-            "inf"
-        ),
-        float(
-            "-inf"
-        ),
+        float("nan"),
+        float("inf"),
+        float("-inf"),
     ],
 )
 def test_rejects_non_finite_peak_ratio(
     peak_ratio: float,
 ) -> None:
 
-    with pytest.raises(
-        ValueError
-    ):
-
+    with pytest.raises(ValueError):
         make_measurement(
-            peak_ratio=
-                peak_ratio,
-
-            valid=
-                False,
+            peak_ratio=peak_ratio,
+            valid=False,
         )
 
 
@@ -631,66 +422,40 @@ def test_rejects_non_finite_peak_ratio(
 def test_zero_max_delay_accepts_zero_delay() -> None:
 
     measurement = make_measurement(
-        delay_samples=
-            0.0,
-
-        max_delay_seconds=
-            0.0,
+        delay_samples=0.0,
+        max_delay_seconds=0.0,
     )
 
-    assert (
-        measurement.max_delay_seconds
-        == 0.0
-    )
+    assert measurement.max_delay_seconds == 0.0
 
-    assert (
-        measurement.valid
-    )
+    assert measurement.valid
 
 
 def test_rejects_negative_max_delay() -> None:
 
-    with pytest.raises(
-        ValueError
-    ):
-
+    with pytest.raises(ValueError):
         make_measurement(
-            max_delay_seconds=
-                -0.001,
-
-            valid=
-                False,
+            max_delay_seconds=-0.001,
+            valid=False,
         )
 
 
 @pytest.mark.parametrize(
     "max_delay",
     [
-        float(
-            "nan"
-        ),
-        float(
-            "inf"
-        ),
-        float(
-            "-inf"
-        ),
+        float("nan"),
+        float("inf"),
+        float("-inf"),
     ],
 )
 def test_rejects_non_finite_max_delay(
     max_delay: float,
 ) -> None:
 
-    with pytest.raises(
-        ValueError
-    ):
-
+    with pytest.raises(ValueError):
         make_measurement(
-            max_delay_seconds=
-                max_delay,
-
-            valid=
-                False,
+            max_delay_seconds=max_delay,
+            valid=False,
         )
 
 
@@ -701,119 +466,62 @@ def test_rejects_non_finite_max_delay(
 
 def test_valid_measurement_inside_physical_bound() -> None:
 
-    maximum = (
-        10.0
-        / SAMPLE_RATE
-    )
+    maximum = 10.0 / SAMPLE_RATE
 
     measurement = make_measurement(
-        delay_samples=
-            8.0,
-
-        max_delay_seconds=
-            maximum,
-
-        valid=
-            True,
+        delay_samples=8.0,
+        max_delay_seconds=maximum,
+        valid=True,
     )
 
-    assert (
-        abs(
-            measurement.delay_seconds
-        )
-        < measurement.max_delay_seconds
-    )
+    assert abs(measurement.delay_seconds) < measurement.max_delay_seconds
 
 
 def test_valid_measurement_exactly_at_positive_physical_bound() -> None:
 
-    maximum_samples = (
-        10.0
-    )
+    maximum_samples = 10.0
 
     measurement = make_measurement(
-        delay_samples=
-            maximum_samples,
-
-        max_delay_seconds=
-            maximum_samples
-            / SAMPLE_RATE,
-
-        valid=
-            True,
+        delay_samples=maximum_samples,
+        max_delay_seconds=maximum_samples / SAMPLE_RATE,
+        valid=True,
     )
 
-    assert (
-        measurement.delay_seconds
-        == pytest.approx(
-            measurement.max_delay_seconds
-        )
-    )
+    assert measurement.delay_seconds == pytest.approx(measurement.max_delay_seconds)
 
 
 def test_valid_measurement_exactly_at_negative_physical_bound() -> None:
 
-    maximum_samples = (
-        10.0
-    )
+    maximum_samples = 10.0
 
     measurement = make_measurement(
-        delay_samples=
-            -maximum_samples,
-
-        max_delay_seconds=
-            maximum_samples
-            / SAMPLE_RATE,
-
-        valid=
-            True,
+        delay_samples=-maximum_samples,
+        max_delay_seconds=maximum_samples / SAMPLE_RATE,
+        valid=True,
     )
 
-    assert (
-        abs(
-            measurement.delay_seconds
-        )
-        == pytest.approx(
-            measurement.max_delay_seconds
-        )
+    assert abs(measurement.delay_seconds) == pytest.approx(
+        measurement.max_delay_seconds
     )
 
 
 def test_rejects_valid_measurement_outside_positive_physical_bound() -> None:
 
-    with pytest.raises(
-        ValueError
-    ):
-
+    with pytest.raises(ValueError):
         make_measurement(
-            delay_samples=
-                20.0,
-
-            max_delay_seconds=
-                10.0
-                / SAMPLE_RATE,
-
-            valid=
-                True,
+            delay_samples=20.0,
+            max_delay_seconds=10.0 / SAMPLE_RATE,
+            valid=True,
         )
 
 
 def test_rejects_valid_measurement_outside_negative_physical_bound() -> None:
 
-    with pytest.raises(
-        ValueError
-    ):
-
+    with pytest.raises(ValueError):
         make_measurement(
-            delay_samples=
-                -20.0,
-
-            max_delay_seconds=
-                10.0
-                / SAMPLE_RATE,
-
-            valid=
-                True,
+            delay_samples=-20.0,
+            max_delay_seconds=10.0 / SAMPLE_RATE,
+            valid=True,
         )
 
 
@@ -827,35 +535,17 @@ def test_rejected_measurement_may_store_out_of_bounds_delay() -> None:
     """
 
     measurement = make_measurement(
-        delay_samples=
-            20.0,
-
-        max_delay_seconds=
-            10.0
-            / SAMPLE_RATE,
-
-        valid=
-            False,
-
-        reason=
-            "outside physical delay bound",
+        delay_samples=20.0,
+        max_delay_seconds=10.0 / SAMPLE_RATE,
+        valid=False,
+        reason="outside physical delay bound",
     )
 
-    assert not (
-        measurement.valid
-    )
+    assert not (measurement.valid)
 
-    assert (
-        abs(
-            measurement.delay_seconds
-        )
-        > measurement.max_delay_seconds
-    )
+    assert abs(measurement.delay_seconds) > measurement.max_delay_seconds
 
-    assert (
-        measurement.reason
-        == "outside physical delay bound"
-    )
+    assert measurement.reason == "outside physical delay bound"
 
 
 # ======================================================================
@@ -865,26 +555,16 @@ def test_rejected_measurement_may_store_out_of_bounds_delay() -> None:
 
 def test_rejected_measurement_preserves_reason() -> None:
 
-    reason = (
-        "correlation peak ratio below threshold"
-    )
+    reason = "correlation peak ratio below threshold"
 
     measurement = make_measurement(
-        valid=
-            False,
-
-        reason=
-            reason,
+        valid=False,
+        reason=reason,
     )
 
-    assert not (
-        measurement.valid
-    )
+    assert not (measurement.valid)
 
-    assert (
-        measurement.reason
-        == reason
-    )
+    assert measurement.reason == reason
 
 
 # ======================================================================
@@ -911,18 +591,11 @@ def test_physical_max_delay_for_one_meter_pair() -> None:
         SPEED_OF_SOUND_MPS,
     )
 
-    expected = (
-        1.0
-        / SPEED_OF_SOUND_MPS
-    )
+    expected = 1.0 / SPEED_OF_SOUND_MPS
 
-    assert (
-        result
-        == pytest.approx(
-            expected,
-            rel=
-                1e-12,
-        )
+    assert result == pytest.approx(
+        expected,
+        rel=1e-12,
     )
 
 
@@ -948,18 +621,11 @@ def test_physical_max_delay_uses_euclidean_distance() -> None:
         SPEED_OF_SOUND_MPS,
     )
 
-    expected = (
-        5.0
-        / SPEED_OF_SOUND_MPS
-    )
+    expected = 5.0 / SPEED_OF_SOUND_MPS
 
-    assert (
-        result
-        == pytest.approx(
-            expected,
-            rel=
-                1e-12,
-        )
+    assert result == pytest.approx(
+        expected,
+        rel=1e-12,
     )
 
 
@@ -987,13 +653,9 @@ def test_physical_max_delay_is_symmetric() -> None:
         SPEED_OF_SOUND_MPS,
     )
 
-    assert (
-        delay_ab
-        == pytest.approx(
-            delay_ba,
-            rel=
-                1e-15,
-        )
+    assert delay_ab == pytest.approx(
+        delay_ba,
+        rel=1e-15,
     )
 
 
@@ -1010,10 +672,7 @@ def test_physical_max_delay_for_same_position_is_zero() -> None:
         SPEED_OF_SOUND_MPS,
     )
 
-    assert (
-        result
-        == 0.0
-    )
+    assert result == 0.0
 
 
 # ======================================================================
@@ -1024,18 +683,13 @@ def test_physical_max_delay_for_same_position_is_zero() -> None:
 @pytest.mark.parametrize(
     "position",
     [
-        (
-            0.0,
-        ),
-
+        (0.0,),
         (
             0.0,
             1.0,
             2.0,
         ),
-
         (),
-
         "0,0",
     ],
 )
@@ -1049,7 +703,6 @@ def test_physical_max_delay_rejects_non_2d_position(
             ValueError,
         )
     ):
-
         physical_max_delay(
             position,
             (
@@ -1063,25 +716,16 @@ def test_physical_max_delay_rejects_non_2d_position(
 @pytest.mark.parametrize(
     "coordinate",
     [
-        float(
-            "nan"
-        ),
-        float(
-            "inf"
-        ),
-        float(
-            "-inf"
-        ),
+        float("nan"),
+        float("inf"),
+        float("-inf"),
     ],
 )
 def test_physical_max_delay_rejects_non_finite_coordinate(
     coordinate: float,
 ) -> None:
 
-    with pytest.raises(
-        ValueError
-    ):
-
+    with pytest.raises(ValueError):
         physical_max_delay(
             (
                 0.0,
@@ -1112,10 +756,7 @@ def test_physical_max_delay_rejects_nonpositive_speed_of_sound(
     speed: float,
 ) -> None:
 
-    with pytest.raises(
-        ValueError
-    ):
-
+    with pytest.raises(ValueError):
         physical_max_delay(
             (
                 0.0,
@@ -1132,25 +773,16 @@ def test_physical_max_delay_rejects_nonpositive_speed_of_sound(
 @pytest.mark.parametrize(
     "speed",
     [
-        float(
-            "nan"
-        ),
-        float(
-            "inf"
-        ),
-        float(
-            "-inf"
-        ),
+        float("nan"),
+        float("inf"),
+        float("-inf"),
     ],
 )
 def test_physical_max_delay_rejects_non_finite_speed_of_sound(
     speed: float,
 ) -> None:
 
-    with pytest.raises(
-        ValueError
-    ):
-
+    with pytest.raises(ValueError):
         physical_max_delay(
             (
                 0.0,
@@ -1193,10 +825,7 @@ def test_higher_speed_of_sound_reduces_maximum_delay() -> None:
         350.0,
     )
 
-    assert (
-        faster
-        < slower
-    )
+    assert faster < slower
 
 
 # ======================================================================
@@ -1217,65 +846,38 @@ def test_one_meter_equilateral_array_has_equal_pair_limits(
     """
 
     delay_12 = physical_max_delay(
-        node_positions[
-            1
-        ],
-        node_positions[
-            2
-        ],
+        node_positions[1],
+        node_positions[2],
         speed_of_sound_mps,
     )
 
     delay_13 = physical_max_delay(
-        node_positions[
-            1
-        ],
-        node_positions[
-            3
-        ],
+        node_positions[1],
+        node_positions[3],
         speed_of_sound_mps,
     )
 
     delay_23 = physical_max_delay(
-        node_positions[
-            2
-        ],
-        node_positions[
-            3
-        ],
+        node_positions[2],
+        node_positions[3],
         speed_of_sound_mps,
     )
 
-    expected = (
-        1.0
-        / speed_of_sound_mps
+    expected = 1.0 / speed_of_sound_mps
+
+    assert delay_12 == pytest.approx(
+        expected,
+        rel=1e-12,
     )
 
-    assert (
-        delay_12
-        == pytest.approx(
-            expected,
-            rel=
-                1e-12,
-        )
+    assert delay_13 == pytest.approx(
+        expected,
+        rel=1e-12,
     )
 
-    assert (
-        delay_13
-        == pytest.approx(
-            expected,
-            rel=
-                1e-12,
-        )
-    )
-
-    assert (
-        delay_23
-        == pytest.approx(
-            expected,
-            rel=
-                1e-9,
-        )
+    assert delay_23 == pytest.approx(
+        expected,
+        rel=1e-9,
     )
 
 
@@ -1310,32 +912,18 @@ def test_one_meter_pair_physical_limit_in_samples() -> None:
         SPEED_OF_SOUND_MPS,
     )
 
-    maximum_samples = (
-        maximum_seconds
-        * SAMPLE_RATE
+    maximum_samples = maximum_seconds * SAMPLE_RATE
+
+    expected_samples = SAMPLE_RATE / SPEED_OF_SOUND_MPS
+
+    assert maximum_samples == pytest.approx(
+        expected_samples,
+        rel=1e-12,
     )
 
-    expected_samples = (
-        SAMPLE_RATE
-        / SPEED_OF_SOUND_MPS
-    )
-
-    assert (
-        maximum_samples
-        == pytest.approx(
-            expected_samples,
-            rel=
-                1e-12,
-        )
-    )
-
-    assert (
-        maximum_samples
-        == pytest.approx(
-            139.94,
-            abs=
-                0.02,
-        )
+    assert maximum_samples == pytest.approx(
+        139.94,
+        abs=0.02,
     )
 
 
@@ -1358,13 +946,6 @@ def test_physical_max_delay_is_finite_for_valid_geometry() -> None:
         SPEED_OF_SOUND_MPS,
     )
 
-    assert (
-        math.isfinite(
-            result
-        )
-    )
+    assert math.isfinite(result)
 
-    assert (
-        result
-        >= 0.0
-    )
+    assert result >= 0.0

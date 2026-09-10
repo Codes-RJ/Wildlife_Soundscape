@@ -51,7 +51,6 @@ Real accuracy and repeatability must later be evaluated using the
 dedicated calibration / localization benchmark.
 """
 
-
 from __future__ import annotations
 
 
@@ -77,8 +76,6 @@ from pathlib import (
 # ======================================================================
 # THIRD-PARTY
 # ======================================================================
-
-
 
 
 # ======================================================================
@@ -109,9 +106,7 @@ from wildlife_soundscape.runtime.simulator import (
 # ======================================================================
 
 
-TEST_HOST = (
-    "127.0.0.1"
-)
+TEST_HOST = "127.0.0.1"
 
 
 NODE_IDS = (
@@ -137,14 +132,10 @@ NODE_IDS = (
 # ----------------------------------------------------------------------
 
 
-LOCALIZATION_TIMEOUT_S = (
-    8.0
-)
+LOCALIZATION_TIMEOUT_S = 8.0
 
 
-POLL_INTERVAL_S = (
-    0.05
-)
+POLL_INTERVAL_S = 0.05
 
 
 # ----------------------------------------------------------------------
@@ -158,9 +149,7 @@ POLL_INTERVAL_S = (
 # ----------------------------------------------------------------------
 
 
-MAX_SMOKE_LOCALIZATION_ERROR_M = (
-    0.15
-)
+MAX_SMOKE_LOCALIZATION_ERROR_M = 0.15
 
 
 # ======================================================================
@@ -179,7 +168,6 @@ def find_available_tcp_port() -> int:
         socket.AF_INET,
         socket.SOCK_STREAM,
     ) as temporary_socket:
-
         temporary_socket.bind(
             (
                 TEST_HOST,
@@ -187,16 +175,9 @@ def find_available_tcp_port() -> int:
             )
         )
 
-        port = int(
-            temporary_socket
-            .getsockname()[
-                1
-            ]
-        )
+        port = int(temporary_socket.getsockname()[1])
 
-    return (
-        port
-    )
+    return port
 
 
 # ======================================================================
@@ -228,12 +209,8 @@ def make_integration_config(
 
     network = replace(
         CONFIG.network,
-
-        host=
-            TEST_HOST,
-
-        port=
-            port,
+        host=TEST_HOST,
+        port=port,
     )
 
     # ==============================================================
@@ -242,9 +219,7 @@ def make_integration_config(
 
     audio = replace(
         CONFIG.audio,
-
-        record_wav=
-            False,
+        record_wav=False,
     )
 
     # ==============================================================
@@ -253,18 +228,9 @@ def make_integration_config(
 
     persistence = replace(
         CONFIG.persistence,
-
-        database_path=
-            tmp_path
-            / "database"
-            / "localization.db",
-
-        events_dir=
-            tmp_path
-            / "events",
-
-        save_event_wav=
-            False,
+        database_path=tmp_path / "database" / "localization.db",
+        events_dir=tmp_path / "events",
+        save_event_wav=False,
     )
 
     # ==============================================================
@@ -273,22 +239,11 @@ def make_integration_config(
 
     return replace(
         CONFIG,
-
-        network=
-            network,
-
-        audio=
-            audio,
-
-        persistence=
-            persistence,
-
-        recordings_dir=
-            tmp_path
-            / "recordings",
-
-        print_status_every_s=
-            60.0,
+        network=network,
+        audio=audio,
+        persistence=persistence,
+        recordings_dir=tmp_path / "recordings",
+        print_status_every_s=60.0,
     )
 
 
@@ -305,35 +260,15 @@ def all_nodes_have_audio(
     """
 
     for node_id in NODE_IDS:
+        connection = server.connections.get(node_id)
 
-        connection = (
-            server.connections.get(
-                node_id
-            )
-        )
+        if connection is None:
+            return False
 
-        if (
-            connection
-            is None
-        ):
+        if connection.state.audio_packets_received <= 0:
+            return False
 
-            return (
-                False
-            )
-
-        if (
-            connection.state
-            .audio_packets_received
-            <= 0
-        ):
-
-            return (
-                False
-            )
-
-    return (
-        True
-    )
+    return True
 
 
 async def wait_for_audio(
@@ -345,42 +280,19 @@ async def wait_for_audio(
     Wait until every simulated microphone is actively streaming.
     """
 
-    loop = (
-        asyncio.get_running_loop()
-    )
+    loop = asyncio.get_running_loop()
 
-    deadline = (
-        loop.time()
-        + timeout_s
-    )
+    deadline = loop.time() + timeout_s
 
-    while (
-        not all_nodes_have_audio(
-            server
-        )
-    ):
-
-        if (
-            loop.time()
-            >= deadline
-        ):
-
+    while not all_nodes_have_audio(server):
+        if loop.time() >= deadline:
             packet_counts = {
-                node_id:
-                    (
-                        server.connections[
-                            node_id
-                        ].state
-                        .audio_packets_received
-
-                        if node_id
-                        in server.connections
-
-                        else None
-                    )
-
-                for node_id
-                in NODE_IDS
+                node_id: (
+                    server.connections[node_id].state.audio_packets_received
+                    if node_id in server.connections
+                    else None
+                )
+                for node_id in NODE_IDS
             }
 
             raise AssertionError(
@@ -391,9 +303,7 @@ async def wait_for_audio(
                 )
             )
 
-        await asyncio.sleep(
-            POLL_INTERVAL_S
-        )
+        await asyncio.sleep(POLL_INTERVAL_S)
 
 
 # ======================================================================
@@ -426,52 +336,22 @@ async def collect_successful_localizations(
     energy and correlation structure for valid TDOA measurements.
     """
 
-    loop = (
-        asyncio.get_running_loop()
-    )
+    loop = asyncio.get_running_loop()
 
-    deadline = (
-        loop.time()
-        + timeout_s
-    )
+    deadline = loop.time() + timeout_s
 
     successful = []
 
-    while (
-        loop.time()
-        < deadline
-    ):
+    while loop.time() < deadline:
+        result = engine.locate_latest()
 
-        result = (
-            engine.locate_latest()
-        )
-
-        if (
-            result is not None
-            and result.success
-        ):
-
+        if result is not None and result.success:
             position_error_m = math.hypot(
-                (
-                    result.position.x
-                    - shared.source_xy[
-                        0
-                    ]
-                ),
-                (
-                    result.position.y
-                    - shared.source_xy[
-                        1
-                    ]
-                ),
+                (result.position.x - shared.source_xy[0]),
+                (result.position.y - shared.source_xy[1]),
             )
 
-            if (
-                math.isfinite(
-                    position_error_m
-                )
-            ):
-
+            if math.isfinite(position_error_m):
                 successful.append(
                     (
                         position_error_m,
@@ -489,20 +369,12 @@ async def collect_successful_localizations(
                 # timeout.
                 # --------------------------------------------------
 
-                if (
-                    position_error_m
-                    < MAX_SMOKE_LOCALIZATION_ERROR_M
-                ):
-
+                if position_error_m < MAX_SMOKE_LOCALIZATION_ERROR_M:
                     break
 
-        await asyncio.sleep(
-            POLL_INTERVAL_S
-        )
+        await asyncio.sleep(POLL_INTERVAL_S)
 
-    return (
-        successful
-    )
+    return successful
 
 
 # ======================================================================
@@ -521,31 +393,24 @@ async def run_localization_integration(
     # CONFIGURATION
     # ==============================================================
 
-    port = (
-        find_available_tcp_port()
-    )
+    port = find_available_tcp_port()
 
     config = make_integration_config(
         tmp_path,
-        port=
-            port,
+        port=port,
     )
 
     # ==============================================================
     # RECEIVER
     # ==============================================================
 
-    server = ReceiverServer(
-        config
-    )
+    server = ReceiverServer(config)
 
     # ==============================================================
     # SIMULATED PHYSICAL WORLD
     # ==============================================================
 
-    shared = (
-        SharedSimulation()
-    )
+    shared = SharedSimulation()
 
     nodes = [
         FakeNode(
@@ -554,24 +419,16 @@ async def run_localization_integration(
             port,
             shared,
         )
-
-        for node_id
-        in NODE_IDS
+        for node_id in NODE_IDS
     ]
 
-    node_tasks: list[
-        asyncio.Task
-    ] = []
+    node_tasks: list[asyncio.Task] = []
 
-    session_id: (
-        int
-        | None
-    ) = None
+    session_id: int | None = None
 
     successful = []
 
     try:
-
         # ==========================================================
         # SERVER START
         # ==========================================================
@@ -585,58 +442,30 @@ async def run_localization_integration(
         node_tasks = [
             asyncio.create_task(
                 node.run(),
-                name=
-                    (
-                        "localization-simulator-"
-                        f"node-{node.node_id}"
-                    ),
+                name=(f"localization-simulator-node-{node.node_id}"),
             )
-
-            for node
-            in nodes
+            for node in nodes
         ]
 
         # ==========================================================
         # HELLO HANDSHAKE
         # ==========================================================
 
-        await server.wait_for_nodes(
-            timeout=
-                5.0
-        )
+        await server.wait_for_nodes(timeout=5.0)
 
-        assert (
-            server.all_expected_nodes_connected()
-        )
+        assert server.all_expected_nodes_connected()
 
-        assert (
-            set(
-                server.connections
-            )
-            == set(
-                NODE_IDS
-            )
-        )
+        assert set(server.connections) == set(NODE_IDS)
 
         # ==========================================================
         # ACQUISITION SESSION
         # ==========================================================
 
-        session_id = (
-            await server.start_acquisition(
-                "integration_localization"
-            )
-        )
+        session_id = await server.start_acquisition("integration_localization")
 
-        assert (
-            session_id
-            != 0
-        )
+        assert session_id != 0
 
-        assert (
-            server.active_session_id
-            == session_id
-        )
+        assert server.active_session_id == session_id
 
         # ==========================================================
         # WAIT FOR REAL AUDIO FLOW
@@ -644,8 +473,7 @@ async def run_localization_integration(
 
         await wait_for_audio(
             server,
-            timeout_s=
-                5.0,
+            timeout_s=5.0,
         )
 
         # ==========================================================
@@ -653,16 +481,8 @@ async def run_localization_integration(
         # ==========================================================
 
         assert all(
-            (
-                server.connections[
-                    node_id
-                ].state
-                .session_id
-                == session_id
-            )
-
-            for node_id
-            in NODE_IDS
+            (server.connections[node_id].state.session_id == session_id)
+            for node_id in NODE_IDS
         )
 
         # ==========================================================
@@ -678,22 +498,17 @@ async def run_localization_integration(
         # SEARCH ACROSS SYNTHETIC EVENT
         # ==========================================================
 
-        successful = (
-            await collect_successful_localizations(
-                engine,
-                shared,
-                timeout_s=
-                    LOCALIZATION_TIMEOUT_S,
-            )
+        successful = await collect_successful_localizations(
+            engine,
+            shared,
+            timeout_s=LOCALIZATION_TIMEOUT_S,
         )
 
         # ==========================================================
         # AT LEAST ONE SOLUTION
         # ==========================================================
 
-        assert (
-            successful
-        ), (
+        assert successful, (
             "LocalizationEngine produced no "
             "successful position estimate during "
             "the synthetic localization interval."
@@ -703,58 +518,35 @@ async def run_localization_integration(
         # BEST SYNTHETIC SOLUTION
         # ==============================================================
 
-        successful.sort(
-            key=
-                lambda item:
-                    item[
-                        0
-                    ]
-        )
+        successful.sort(key=lambda item: item[0])
 
         (
             best_error_m,
             best_result,
-        ) = (
-            successful[
-                0
-            ]
-        )
+        ) = successful[0]
 
         # ==========================================================
         # POSITION OUTPUT
         # ==========================================================
 
-        assert math.isfinite(
-            best_result.position.x
-        )
+        assert math.isfinite(best_result.position.x)
 
-        assert math.isfinite(
-            best_result.position.y
-        )
+        assert math.isfinite(best_result.position.y)
 
-        assert (
-            best_result.success
-        )
+        assert best_result.success
 
         # ==========================================================
         # THREE MICROPHONE PAIRS
         # ==============================================================
 
-        assert (
-            len(
-                best_result.measurements
-            )
-            == 3
-        )
+        assert len(best_result.measurements) == 3
 
         assert {
             (
                 measurement.node_a,
                 measurement.node_b,
             )
-
-            for measurement
-            in best_result.measurements
+            for measurement in best_result.measurements
         } == {
             (
                 1,
@@ -774,47 +566,26 @@ async def run_localization_integration(
         # PARTICIPATING NODE RMS
         # ==============================================================
 
-        assert (
-            set(
-                best_result.node_rms
-            )
-            == set(
-                NODE_IDS
-            )
-        )
+        assert set(best_result.node_rms) == set(NODE_IDS)
 
         assert all(
-            math.isfinite(
-                value
-            )
-            and value
-            >= 0.0
-
-            for value
-            in best_result.node_rms.values()
+            math.isfinite(value) and value >= 0.0
+            for value in best_result.node_rms.values()
         )
 
         # ==========================================================
         # PROPAGATION SPEED
         # ==============================================================
 
-        assert math.isfinite(
-            best_result.speed_of_sound_mps
-        )
+        assert math.isfinite(best_result.speed_of_sound_mps)
 
-        assert (
-            best_result.speed_of_sound_mps
-            > 0.0
-        )
+        assert best_result.speed_of_sound_mps > 0.0
 
         # ==========================================================
         # GROUND-TRUTH POSITION ERROR
         # ==============================================================
 
-        assert (
-            best_error_m
-            < MAX_SMOKE_LOCALIZATION_ERROR_M
-        ), (
+        assert best_error_m < MAX_SMOKE_LOCALIZATION_ERROR_M, (
             "Synthetic localization error too high. "
             f"truth={shared.source_xy}, "
             "estimated="
@@ -831,30 +602,18 @@ async def run_localization_integration(
 
         await server.stop_acquisition()
 
-        assert (
-            server.active_session_id
-            is None
-        )
+        assert server.active_session_id is None
 
     finally:
-
         # ==========================================================
         # BEST-EFFORT STOP
         # ==========================================================
 
-        if (
-            server.active_session_id
-            is not None
-        ):
-
-            with contextlib.suppress(
-                Exception
-            ):
-
+        if server.active_session_id is not None:
+            with contextlib.suppress(Exception):
                 await asyncio.wait_for(
                     server.stop_acquisition(),
-                    timeout=
-                        2.0,
+                    timeout=2.0,
                 )
 
         # ==========================================================
@@ -862,29 +621,22 @@ async def run_localization_integration(
         # ==========================================================
 
         for task in node_tasks:
-
             task.cancel()
 
         if node_tasks:
-
             await asyncio.gather(
                 *node_tasks,
-                return_exceptions=
-                    True,
+                return_exceptions=True,
             )
 
         # ==========================================================
         # SERVER CLOSE
         # ==========================================================
 
-        with contextlib.suppress(
-            Exception
-        ):
-
+        with contextlib.suppress(Exception):
             await asyncio.wait_for(
                 server.close(),
-                timeout=
-                    2.0,
+                timeout=2.0,
             )
 
 
@@ -902,11 +654,7 @@ def test_three_node_end_to_end_localization(
     No pytest-asyncio dependency is required.
     """
 
-    asyncio.run(
-        run_localization_integration(
-            tmp_path
-        )
-    )
+    asyncio.run(run_localization_integration(tmp_path))
 
 
 # ======================================================================
@@ -914,22 +662,9 @@ def test_three_node_end_to_end_localization(
 # ======================================================================
 
 
-if (
-    __name__
-    == "__main__"
-):
-
+if __name__ == "__main__":
     import tempfile
 
-    temporary_root = Path(
-        tempfile.mkdtemp(
-            prefix=
-                "wildlife-localization-"
-        )
-    )
+    temporary_root = Path(tempfile.mkdtemp(prefix="wildlife-localization-"))
 
-    asyncio.run(
-        run_localization_integration(
-            temporary_root
-        )
-    )
+    asyncio.run(run_localization_integration(temporary_root))

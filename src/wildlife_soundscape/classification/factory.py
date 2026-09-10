@@ -40,9 +40,7 @@ from .heuristic_backend import (
 # ======================================================================
 
 
-logger = logging.getLogger(
-    __name__
-)
+logger = logging.getLogger(__name__)
 
 
 # ======================================================================
@@ -50,24 +48,16 @@ logger = logging.getLogger(
 # ======================================================================
 
 
-HEURISTIC_BACKEND = (
-    "heuristic"
-)
+HEURISTIC_BACKEND = "heuristic"
 
 
-PRETRAINED_BACKEND = (
-    "pretrained"
-)
+PRETRAINED_BACKEND = "pretrained"
 
 
-BIRDNET_BACKEND = (
-    "birdnet"
-)
+BIRDNET_BACKEND = "birdnet"
 
 
-ENSEMBLE_BACKEND = (
-    "ensemble"
-)
+ENSEMBLE_BACKEND = "ensemble"
 
 
 # ======================================================================
@@ -98,10 +88,7 @@ RESERVED_BACKENDS = frozenset(
 )
 
 
-KNOWN_BACKENDS = (
-    IMPLEMENTED_BACKENDS
-    | RESERVED_BACKENDS
-)
+KNOWN_BACKENDS = IMPLEMENTED_BACKENDS | RESERVED_BACKENDS
 
 
 # ======================================================================
@@ -109,14 +96,10 @@ KNOWN_BACKENDS = (
 # ======================================================================
 
 
-BIRDNET_PACKAGE_NAME = (
-    "birdnet"
-)
+BIRDNET_PACKAGE_NAME = "birdnet"
 
 
-BIRDNET_ONNX_MODULE_NAME = (
-    "onnxruntime"
-)
+BIRDNET_ONNX_MODULE_NAME = "onnxruntime"
 
 
 # ======================================================================
@@ -131,14 +114,10 @@ BIRDNET_ONNX_MODULE_NAME = (
 # ======================================================================
 
 
-ENSEMBLE_HEURISTIC_WEIGHT = (
-    1.0
-)
+ENSEMBLE_HEURISTIC_WEIGHT = 1.0
 
 
-ENSEMBLE_BIRDNET_WEIGHT = (
-    1.0
-)
+ENSEMBLE_BIRDNET_WEIGHT = 1.0
 
 
 # ======================================================================
@@ -161,9 +140,7 @@ def _create_heuristic_backend() -> HeuristicClassifierBackend:
     create exactly the same backend implementation.
     """
 
-    return (
-        HeuristicClassifierBackend()
-    )
+    return HeuristicClassifierBackend()
 
 
 # ======================================================================
@@ -186,51 +163,24 @@ def _module_available(
         module_name,
         str,
     ):
+        raise TypeError(("module_name must be a string."))
 
-        raise TypeError(
-            (
-                "module_name must "
-                "be a string."
-            )
-        )
+    module_name = module_name.strip()
 
-    module_name = (
-        module_name.strip()
-    )
-
-    if not (
-        module_name
-    ):
-
-        raise ValueError(
-            (
-                "module_name cannot "
-                "be empty."
-            )
-        )
+    if not (module_name):
+        raise ValueError(("module_name cannot be empty."))
 
     try:
-
-        specification = (
-            importlib.util.find_spec(
-                module_name
-            )
-        )
+        specification = importlib.util.find_spec(module_name)
 
     except (
         ImportError,
         ModuleNotFoundError,
         ValueError,
     ):
+        return False
 
-        return (
-            False
-        )
-
-    return (
-        specification
-        is not None
-    )
+    return specification is not None
 
 
 # ======================================================================
@@ -252,16 +202,8 @@ def _birdnet_dependency_problem() -> str | None:
     Model initialization remains lazy inside BirdNETClassifierBackend.
     """
 
-    if not (
-        _module_available(
-            BIRDNET_PACKAGE_NAME
-        )
-    ):
-
-        return (
-            "the optional 'birdnet' package "
-            "is not installed"
-        )
+    if not (_module_available(BIRDNET_PACKAGE_NAME)):
+        return "the optional 'birdnet' package is not installed"
 
     # ------------------------------------------------------------------
     # Current project BirdNET backend uses:
@@ -273,12 +215,7 @@ def _birdnet_dependency_problem() -> str | None:
     # ONNX Runtime.
     # ------------------------------------------------------------------
 
-    if not (
-        _module_available(
-            BIRDNET_ONNX_MODULE_NAME
-        )
-    ):
-
+    if not (_module_available(BIRDNET_ONNX_MODULE_NAME)):
         return (
             "BirdNET is installed, but the "
             "ONNX runtime required by the "
@@ -286,9 +223,7 @@ def _birdnet_dependency_problem() -> str | None:
             "is unavailable"
         )
 
-    return (
-        None
-    )
+    return None
 
 
 # ======================================================================
@@ -338,10 +273,7 @@ def _create_birdnet_backend(
     # AUDIO CONTRACT
     # ==================================================================
 
-    if not (
-        config.provide_model_audio
-    ):
-
+    if not (config.provide_model_audio):
         raise ValueError(
             (
                 "BirdNET requires waveform model audio, "
@@ -354,20 +286,11 @@ def _create_birdnet_backend(
     # EXTERNAL DEPENDENCY
     # ==================================================================
 
-    dependency_problem = (
-        _birdnet_dependency_problem()
-    )
+    dependency_problem = _birdnet_dependency_problem()
 
-    if (
-        dependency_problem
-        is not None
-    ):
-
+    if dependency_problem is not None:
         raise RuntimeError(
-            (
-                "BirdNET backend cannot be activated because "
-                f"{dependency_problem}."
-            )
+            (f"BirdNET backend cannot be activated because {dependency_problem}.")
         )
 
     # ==================================================================
@@ -390,11 +313,7 @@ def _create_birdnet_backend(
     # overrides.
     # ==================================================================
 
-    if (
-        config.model_path
-        is not None
-    ):
-
+    if config.model_path is not None:
         logger.warning(
             (
                 "Classification model_path is configured, "
@@ -404,11 +323,7 @@ def _create_birdnet_backend(
             )
         )
 
-    if (
-        config.labels_path
-        is not None
-    ):
-
+    if config.labels_path is not None:
         logger.warning(
             (
                 "Classification labels_path is configured, "
@@ -418,11 +333,7 @@ def _create_birdnet_backend(
             )
         )
 
-    if (
-        config.model_sample_rate
-        is not None
-    ):
-
+    if config.model_sample_rate is not None:
         logger.warning(
             (
                 "Classification model_sample_rate is configured, "
@@ -462,20 +373,11 @@ def _create_birdnet_backend(
     # CONSTRUCTION
     # ==============================================================
 
-    return (
-        BirdNETClassifierBackend(
-            min_confidence=
-                config.model_min_confidence,
-
-            top_k=
-                config.top_k,
-
-            taxonomy=
-                taxonomy,
-
-            geo_context=
-                geo_context,
-        )
+    return BirdNETClassifierBackend(
+        min_confidence=config.model_min_confidence,
+        top_k=config.top_k,
+        taxonomy=taxonomy,
+        geo_context=geo_context,
     )
 
 
@@ -553,10 +455,7 @@ def _create_ensemble_backend(
     # The ensemble therefore requires both data paths.
     # ==================================================================
 
-    if not (
-        config.provide_model_audio
-    ):
-
+    if not (config.provide_model_audio):
         raise ValueError(
             (
                 "The current ensemble contains BirdNET "
@@ -570,15 +469,9 @@ def _create_ensemble_backend(
     # MEMBER CONSTRUCTION
     # ==================================================================
 
-    heuristic_backend = (
-        _create_heuristic_backend()
-    )
+    heuristic_backend = _create_heuristic_backend()
 
-    birdnet_backend = (
-        _create_birdnet_backend(
-            config
-        )
-    )
+    birdnet_backend = _create_birdnet_backend(config)
 
     # ==================================================================
     # LAZY ENSEMBLE IMPORT
@@ -608,64 +501,35 @@ def _create_ensemble_backend(
     #     Both members must complete successfully.
     # ==================================================================
 
-    if (
-        config.fallback_to_heuristic
-    ):
+    if config.fallback_to_heuristic:
+        continue_on_member_error = True
 
-        continue_on_member_error = (
-            True
-        )
-
-        minimum_successful_members = (
-            1
-        )
+        minimum_successful_members = 1
 
     else:
+        continue_on_member_error = False
 
-        continue_on_member_error = (
-            False
-        )
-
-        minimum_successful_members = (
-            2
-        )
+        minimum_successful_members = 2
 
     # ==================================================================
     # CONSTRUCTION
     # ==================================================================
 
-    return (
-        EnsembleClassifierBackend(
-            members=(
-                EnsembleMember(
-                    backend=
-                        heuristic_backend,
-
-                    weight=
-                        ENSEMBLE_HEURISTIC_WEIGHT,
-
-                    label=
-                        HEURISTIC_BACKEND,
-                ),
-
-                EnsembleMember(
-                    backend=
-                        birdnet_backend,
-
-                    weight=
-                        ENSEMBLE_BIRDNET_WEIGHT,
-
-                    label=
-                        BIRDNET_BACKEND,
-                ),
+    return EnsembleClassifierBackend(
+        members=(
+            EnsembleMember(
+                backend=heuristic_backend,
+                weight=ENSEMBLE_HEURISTIC_WEIGHT,
+                label=HEURISTIC_BACKEND,
             ),
-
-            continue_on_member_error=
-                continue_on_member_error,
-
-            min_successful_members=
-                minimum_successful_members,
-        )
+            EnsembleMember(
+                backend=birdnet_backend,
+                weight=ENSEMBLE_BIRDNET_WEIGHT,
+                label=BIRDNET_BACKEND,
+            ),
+        ),
+        continue_on_member_error=continue_on_member_error,
+        min_successful_members=minimum_successful_members,
     )
 
 
@@ -688,37 +552,23 @@ def _fallback_to_heuristic(
     BirdNET, Ensemble or another requested model actually produced it.
     """
 
-    backend = (
-        _create_heuristic_backend()
-    )
+    backend = _create_heuristic_backend()
 
     logger.warning(
-        (
-            "Classification backend fallback "
-            "| requested=%s "
-            "| active=%s "
-            "| reason=%s"
-        ),
+        ("Classification backend fallback | requested=%s | active=%s | reason=%s"),
         requested_backend,
         backend.name,
         reason,
     )
 
     logger.info(
-        (
-            "Classification fallback selected "
-            "| requested=%s "
-            "| active=%s "
-            "| version=%s"
-        ),
+        ("Classification fallback selected | requested=%s | active=%s | version=%s"),
         requested_backend,
         backend.name,
         backend.version,
     )
 
-    return (
-        backend
-    )
+    return backend
 
 
 # ======================================================================
@@ -759,40 +609,18 @@ def _handle_optional_backend_failure(
         error,
         Exception,
     ):
+        raise TypeError(("error must be an Exception."))
 
-        raise TypeError(
-            (
-                "error must be "
-                "an Exception."
-            )
-        )
-
-    reason = (
-        str(
-            error
-        )
-        .strip()
-        or type(
-            error
-        ).__name__
-    )
+    reason = str(error).strip() or type(error).__name__
 
     # ==================================================================
     # FALLBACK ENABLED
     # ==================================================================
 
-    if (
-        config.fallback_to_heuristic
-    ):
-
-        return (
-            _fallback_to_heuristic(
-                requested_backend=
-                    requested_backend,
-
-                reason=
-                    reason,
-            )
+    if config.fallback_to_heuristic:
+        return _fallback_to_heuristic(
+            requested_backend=requested_backend,
+            reason=reason,
         )
 
     # ==================================================================
@@ -899,13 +727,7 @@ def create_classifier_backend(
         config,
         ClassificationConfig,
     ):
-
-        raise TypeError(
-            (
-                "config must be a "
-                "ClassificationConfig instance."
-            )
-        )
+        raise TypeError(("config must be a ClassificationConfig instance."))
 
     # ==================================================================
     # CONFIGURATION VALIDATION
@@ -927,76 +749,40 @@ def create_classifier_backend(
     # CLASSIFICATION DISABLED
     # ==================================================================
 
-    if not (
-        config.enabled
-    ):
+    if not (config.enabled):
+        logger.info(("Acoustic classification is disabled."))
 
-        logger.info(
-            (
-                "Acoustic classification "
-                "is disabled."
-            )
-        )
-
-        return (
-            None
-        )
+        return None
 
     # ==================================================================
     # NORMALIZE BACKEND NAME
     # ==================================================================
 
-    backend_name = (
-        config.backend
-        .strip()
-        .lower()
-    )
+    backend_name = config.backend.strip().lower()
 
     # ==================================================================
     # HEURISTIC
     # ==================================================================
 
-    if (
-        backend_name
-        == HEURISTIC_BACKEND
-    ):
-
-        heuristic_backend = (
-            _create_heuristic_backend()
-        )
+    if backend_name == HEURISTIC_BACKEND:
+        heuristic_backend = _create_heuristic_backend()
 
         logger.info(
-            (
-                "Classification backend selected "
-                "| requested=%s "
-                "| active=%s "
-                "| version=%s"
-            ),
+            ("Classification backend selected | requested=%s | active=%s | version=%s"),
             backend_name,
             heuristic_backend.name,
             heuristic_backend.version,
         )
 
-        return (
-            heuristic_backend
-        )
+        return heuristic_backend
 
     # ==================================================================
     # BIRDNET
     # ==================================================================
 
-    if (
-        backend_name
-        == BIRDNET_BACKEND
-    ):
-
+    if backend_name == BIRDNET_BACKEND:
         try:
-
-            birdnet_backend = (
-                _create_birdnet_backend(
-                    config
-                )
-            )
+            birdnet_backend = _create_birdnet_backend(config)
 
         except (
             FileNotFoundError,
@@ -1006,52 +792,28 @@ def create_classifier_backend(
             TypeError,
             ValueError,
         ) as exc:
-
-            return (
-                _handle_optional_backend_failure(
-                    requested_backend=
-                        BIRDNET_BACKEND,
-
-                    config=
-                        config,
-
-                    error=
-                        exc,
-                )
+            return _handle_optional_backend_failure(
+                requested_backend=BIRDNET_BACKEND,
+                config=config,
+                error=exc,
             )
 
         logger.info(
-            (
-                "Classification backend selected "
-                "| requested=%s "
-                "| active=%s "
-                "| version=%s"
-            ),
+            ("Classification backend selected | requested=%s | active=%s | version=%s"),
             backend_name,
             birdnet_backend.name,
             birdnet_backend.version,
         )
 
-        return (
-            birdnet_backend
-        )
+        return birdnet_backend
 
     # ==================================================================
     # ENSEMBLE
     # ==================================================================
 
-    if (
-        backend_name
-        == ENSEMBLE_BACKEND
-    ):
-
+    if backend_name == ENSEMBLE_BACKEND:
         try:
-
-            ensemble_backend = (
-                _create_ensemble_backend(
-                    config
-                )
-            )
+            ensemble_backend = _create_ensemble_backend(config)
 
         except (
             FileNotFoundError,
@@ -1061,18 +823,10 @@ def create_classifier_backend(
             TypeError,
             ValueError,
         ) as exc:
-
-            return (
-                _handle_optional_backend_failure(
-                    requested_backend=
-                        ENSEMBLE_BACKEND,
-
-                    config=
-                        config,
-
-                    error=
-                        exc,
-                )
+            return _handle_optional_backend_failure(
+                requested_backend=ENSEMBLE_BACKEND,
+                config=config,
+                error=exc,
             )
 
         logger.info(
@@ -1088,27 +842,16 @@ def create_classifier_backend(
             ensemble_backend.version,
         )
 
-        return (
-            ensemble_backend
-        )
+        return ensemble_backend
 
     # ==================================================================
     # RESERVED FUTURE BACKENDS
     # ==================================================================
 
-    if (
-        backend_name
-        in RESERVED_BACKENDS
-    ):
-
-        return (
-            _handle_unavailable_backend(
-                requested_backend=
-                    backend_name,
-
-                config=
-                    config,
-            )
+    if backend_name in RESERVED_BACKENDS:
+        return _handle_unavailable_backend(
+            requested_backend=backend_name,
+            config=config,
         )
 
     # ==================================================================
@@ -1122,11 +865,7 @@ def create_classifier_backend(
     # independently from the factory.
     # ==================================================================
 
-    known = ", ".join(
-        sorted(
-            KNOWN_BACKENDS
-        )
-    )
+    known = ", ".join(sorted(KNOWN_BACKENDS))
 
     raise ValueError(
         (
@@ -1165,19 +904,9 @@ def _handle_unavailable_backend(
     unavailable model actually ran.
     """
 
-    requested_backend = (
-        str(
-            requested_backend
-        )
-        .strip()
-        .lower()
-    )
+    requested_backend = str(requested_backend).strip().lower()
 
-    if (
-        requested_backend
-        not in RESERVED_BACKENDS
-    ):
-
+    if requested_backend not in RESERVED_BACKENDS:
         raise ValueError(
             (
                 "_handle_unavailable_backend() "
@@ -1191,10 +920,7 @@ def _handle_unavailable_backend(
     # FALLBACK DISABLED
     # ==================================================================
 
-    if not (
-        config.fallback_to_heuristic
-    ):
-
+    if not (config.fallback_to_heuristic):
         raise NotImplementedError(
             (
                 "Classification backend "
@@ -1208,15 +934,7 @@ def _handle_unavailable_backend(
     # FALLBACK ENABLED
     # ==================================================================
 
-    return (
-        _fallback_to_heuristic(
-            requested_backend=
-                requested_backend,
-
-            reason=
-                (
-                    "backend source implementation "
-                    "does not exist yet"
-                ),
-        )
+    return _fallback_to_heuristic(
+        requested_backend=requested_backend,
+        reason=("backend source implementation does not exist yet"),
     )

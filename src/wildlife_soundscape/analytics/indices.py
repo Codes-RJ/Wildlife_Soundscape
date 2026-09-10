@@ -45,6 +45,7 @@ EPSILON: Final[float] = 1e-12
 # CONFIGURATION
 # ======================================================================
 
+
 @dataclass(frozen=True, slots=True)
 class SoundscapeIndicesConfig:
     """
@@ -81,11 +82,20 @@ class SoundscapeIndicesConfig:
 
         nyquist = self.sample_rate / 2.0
         if not (0.0 <= self.aci_freq_min_hz < self.aci_freq_max_hz <= nyquist):
-            raise ValueError(f"Invalid ACI band [{self.aci_freq_min_hz}, {self.aci_freq_max_hz}].")
+            raise ValueError(
+                f"Invalid ACI band [{self.aci_freq_min_hz}, {self.aci_freq_max_hz}]."
+            )
 
-        if not (0.0 <= self.ndsi_anthrophony_min_hz < self.ndsi_anthrophony_max_hz <= nyquist):
+        if not (
+            0.0
+            <= self.ndsi_anthrophony_min_hz
+            < self.ndsi_anthrophony_max_hz
+            <= nyquist
+        ):
             raise ValueError("Invalid NDSI anthrophony band.")
-        if not (0.0 <= self.ndsi_biophony_min_hz < self.ndsi_biophony_max_hz <= nyquist):
+        if not (
+            0.0 <= self.ndsi_biophony_min_hz < self.ndsi_biophony_max_hz <= nyquist
+        ):
             raise ValueError("Invalid NDSI biophony band.")
 
         if not (0.0 <= self.bi_freq_min_hz < self.bi_freq_max_hz <= nyquist):
@@ -95,6 +105,7 @@ class SoundscapeIndicesConfig:
 # ======================================================================
 # RESULT DATACLASS
 # ======================================================================
+
 
 @dataclass(frozen=True, slots=True)
 class SoundscapeIndicesResult:
@@ -129,6 +140,7 @@ class SoundscapeIndicesResult:
 # ======================================================================
 # SPECTROGRAM COMPUTATION
 # ======================================================================
+
 
 def _compute_magnitude_spectrogram(
     audio: np.ndarray,
@@ -172,6 +184,7 @@ def _compute_magnitude_spectrogram(
 # INDIVIDUAL ECOACOUSTIC METRIC CALCULATIONS
 # ======================================================================
 
+
 def calculate_aci(
     audio: np.ndarray,
     sample_rate: int,
@@ -208,7 +221,9 @@ def calculate_aci(
         return 0.0
 
     aci_per_bin = np.zeros_like(sum_diffs)
-    aci_per_bin[valid_bins] = sum_diffs[valid_bins] / (sum_intensities[valid_bins] + EPSILON)
+    aci_per_bin[valid_bins] = sum_diffs[valid_bins] / (
+        sum_intensities[valid_bins] + EPSILON
+    )
 
     return float(np.sum(aci_per_bin))
 
@@ -234,13 +249,15 @@ def calculate_ndsi(
 
     nyquist = sample_rate / 2.0
     mag = _compute_magnitude_spectrogram(audio, n_fft, hop_length)
-    power_spec = np.mean(mag ** 2, axis=1)  # average power per frequency bin
+    power_spec = np.mean(mag**2, axis=1)  # average power per frequency bin
     freqs = np.linspace(0, nyquist, len(power_spec))
 
     anthro_mask = (freqs >= anthro_min) & (freqs < anthro_max)
     bio_mask = (freqs >= bio_min) & (freqs <= bio_max)
 
-    anthro_power = float(np.sum(power_spec[anthro_mask])) if np.any(anthro_mask) else 0.0
+    anthro_power = (
+        float(np.sum(power_spec[anthro_mask])) if np.any(anthro_mask) else 0.0
+    )
     bio_power = float(np.sum(power_spec[bio_mask])) if np.any(bio_mask) else 0.0
 
     total_power = bio_power + anthro_power
@@ -281,7 +298,7 @@ def calculate_acoustic_entropy(
 
     # 2. Spectral Entropy (Hf) over mean power spectrum
     mag = _compute_magnitude_spectrogram(audio, n_fft, hop_length)
-    power_mean = np.mean(mag ** 2, axis=1)
+    power_mean = np.mean(mag**2, axis=1)
     power_sum = np.sum(power_mean)
     if power_sum < EPSILON or power_mean.size <= 1:
         hf = 0.0
@@ -311,7 +328,7 @@ def calculate_bioacoustic_index(
 
     nyquist = sample_rate / 2.0
     mag = _compute_magnitude_spectrogram(audio, n_fft, hop_length)
-    mean_power = np.mean(mag ** 2, axis=1)
+    mean_power = np.mean(mag**2, axis=1)
     freqs = np.linspace(0, nyquist, len(mean_power))
 
     mask = (freqs >= fmin) & (freqs <= fmax)
@@ -333,6 +350,7 @@ def calculate_bioacoustic_index(
 # UNIFIED CONVENIENCE CALCULATION
 # ======================================================================
 
+
 def calculate_soundscape_indices(
     audio: np.ndarray,
     sample_rate: int,
@@ -346,7 +364,11 @@ def calculate_soundscape_indices(
     if audio.ndim != 1:
         raise ValueError("audio must be a 1-D array.")
 
-    cfg = config if config is not None else SoundscapeIndicesConfig(sample_rate=sample_rate)
+    cfg = (
+        config
+        if config is not None
+        else SoundscapeIndicesConfig(sample_rate=sample_rate)
+    )
 
     # Cast to float32
     audio_f32 = audio.astype(np.float32)

@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 import math
 import sqlite3
+from . import schema, migrations, queries
 
 from contextlib import (
     contextmanager,
@@ -68,24 +69,16 @@ from wildlife_soundscape.core.protocol import (
 # ======================================================================
 
 
-UINT8_MAX = (
-    0xFF
-)
+UINT8_MAX = 0xFF
 
 
-UINT32_MAX = (
-    0xFFFFFFFF
-)
+UINT32_MAX = 0xFFFFFFFF
 
 
-UINT64_MAX = (
-    0xFFFFFFFFFFFFFFFF
-)
+UINT64_MAX = 0xFFFFFFFFFFFFFFFF
 
 
-SQLITE_INT64_MAX = (
-    0x7FFFFFFFFFFFFFFF
-)
+SQLITE_INT64_MAX = 0x7FFFFFFFFFFFFFFF
 
 
 # ======================================================================
@@ -93,19 +86,17 @@ SQLITE_INT64_MAX = (
 # ======================================================================
 
 
-DEFAULT_ANALYTICS_SAMPLE_RATE = (
-    48_000
-)
+DEFAULT_ANALYTICS_SAMPLE_RATE = 48_000
 
 
-DEFAULT_ANALYTICS_BUCKET_SECONDS = (
-    3600
-)
+DEFAULT_ANALYTICS_BUCKET_SECONDS = 3600
 
 
-UTC_SUFFIX = (
-    "Z"
-)
+UTC_SUFFIX = "Z"
+
+
+class SessionAlreadyExistsError(ValueError):
+    """A new acquisition attempted to reuse historical identity."""
 
 
 # ======================================================================
@@ -192,22 +183,10 @@ class EventDatabase:
         path: str | Path,
     ) -> None:
 
-        self.path = (
-            Path(
-                path
-            )
-        )
+        self.path = Path(path)
 
-        if not (
-            self.path.name
-        ):
-
-            raise ValueError(
-                (
-                    "Database path must contain "
-                    "a database filename."
-                )
-            )
+        if not (self.path.name):
+            raise ValueError(("Database path must contain a database filename."))
 
         self.path.parent.mkdir(
             parents=True,
@@ -216,9 +195,7 @@ class EventDatabase:
 
         # SQLite connections are short-lived, but write operations within
         # this process are still serialized.
-        self._lock = (
-            Lock()
-        )
+        self._lock = Lock()
 
         self._initialize()
 
@@ -237,37 +214,28 @@ class EventDatabase:
         properly closed when the context exits.
         """
 
-        connection = (
-            sqlite3.connect(
-                self.path,
-                timeout=
-                    5.0,
-            )
+        connection = sqlite3.connect(
+            self.path,
+            timeout=5.0,
         )
 
         try:
-
             # ----------------------------------------------------------
             # REFERENTIAL INTEGRITY
             # ----------------------------------------------------------
 
-            connection.execute(
-                "PRAGMA foreign_keys = ON"
-            )
+            connection.execute("PRAGMA foreign_keys = ON")
 
             # ----------------------------------------------------------
             # LOCK WAIT
             # ----------------------------------------------------------
 
-            connection.execute(
-                "PRAGMA busy_timeout = 5000"
-            )
+            connection.execute("PRAGMA busy_timeout = 5000")
 
             with connection:
                 yield connection
 
         finally:
-
             connection.close()
 
     # ==================================================================
@@ -289,15 +257,12 @@ class EventDatabase:
 
         return json.dumps(
             value,
-            allow_nan=
-                False,
-            sort_keys=
-                sort_keys,
-            separators=
-                (
-                    ",",
-                    ":",
-                ),
+            allow_nan=False,
+            sort_keys=sort_keys,
+            separators=(
+                ",",
+                ":",
+            ),
         )
 
     # ==================================================================
@@ -315,31 +280,18 @@ class EventDatabase:
         """
 
         try:
-
-            result = float(
-                value
-            )
+            result = float(value)
 
         except (
             TypeError,
             ValueError,
         ) as exc:
+            raise TypeError(f"{name} must be numeric") from exc
 
-            raise TypeError(
-                f"{name} must be numeric"
-            ) from exc
+        if not math.isfinite(result):
+            raise ValueError(f"{name} must be finite")
 
-        if not math.isfinite(
-            result
-        ):
-
-            raise ValueError(
-                f"{name} must be finite"
-            )
-
-        return (
-            result
-        )
+        return result
 
     # ==================================================================
     # OPTIONAL FINITE FLOAT
@@ -356,19 +308,12 @@ class EventDatabase:
         Return None or one finite float.
         """
 
-        if (
-            value
-            is None
-        ):
-
-            return (
-                None
-            )
+        if value is None:
+            return None
 
         return cls._finite_float(
             value,
-            name=
-                name,
+            name=name,
         )
 
     # ==================================================================
@@ -382,22 +327,15 @@ class EventDatabase:
         """Return a finite float, or None for an unavailable estimate."""
 
         try:
-
-            result = float(
-                value
-            )
+            result = float(value)
 
         except (
             TypeError,
             ValueError,
         ):
-
             return None
 
-        if not math.isfinite(
-            result
-        ):
-
+        if not math.isfinite(result):
             return None
 
         return result
@@ -420,45 +358,22 @@ class EventDatabase:
         otherwise usable event row.
         """
 
-        if (
-            value
-            is None
-        ):
-
-            return (
-                None
-            )
+        if value is None:
+            return None
 
         try:
-
-            result = float(
-                value
-            )
+            result = float(value)
 
         except (
             TypeError,
             ValueError,
         ):
+            return None
 
-            return (
-                None
-            )
+        if not math.isfinite(result) or result < 0.0:
+            return None
 
-        if (
-            not math.isfinite(
-                result
-            )
-            or result
-            < 0.0
-        ):
-
-            return (
-                None
-            )
-
-        return (
-            result
-        )
+        return result
 
     # ==================================================================
     # ID VALIDATION
@@ -479,50 +394,23 @@ class EventDatabase:
             value,
             bool,
         ):
-
-            raise TypeError(
-                f"{name} must be an integer"
-            )
+            raise TypeError(f"{name} must be an integer")
 
         if not isinstance(
             value,
             int,
         ):
+            raise TypeError(f"{name} must be an integer")
 
-            raise TypeError(
-                f"{name} must be an integer"
-            )
+        result = int(value)
 
-        result = int(
-            value
-        )
+        if result <= 0:
+            raise ValueError(f"{name} must be greater than 0")
 
-        if (
-            result
-            <= 0
-        ):
+        if maximum is not None and result > maximum:
+            raise ValueError((f"{name} cannot exceed {maximum}"))
 
-            raise ValueError(
-                f"{name} must be greater than 0"
-            )
-
-        if (
-            maximum
-            is not None
-            and result
-            > maximum
-        ):
-
-            raise ValueError(
-                (
-                    f"{name} cannot exceed "
-                    f"{maximum}"
-                )
-            )
-
-        return (
-            result
-        )
+        return result
 
     # ==================================================================
     # SAMPLE INDEX VALIDATION
@@ -542,36 +430,18 @@ class EventDatabase:
             value,
             bool,
         ):
-
-            raise TypeError(
-                f"{name} must be an integer"
-            )
+            raise TypeError(f"{name} must be an integer")
 
         if not isinstance(
             value,
             int,
         ):
+            raise TypeError(f"{name} must be an integer")
 
-            raise TypeError(
-                f"{name} must be an integer"
-            )
+        result = int(value)
 
-        result = int(
-            value
-        )
-
-        if not (
-            0
-            <= result
-            <= UINT64_MAX
-        ):
-
-            raise ValueError(
-                (
-                    f"{name} must lie in "
-                    "the uint64 range"
-                )
-            )
+        if not (0 <= result <= UINT64_MAX):
+            raise ValueError((f"{name} must lie in the uint64 range"))
 
         # --------------------------------------------------------------
         # SQLITE INTEGER LIMIT
@@ -584,21 +454,10 @@ class EventDatabase:
         # SQLite cannot represent rather than allowing an OverflowError.
         # --------------------------------------------------------------
 
-        if (
-            result
-            > SQLITE_INT64_MAX
-        ):
+        if result > SQLITE_INT64_MAX:
+            raise ValueError((f"{name} exceeds SQLite signed 64-bit INTEGER capacity"))
 
-            raise ValueError(
-                (
-                    f"{name} exceeds SQLite "
-                    "signed 64-bit INTEGER capacity"
-                )
-            )
-
-        return (
-            result
-        )
+        return result
 
     # ==================================================================
     # POSITIVE SAMPLE RATE
@@ -612,35 +471,19 @@ class EventDatabase:
         Validate analytics sample rate.
         """
 
-        if (
-            isinstance(
-                value,
-                bool,
-            )
-            or not isinstance(
-                value,
-                int,
-            )
+        if isinstance(
+            value,
+            bool,
+        ) or not isinstance(
+            value,
+            int,
         ):
+            raise TypeError("sample_rate must be an integer")
 
-            raise TypeError(
-                "sample_rate must be an integer"
-            )
+        if value <= 0:
+            raise ValueError("sample_rate must be greater than 0")
 
-        if (
-            value
-            <= 0
-        ):
-
-            raise ValueError(
-                "sample_rate must be greater than 0"
-            )
-
-        return (
-            int(
-                value
-            )
-        )
+        return int(value)
 
     # ==================================================================
     # POSITIVE BUCKET SIZE
@@ -654,38 +497,19 @@ class EventDatabase:
         Validate analytics temporal-bin width.
         """
 
-        if (
-            isinstance(
-                value,
-                bool,
-            )
-            or not isinstance(
-                value,
-                int,
-            )
+        if isinstance(
+            value,
+            bool,
+        ) or not isinstance(
+            value,
+            int,
         ):
+            raise TypeError("bucket_seconds must be an integer")
 
-            raise TypeError(
-                "bucket_seconds must be an integer"
-            )
+        if value <= 0:
+            raise ValueError(("bucket_seconds must be greater than 0"))
 
-        if (
-            value
-            <= 0
-        ):
-
-            raise ValueError(
-                (
-                    "bucket_seconds must be "
-                    "greater than 0"
-                )
-            )
-
-        return (
-            int(
-                value
-            )
-        )
+        return int(value)
 
     # ==================================================================
     # DATABASE TIMESTAMP PARSER
@@ -711,90 +535,40 @@ class EventDatabase:
             value,
             datetime,
         ):
-
-            result = (
-                value
-            )
+            result = value
 
         else:
-
             if not isinstance(
                 value,
                 str,
             ):
+                raise TypeError((f"{name} must be datetime or timestamp string"))
 
-                raise TypeError(
-                    (
-                        f"{name} must be datetime "
-                        "or timestamp string"
-                    )
-                )
+            text = value.strip()
 
-            text = (
-                value.strip()
-            )
+            if not (text):
+                raise ValueError(f"{name} cannot be empty")
 
-            if not (
-                text
-            ):
-
-                raise ValueError(
-                    f"{name} cannot be empty"
-                )
-
-            if text.endswith(
-                UTC_SUFFIX
-            ):
-
-                text = (
-                    text[
-                        :-1
-                    ]
-                    + "+00:00"
-                )
+            if text.endswith(UTC_SUFFIX):
+                text = text[:-1] + "+00:00"
 
             try:
-
-                result = (
-                    datetime.fromisoformat(
-                        text
-                    )
-                )
+                result = datetime.fromisoformat(text)
 
             except ValueError as exc:
-
-                raise ValueError(
-                    (
-                        f"{name} is not a valid "
-                        "ISO timestamp"
-                    )
-                ) from exc
+                raise ValueError((f"{name} is not a valid ISO timestamp")) from exc
 
         # --------------------------------------------------------------
         # SQLITE CURRENT_TIMESTAMP IS UTC
         # --------------------------------------------------------------
 
-        if (
-            result.tzinfo
-            is None
-            or result.utcoffset()
-            is None
-        ):
-
-            result = result.replace(
-                tzinfo=
-                    timezone.utc
-            )
+        if result.tzinfo is None or result.utcoffset() is None:
+            result = result.replace(tzinfo=timezone.utc)
 
         else:
+            result = result.astimezone(timezone.utc)
 
-            result = result.astimezone(
-                timezone.utc
-            )
-
-        return (
-            result
-        )
+        return result
 
     # ==================================================================
     # OPTIONAL QUERY DATETIME
@@ -811,19 +585,12 @@ class EventDatabase:
         Normalize optional analytics time boundary into UTC.
         """
 
-        if (
-            value
-            is None
-        ):
-
-            return (
-                None
-            )
+        if value is None:
+            return None
 
         return cls._parse_database_datetime(
             value,
-            name=
-                name,
+            name=name,
         )
 
     # ==================================================================
@@ -849,52 +616,26 @@ class EventDatabase:
             sample_index / sample_rate
         """
 
-        sample_rate = (
-            cls._positive_sample_rate(
-                sample_rate
-            )
+        sample_rate = cls._positive_sample_rate(sample_rate)
+
+        sample_index = cls._sample_index(
+            sample_index,
+            name="sample_index",
         )
 
-        sample_index = (
-            cls._sample_index(
-                sample_index,
-                name=
-                    "sample_index",
-            )
+        session_start = cls._parse_database_datetime(
+            session_started_at,
+            name="session_started_at",
         )
 
-        session_start = (
-            cls._parse_database_datetime(
-                session_started_at,
-                name=
-                    "session_started_at",
-            )
-        )
-
-        offset_seconds = (
-            sample_index
-            / float(
-                sample_rate
-            )
-        )
+        offset_seconds = sample_index / float(sample_rate)
 
         try:
-
-            return (
-                session_start
-                + timedelta(
-                    seconds=
-                        offset_seconds
-                )
-            )
+            return session_start + timedelta(seconds=offset_seconds)
 
         except OverflowError as exc:
-
             raise ValueError(
-                (
-                    "sample_index produces a "
-                    "datetime outside supported range"
-                )
+                ("sample_index produces a datetime outside supported range")
             ) from exc
 
     # ==================================================================
@@ -913,32 +654,15 @@ class EventDatabase:
             value,
             datetime,
         ):
+            raise TypeError("value must be datetime")
 
-            raise TypeError(
-                "value must be datetime"
-            )
-
-        if (
-            value.tzinfo
-            is None
-            or value.utcoffset()
-            is None
-        ):
-
-            value = value.replace(
-                tzinfo=
-                    timezone.utc
-            )
+        if value.tzinfo is None or value.utcoffset() is None:
+            value = value.replace(tzinfo=timezone.utc)
 
         else:
+            value = value.astimezone(timezone.utc)
 
-            value = value.astimezone(
-                timezone.utc
-            )
-
-        return (
-            value.isoformat()
-        )
+        return value.isoformat()
 
     # ==================================================================
     # DATABASE INITIALIZATION
@@ -947,442 +671,7 @@ class EventDatabase:
     def _initialize(
         self,
     ) -> None:
-        """
-        Create tables, perform compatible migrations and create indexes.
-        """
-
-        with self._connect() as conn:
-
-            # ==========================================================
-            # SQLITE OPERATING MODE
-            # ==========================================================
-
-            conn.execute(
-                "PRAGMA journal_mode = WAL"
-            )
-
-            conn.execute(
-                "PRAGMA synchronous = NORMAL"
-            )
-
-            # ==========================================================
-            # CORE TABLES
-            # ==========================================================
-
-            conn.executescript(
-                """
-                ------------------------------------------------------------
-                -- SESSIONS
-                ------------------------------------------------------------
-
-                CREATE TABLE IF NOT EXISTS sessions (
-
-                    session_id INTEGER PRIMARY KEY,
-
-                    label TEXT NOT NULL,
-
-                    started_at TEXT NOT NULL
-                        DEFAULT CURRENT_TIMESTAMP,
-
-                    stopped_at TEXT
-                );
-
-
-                ------------------------------------------------------------
-                -- ENVIRONMENTAL TELEMETRY
-                ------------------------------------------------------------
-
-                CREATE TABLE IF NOT EXISTS telemetry (
-
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-
-                    session_id INTEGER,
-
-                    node_id INTEGER NOT NULL,
-
-                    sample_index INTEGER NOT NULL,
-
-                    temperature_c REAL,
-
-                    humidity_percent REAL,
-
-                    pressure_hpa REAL,
-
-                    created_at TEXT NOT NULL
-                        DEFAULT CURRENT_TIMESTAMP
-                );
-
-
-                ------------------------------------------------------------
-                -- ACOUSTIC EVENTS
-                ------------------------------------------------------------
-
-                CREATE TABLE IF NOT EXISTS events (
-
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-
-                    detector_event_id INTEGER NOT NULL,
-
-                    session_id INTEGER NOT NULL,
-
-                    start_sample INTEGER NOT NULL,
-
-                    end_sample INTEGER NOT NULL,
-
-                    trigger_nodes TEXT NOT NULL,
-
-                    peak_rms_dbfs REAL NOT NULL,
-
-                    --------------------------------------------------------
-                    -- DSP SOURCE CHANNEL
-                    --------------------------------------------------------
-
-                    best_node_id INTEGER,
-
-                    --------------------------------------------------------
-                    -- ENVIRONMENT
-                    --------------------------------------------------------
-
-                    temperature_c REAL,
-
-                    humidity_percent REAL,
-
-                    pressure_hpa REAL,
-
-                    --------------------------------------------------------
-                    -- SPEED OF SOUND
-                    --------------------------------------------------------
-
-                    speed_of_sound_mps REAL,
-
-                    --------------------------------------------------------
-                    -- LOCALIZATION
-                    --------------------------------------------------------
-
-                    x_m REAL,
-
-                    y_m REAL,
-
-                    localization_success INTEGER,
-
-                    localization_residual_m REAL,
-
-                    --------------------------------------------------------
-                    -- FILESYSTEM
-                    --------------------------------------------------------
-
-                    event_directory TEXT,
-
-                    created_at TEXT NOT NULL
-                        DEFAULT CURRENT_TIMESTAMP,
-
-                    FOREIGN KEY(session_id)
-                        REFERENCES sessions(session_id)
-                );
-
-
-                ------------------------------------------------------------
-                -- DSP FEATURES
-                ------------------------------------------------------------
-
-                CREATE TABLE IF NOT EXISTS event_features (
-
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-
-                    event_id INTEGER NOT NULL UNIQUE,
-
-                    --------------------------------------------------------
-                    -- SELECTED MICROPHONE
-                    --------------------------------------------------------
-
-                    source_node_id INTEGER NOT NULL,
-
-                    --------------------------------------------------------
-                    -- GENERAL
-                    --------------------------------------------------------
-
-                    duration_s REAL NOT NULL,
-
-                    --------------------------------------------------------
-                    -- TIME DOMAIN
-                    --------------------------------------------------------
-
-                    rms REAL NOT NULL,
-
-                    peak_amplitude REAL NOT NULL,
-
-                    crest_factor REAL NOT NULL,
-
-                    zero_crossing_rate REAL NOT NULL,
-
-                    --------------------------------------------------------
-                    -- FREQUENCY DOMAIN
-                    --------------------------------------------------------
-
-                    dominant_frequency_hz REAL NOT NULL,
-
-                    spectral_centroid_hz REAL NOT NULL,
-
-                    spectral_bandwidth_hz REAL NOT NULL,
-
-                    spectral_rolloff_hz REAL NOT NULL,
-
-                    spectral_flatness REAL NOT NULL,
-
-                    spectral_flux REAL NOT NULL,
-
-                    --------------------------------------------------------
-                    -- SIGNAL QUALITY
-                    --------------------------------------------------------
-
-                    snr_db REAL,
-
-                    --------------------------------------------------------
-                    -- MFCC
-                    --------------------------------------------------------
-
-                    mfcc_mean_json TEXT NOT NULL,
-
-                    mfcc_std_json TEXT NOT NULL,
-
-                    created_at TEXT NOT NULL
-                        DEFAULT CURRENT_TIMESTAMP,
-
-                    FOREIGN KEY(event_id)
-                        REFERENCES events(id)
-                        ON DELETE CASCADE
-                );
-
-
-                ------------------------------------------------------------
-                -- CLASSIFICATIONS
-                ------------------------------------------------------------
-
-                CREATE TABLE IF NOT EXISTS classifications (
-
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-
-                    event_id INTEGER NOT NULL UNIQUE,
-
-                    --------------------------------------------------------
-                    -- PRIMARY CLASSIFICATION
-                    --------------------------------------------------------
-
-                    label TEXT NOT NULL,
-
-                    confidence REAL NOT NULL,
-
-                    --------------------------------------------------------
-                    -- SECONDARY CANDIDATE
-                    --------------------------------------------------------
-
-                    second_label TEXT,
-
-                    second_confidence REAL,
-
-                    --------------------------------------------------------
-                    -- DECISION QUALITY
-                    --------------------------------------------------------
-
-                    margin REAL NOT NULL,
-
-                    --------------------------------------------------------
-                    -- EXPLAINABILITY
-                    --------------------------------------------------------
-
-                    scores_json TEXT NOT NULL,
-
-                    reasons_json TEXT NOT NULL,
-
-                    --------------------------------------------------------
-                    -- CLASSIFIER VERSIONING
-                    --------------------------------------------------------
-
-                    classifier_name TEXT NOT NULL,
-
-                    classifier_version TEXT NOT NULL,
-
-                    created_at TEXT NOT NULL
-                        DEFAULT CURRENT_TIMESTAMP,
-
-                    FOREIGN KEY(event_id)
-                        REFERENCES events(id)
-                        ON DELETE CASCADE
-                );
-
-
-                --------------------------------------------------------
-                -- SOUNDSCAPE INDICES TABLE
-                --------------------------------------------------------
-
-                CREATE TABLE IF NOT EXISTS
-                    soundscape_indices (
-
-                        id INTEGER PRIMARY KEY AUTOINCREMENT,
-
-                        session_id INTEGER NOT NULL,
-
-                        node_id INTEGER NOT NULL,
-
-                        start_sample INTEGER NOT NULL,
-
-                        end_sample INTEGER NOT NULL,
-
-                        aci REAL NOT NULL,
-
-                        ndsi REAL NOT NULL,
-
-                        acoustic_entropy REAL NOT NULL,
-
-                        temporal_entropy REAL NOT NULL,
-
-                        spectral_entropy REAL NOT NULL,
-
-                        bioacoustic_index REAL NOT NULL,
-
-                        anthrophony_power REAL NOT NULL,
-
-                        biophony_power REAL NOT NULL,
-
-                        parameters_json TEXT NOT NULL,
-
-                        created_at TEXT NOT NULL
-                            DEFAULT CURRENT_TIMESTAMP,
-
-                        FOREIGN KEY(session_id)
-                            REFERENCES sessions(session_id)
-                            ON DELETE CASCADE
-                    );
-                """
-            )
-
-            # ==========================================================
-            # SIMPLE EVENT MIGRATIONS
-            # ==========================================================
-
-            self._ensure_column(
-                conn,
-                table=
-                    "events",
-                column=
-                    "best_node_id",
-                definition=
-                    "INTEGER",
-            )
-
-            # ==========================================================
-            # CLASSIFICATION SCHEMA MIGRATION
-            # ==========================================================
-
-            self._ensure_nullable_second_confidence(
-                conn
-            )
-
-            # ==========================================================
-            # INDEXES
-            # ==========================================================
-            #
-            # These are deliberately created after table migrations.
-            #
-            # Rebuilding a SQLite table drops indexes associated with the
-            # old table, so this guarantees they exist in the final
-            # schema.
-            # ==========================================================
-
-            conn.executescript(
-                """
-                CREATE INDEX IF NOT EXISTS
-                    idx_sessions_started
-
-                ON sessions(
-                    started_at
-                );
-
-
-                CREATE INDEX IF NOT EXISTS
-                    idx_telemetry_session_sample
-
-                ON telemetry(
-                    session_id,
-                    sample_index
-                );
-
-
-                CREATE INDEX IF NOT EXISTS
-                    idx_telemetry_node_sample
-
-                ON telemetry(
-                    node_id,
-                    sample_index
-                );
-
-
-                CREATE INDEX IF NOT EXISTS
-                    idx_events_session_start
-
-                ON events(
-                    session_id,
-                    start_sample
-                );
-
-
-                CREATE INDEX IF NOT EXISTS
-                    idx_events_created
-
-                ON events(
-                    created_at
-                );
-
-
-                CREATE INDEX IF NOT EXISTS
-                    idx_event_features_event
-
-                ON event_features(
-                    event_id
-                );
-
-
-                CREATE INDEX IF NOT EXISTS
-                    idx_event_features_node
-
-                ON event_features(
-                    source_node_id
-                );
-
-
-                CREATE INDEX IF NOT EXISTS
-                    idx_classifications_event
-
-                ON classifications(
-                    event_id
-                );
-
-
-                CREATE INDEX IF NOT EXISTS
-                    idx_classifications_label
-
-                ON classifications(
-                    label
-                );
-
-
-                CREATE INDEX IF NOT EXISTS
-                    idx_soundscape_indices_session_node
-
-                ON soundscape_indices(
-                    session_id,
-                    node_id
-                );
-
-
-                CREATE INDEX IF NOT EXISTS
-                    idx_soundscape_indices_created
-
-                ON soundscape_indices(
-                    created_at
-                );
-                """
-            )
+        return schema._initialize(self)
 
     # ==================================================================
     # SIMPLE COLUMN MIGRATION
@@ -1396,40 +685,8 @@ class EventDatabase:
         column: str,
         definition: str,
     ) -> None:
-        """
-        Add one hard-coded internal column when absent.
-        """
-
-        rows = (
-            conn.execute(
-                f"PRAGMA table_info({table})"
-            )
-            .fetchall()
-        )
-
-        existing_columns = {
-            str(
-                row[
-                    1
-                ]
-            )
-
-            for row
-            in rows
-        }
-
-        if (
-            column
-            in existing_columns
-        ):
-
-            return
-
-        conn.execute(
-            f"""
-            ALTER TABLE {table}
-            ADD COLUMN {column} {definition}
-            """
+        return migrations._ensure_column(
+            conn, table=table, column=column, definition=definition
         )
 
     # ==================================================================
@@ -1440,168 +697,7 @@ class EventDatabase:
     def _ensure_nullable_second_confidence(
         conn: sqlite3.Connection,
     ) -> None:
-        """
-        Upgrade old classifications tables where second_confidence was
-        incorrectly declared NOT NULL.
-
-        SQLite cannot directly DROP a NOT NULL constraint, therefore the
-        table is rebuilt while preserving existing rows.
-        """
-
-        table_info = (
-            conn.execute(
-                """
-                PRAGMA table_info(
-                    classifications
-                )
-                """
-            )
-            .fetchall()
-        )
-
-        second_column = next(
-            (
-                row
-
-                for row
-                in table_info
-
-                if str(
-                    row[
-                        1
-                    ]
-                )
-                == "second_confidence"
-            ),
-            None,
-        )
-
-        # Fresh/current schema.
-        if (
-            second_column
-            is None
-            or int(
-                second_column[
-                    3
-                ]
-            )
-            == 0
-        ):
-
-            return
-
-        # ==============================================================
-        # OLD TABLE REQUIRES REBUILD
-        # ==============================================================
-
-        conn.execute(
-            """
-            CREATE TABLE
-                classifications_migrated (
-
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-
-                    event_id INTEGER NOT NULL UNIQUE,
-
-                    label TEXT NOT NULL,
-
-                    confidence REAL NOT NULL,
-
-                    second_label TEXT,
-
-                    second_confidence REAL,
-
-                    margin REAL NOT NULL,
-
-                    scores_json TEXT NOT NULL,
-
-                    reasons_json TEXT NOT NULL,
-
-                    classifier_name TEXT NOT NULL,
-
-                    classifier_version TEXT NOT NULL,
-
-                    created_at TEXT NOT NULL
-                        DEFAULT CURRENT_TIMESTAMP,
-
-                    FOREIGN KEY(event_id)
-                        REFERENCES events(id)
-                        ON DELETE CASCADE
-                )
-            """
-        )
-
-        conn.execute(
-            """
-            INSERT INTO classifications_migrated(
-
-                id,
-
-                event_id,
-
-                label,
-
-                confidence,
-
-                second_label,
-
-                second_confidence,
-
-                margin,
-
-                scores_json,
-
-                reasons_json,
-
-                classifier_name,
-
-                classifier_version,
-
-                created_at
-            )
-
-            SELECT
-
-                id,
-
-                event_id,
-
-                label,
-
-                confidence,
-
-                second_label,
-
-                second_confidence,
-
-                margin,
-
-                scores_json,
-
-                reasons_json,
-
-                classifier_name,
-
-                classifier_version,
-
-                created_at
-
-            FROM classifications
-            """
-        )
-
-        conn.execute(
-            """
-            DROP TABLE classifications
-            """
-        )
-
-        conn.execute(
-            """
-            ALTER TABLE classifications_migrated
-            RENAME TO classifications
-            """
-        )
+        return migrations._ensure_nullable_second_confidence(conn)
 
     # ==================================================================
     # SESSION OPERATIONS
@@ -1611,6 +707,8 @@ class EventDatabase:
         self,
         session_id: int,
         label: str,
+        *,
+        manifest: dict[str, Any] | None = None,
     ) -> None:
         """
         Register the beginning of one acquisition session.
@@ -1621,48 +719,32 @@ class EventDatabase:
         than silently overwriting an older research session.
         """
 
-        session_id = (
-            self._positive_id(
-                session_id,
-                name=
-                    "session_id",
-                maximum=
-                    UINT32_MAX,
-            )
+        session_id = self._positive_id(
+            session_id,
+            name="session_id",
+            maximum=UINT32_MAX,
         )
 
         if not isinstance(
             label,
             str,
         ):
+            raise TypeError(("session label must be a string"))
 
-            raise TypeError(
-                (
-                    "session label must "
-                    "be a string"
-                )
-            )
+        label = label.strip()
 
-        label = (
-            label.strip()
-        )
-
-        if not (
-            label
-        ):
-
-            raise ValueError(
-                (
-                    "session label "
-                    "cannot be empty"
-                )
-            )
+        if not (label):
+            raise ValueError(("session label cannot be empty"))
 
         with (
             self._lock,
             self._connect() as conn,
         ):
-
+            conn.execute("BEGIN IMMEDIATE")
+            if conn.execute(
+                "SELECT 1 FROM sessions WHERE session_id = ?", (session_id,)
+            ).fetchone():
+                raise SessionAlreadyExistsError(f"Session {session_id} already exists")
             conn.execute(
                 """
                 INSERT INTO sessions(
@@ -1682,16 +764,115 @@ class EventDatabase:
                     CURRENT_TIMESTAMP,
                     NULL
                 )
-                ON CONFLICT(session_id) DO UPDATE SET
-                    label = excluded.label,
-                    started_at = CURRENT_TIMESTAMP,
-                    stopped_at = NULL
                 """,
                 (
                     session_id,
                     label,
                 ),
             )
+            if manifest is not None:
+                conn.execute(
+                    "INSERT INTO session_manifests(session_id, manifest_json) VALUES (?, ?)",
+                    (session_id, self._json_dumps(manifest)),
+                )
+
+    def get_session_manifest(self, session_id: int) -> dict[str, Any] | None:
+        """Return the original experiment manifest; legacy sessions have none."""
+        with self._connect() as conn:
+            row = conn.execute(
+                "SELECT manifest_json FROM session_manifests WHERE session_id = ?",
+                (session_id,),
+            ).fetchone()
+        return None if row is None else json.loads(row[0])
+
+    def save_session_metrics(self, session_id: int, metrics: dict[str, Any]) -> None:
+        with self._lock, self._connect() as conn:
+            conn.execute(
+                "INSERT INTO session_metrics(session_id, metrics_json) VALUES (?, ?) "
+                "ON CONFLICT(session_id) DO UPDATE SET metrics_json=excluded.metrics_json",
+                (session_id, self._json_dumps(metrics)),
+            )
+
+    def get_session_metrics(self, session_id: int) -> dict[str, Any] | None:
+        with self._connect() as conn:
+            row = conn.execute(
+                "SELECT metrics_json FROM session_metrics WHERE session_id = ?",
+                (session_id,),
+            ).fetchone()
+        return None if row is None else json.loads(row[0])
+
+    def set_event_processing_status(
+        self, event_id: int, stage: str, status: str, detail: str | None = None
+    ) -> None:
+        with self._lock, self._connect() as conn:
+            conn.execute(
+                "INSERT INTO event_processing(event_id, stage, status, detail) VALUES (?, ?, ?, ?) "
+                "ON CONFLICT(event_id, stage) DO UPDATE SET status=excluded.status, detail=excluded.detail",
+                (event_id, stage, status, detail),
+            )
+
+    def get_event_processing_status(self, event_id: int) -> list[dict[str, Any]]:
+        with self._connect() as conn:
+            return [
+                {"stage": row[0], "status": row[1], "detail": row[2]}
+                for row in conn.execute(
+                    "SELECT stage, status, detail FROM event_processing WHERE event_id = ? ORDER BY stage",
+                    (event_id,),
+                )
+            ]
+
+    def update_event_analysis(
+        self,
+        event_id: int,
+        *,
+        environment: EnvironmentPayload | None,
+        localization: LocalizationResult | None,
+        best_node_id: int | None,
+    ) -> None:
+        """Attach optional results after the raw event has been committed."""
+        values: dict[str, Any] = {"best_node_id": best_node_id}
+        if best_node_id is not None:
+            self._positive_id(best_node_id, name="best_node_id", maximum=UINT8_MAX)
+        if environment is not None:
+            values.update(
+                temperature_c=self._finite_float(
+                    environment.temperature_c, name="temperature_c"
+                ),
+                humidity_percent=self._finite_float(
+                    environment.humidity_percent, name="humidity_percent"
+                ),
+                pressure_hpa=self._finite_float(
+                    environment.pressure_hpa, name="pressure_hpa"
+                ),
+            )
+        if localization is not None:
+            position = localization.position
+            values.update(
+                speed_of_sound_mps=self._finite_float(
+                    localization.speed_of_sound_mps, name="speed_of_sound_mps"
+                ),
+                localization_success=int(bool(position.success)),
+                x_m=self._finite_float_or_none(position.x),
+                y_m=self._finite_float_or_none(position.y),
+                localization_residual_m=self._finite_float_or_none(
+                    position.residual_rms_meters
+                ),
+            )
+            if position.success and any(
+                values[key] is None for key in ("x_m", "y_m", "localization_residual_m")
+            ):
+                raise ValueError(
+                    "Successful localization must contain finite estimates"
+                )
+        with self._lock, self._connect() as conn:
+            cursor = conn.execute(
+                "UPDATE events SET "
+                + ", ".join(f"{key} = ?" for key in values)
+                + " WHERE id = ?",
+                (*values.values(), event_id),
+            )
+            if cursor.rowcount != 1:
+                raise ValueError(f"Event {event_id} does not exist")
 
     # ==================================================================
     # STOP SESSION
@@ -1705,37 +886,26 @@ class EventDatabase:
         Mark one acquisition session as stopped.
         """
 
-        if (
-            session_id
-            is None
-        ):
-
+        if session_id is None:
             return
 
         try:
-
-            session_id = (
-                self._positive_id(
-                    session_id,
-                    name=
-                        "session_id",
-                    maximum=
-                        UINT32_MAX,
-                )
+            session_id = self._positive_id(
+                session_id,
+                name="session_id",
+                maximum=UINT32_MAX,
             )
 
         except (
             TypeError,
             ValueError,
         ):
-
             return
 
         with (
             self._lock,
             self._connect() as conn,
         ):
-
             conn.execute(
                 """
                 UPDATE sessions
@@ -1745,9 +915,7 @@ class EventDatabase:
 
                 WHERE session_id = ?
                 """,
-                (
-                    session_id,
-                ),
+                (session_id,),
             )
 
     # ==================================================================
@@ -1757,9 +925,7 @@ class EventDatabase:
     def list_sessions(
         self,
         limit: int | None = None,
-    ) -> list[
-        sqlite3.Row
-    ]:
+    ) -> list[sqlite3.Row]:
         """
         Return acquisition sessions newest first.
 
@@ -1777,52 +943,28 @@ class EventDatabase:
                 return an empty list.
         """
 
-        if (
-            limit
-            is not None
-        ):
-
+        if limit is not None:
             if isinstance(
                 limit,
                 bool,
             ):
-
-                raise TypeError(
-                    "limit must be an integer or None"
-                )
+                raise TypeError("limit must be an integer or None")
 
             if not isinstance(
                 limit,
                 int,
             ):
+                raise TypeError("limit must be an integer or None")
 
-                raise TypeError(
-                    "limit must be an integer or None"
-                )
-
-            if (
-                limit
-                <= 0
-            ):
-
-                return (
-                    []
-                )
+            if limit <= 0:
+                return []
 
         with self._connect() as conn:
+            conn.row_factory = sqlite3.Row
 
-            conn.row_factory = (
-                sqlite3.Row
-            )
-
-            if (
-                limit
-                is None
-            ):
-
-                rows = (
-                    conn.execute(
-                        """
+            if limit is None:
+                rows = conn.execute(
+                    """
                         SELECT
 
                             session_id,
@@ -1838,15 +980,11 @@ class EventDatabase:
                         ORDER BY started_at DESC,
                                  session_id DESC
                         """
-                    )
-                    .fetchall()
-                )
+                ).fetchall()
 
             else:
-
-                rows = (
-                    conn.execute(
-                        """
+                rows = conn.execute(
+                    """
                         SELECT
 
                             session_id,
@@ -1864,16 +1002,10 @@ class EventDatabase:
 
                         LIMIT ?
                         """,
-                        (
-                            limit,
-                        ),
-                    )
-                    .fetchall()
-                )
+                    (limit,),
+                ).fetchall()
 
-        return list(
-            rows
-        )
+        return list(rows)
 
     # ==================================================================
     # ENVIRONMENTAL TELEMETRY
@@ -1891,75 +1023,48 @@ class EventDatabase:
         Persist one BME280 telemetry sample.
         """
 
-        session_id = (
-            self._positive_id(
-                session_id,
-                name=
-                    "session_id",
-                maximum=
-                    UINT32_MAX,
-            )
+        session_id = self._positive_id(
+            session_id,
+            name="session_id",
+            maximum=UINT32_MAX,
         )
 
-        node_id = (
-            self._positive_id(
-                node_id,
-                name=
-                    "node_id",
-                maximum=
-                    UINT8_MAX,
-            )
+        node_id = self._positive_id(
+            node_id,
+            name="node_id",
+            maximum=UINT8_MAX,
         )
 
-        sample_index = (
-            self._sample_index(
-                sample_index,
-                name=
-                    "sample_index",
-            )
+        sample_index = self._sample_index(
+            sample_index,
+            name="sample_index",
         )
 
         if not isinstance(
             environment,
             EnvironmentPayload,
         ):
+            raise TypeError(("environment must be an EnvironmentPayload instance"))
 
-            raise TypeError(
-                (
-                    "environment must be an "
-                    "EnvironmentPayload instance"
-                )
-            )
-
-        temperature = (
-            self._finite_float(
-                environment.temperature_c,
-                name=
-                    "temperature_c",
-            )
+        temperature = self._finite_float(
+            environment.temperature_c,
+            name="temperature_c",
         )
 
-        humidity = (
-            self._finite_float(
-                environment.humidity_percent,
-                name=
-                    "humidity_percent",
-            )
+        humidity = self._finite_float(
+            environment.humidity_percent,
+            name="humidity_percent",
         )
 
-        pressure = (
-            self._finite_float(
-                environment.pressure_hpa,
-                name=
-                    "pressure_hpa",
-            )
+        pressure = self._finite_float(
+            environment.pressure_hpa,
+            name="pressure_hpa",
         )
 
         with (
             self._lock,
             self._connect() as conn,
         ):
-
             conn.execute(
                 """
                 INSERT INTO telemetry(
@@ -1988,15 +1093,10 @@ class EventDatabase:
                 """,
                 (
                     session_id,
-
                     node_id,
-
                     sample_index,
-
                     temperature,
-
                     humidity,
-
                     pressure,
                 ),
             )
@@ -2029,70 +1129,39 @@ class EventDatabase:
             event,
             AcousticEvent,
         ):
-
-            raise TypeError(
-                (
-                    "event must be "
-                    "an AcousticEvent instance"
-                )
-            )
+            raise TypeError(("event must be an AcousticEvent instance"))
 
         # ==============================================================
         # EVENT IDENTITY
         # ==============================================================
 
-        detector_event_id = (
-            self._positive_id(
-                event.event_id,
-                name=
-                    "detector_event_id",
-            )
+        detector_event_id = self._positive_id(
+            event.event_id,
+            name="detector_event_id",
         )
 
-        session_id = (
-            self._positive_id(
-                event.session_id,
-                name=
-                    "event session_id",
-                maximum=
-                    UINT32_MAX,
-            )
+        session_id = self._positive_id(
+            event.session_id,
+            name="event session_id",
+            maximum=UINT32_MAX,
         )
 
-        start_sample = (
-            self._sample_index(
-                event.start_sample,
-                name=
-                    "event start_sample",
-            )
+        start_sample = self._sample_index(
+            event.start_sample,
+            name="event start_sample",
         )
 
-        end_sample = (
-            self._sample_index(
-                event.end_sample,
-                name=
-                    "event end_sample",
-            )
+        end_sample = self._sample_index(
+            event.end_sample,
+            name="event end_sample",
         )
 
-        if (
-            end_sample
-            < start_sample
-        ):
+        if end_sample < start_sample:
+            raise ValueError(("event end_sample cannot be smaller than start_sample"))
 
-            raise ValueError(
-                (
-                    "event end_sample cannot "
-                    "be smaller than start_sample"
-                )
-            )
-
-        peak_rms_dbfs = (
-            self._finite_float(
-                event.peak_rms_dbfs,
-                name=
-                    "event peak_rms_dbfs",
-            )
+        peak_rms_dbfs = self._finite_float(
+            event.peak_rms_dbfs,
+            name="event peak_rms_dbfs",
         )
 
         # ==============================================================
@@ -2103,143 +1172,78 @@ class EventDatabase:
             {
                 self._positive_id(
                     node_id,
-                    name=
-                        "trigger node_id",
-                    maximum=
-                        UINT8_MAX,
+                    name="trigger node_id",
+                    maximum=UINT8_MAX,
                 )
-
-                for node_id
-                in event.trigger_nodes
+                for node_id in event.trigger_nodes
             }
         )
 
-        if not (
-            trigger_nodes
-        ):
+        if not (trigger_nodes):
+            raise ValueError(("AcousticEvent must contain at least one trigger node"))
 
-            raise ValueError(
-                (
-                    "AcousticEvent must contain "
-                    "at least one trigger node"
-                )
-            )
-
-        trigger_nodes_json = (
-            self._json_dumps(
-                trigger_nodes
-            )
-        )
+        trigger_nodes_json = self._json_dumps(trigger_nodes)
 
         # ==============================================================
         # BEST NODE
         # ==============================================================
 
-        if (
-            best_node_id
-            is not None
-        ):
-
-            best_node_id = (
-                self._positive_id(
-                    best_node_id,
-                    name=
-                        "best_node_id",
-                    maximum=
-                        UINT8_MAX,
-                )
+        if best_node_id is not None:
+            best_node_id = self._positive_id(
+                best_node_id,
+                name="best_node_id",
+                maximum=UINT8_MAX,
             )
 
         # ==============================================================
         # ENVIRONMENT
         # ==============================================================
 
-        if (
-            environment
-            is None
-        ):
+        if environment is None:
+            temperature = None
 
-            temperature = (
-                None
-            )
+            humidity = None
 
-            humidity = (
-                None
-            )
-
-            pressure = (
-                None
-            )
+            pressure = None
 
         else:
-
             if not isinstance(
                 environment,
                 EnvironmentPayload,
             ):
+                raise TypeError(("environment must be EnvironmentPayload or None"))
 
-                raise TypeError(
-                    (
-                        "environment must be "
-                        "EnvironmentPayload or None"
-                    )
-                )
-
-            temperature = (
-                self._finite_float(
-                    environment.temperature_c,
-                    name=
-                        "event temperature_c",
-                )
+            temperature = self._finite_float(
+                environment.temperature_c,
+                name="event temperature_c",
             )
 
-            humidity = (
-                self._finite_float(
-                    environment.humidity_percent,
-                    name=
-                        "event humidity_percent",
-                )
+            humidity = self._finite_float(
+                environment.humidity_percent,
+                name="event humidity_percent",
             )
 
-            pressure = (
-                self._finite_float(
-                    environment.pressure_hpa,
-                    name=
-                        "event pressure_hpa",
-                )
+            pressure = self._finite_float(
+                environment.pressure_hpa,
+                name="event pressure_hpa",
             )
 
         # ==============================================================
         # LOCALIZATION
         # ==============================================================
 
-        if (
-            localization
-            is None
-        ):
+        if localization is None:
+            speed_of_sound = None
 
-            speed_of_sound = (
-                None
-            )
+            x_m = None
 
-            x_m = (
-                None
-            )
+            y_m = None
 
-            y_m = (
-                None
-            )
+            localization_success = None
 
-            localization_success = (
-                None
-            )
-
-            localization_residual = (
-                None
-            )
+            localization_residual = None
 
         else:
-
             if not isinstance(
                 localization,
                 LocalizationResult,
@@ -2247,62 +1251,38 @@ class EventDatabase:
                 localization,
                 "position",
             ):
+                raise TypeError(("localization must be LocalizationResult or None"))
 
-                raise TypeError(
-                    (
-                        "localization must be "
-                        "LocalizationResult or None"
-                    )
-                )
-
-            speed_of_sound = (
-                self._finite_float(
-                    localization.speed_of_sound_mps,
-                    name=
-                        "speed_of_sound_mps",
-                )
+            speed_of_sound = self._finite_float(
+                localization.speed_of_sound_mps,
+                name="speed_of_sound_mps",
             )
 
-            position = (
-                localization.position
-            )
+            position = localization.position
 
-            localization_success = int(
-                bool(
-                    position.success
-                )
-            )
+            localization_success = int(bool(position.success))
 
             if localization_success:
-
                 x_m = self._finite_float(
                     position.x,
-                    name=
-                        "localization x_m",
+                    name="localization x_m",
                 )
                 y_m = self._finite_float(
                     position.y,
-                    name=
-                        "localization y_m",
+                    name="localization y_m",
                 )
                 localization_residual = self._finite_float(
                     position.residual_rms_meters,
-                    name=
-                        "localization_residual_m",
+                    name="localization_residual_m",
                 )
 
             else:
-
                 # A failed solver may intentionally expose NaN coordinates
                 # and residuals. Preserve the failed-attempt flag while
                 # storing unavailable numeric estimates as SQL NULL so the
                 # core acoustic event is not lost.
-                x_m = self._finite_float_or_none(
-                    position.x
-                )
-                y_m = self._finite_float_or_none(
-                    position.y
-                )
+                x_m = self._finite_float_or_none(position.x)
+                y_m = self._finite_float_or_none(position.y)
                 localization_residual = self._finite_float_or_none(
                     position.residual_rms_meters
                 )
@@ -2311,14 +1291,8 @@ class EventDatabase:
         # EVENT DIRECTORY
         # ==============================================================
 
-        if (
-            event_directory
-            is not None
-        ):
-
-            event_directory = str(
-                event_directory
-            )
+        if event_directory is not None:
+            event_directory = str(event_directory)
 
         # ==============================================================
         # INSERT
@@ -2328,7 +1302,6 @@ class EventDatabase:
             self._lock,
             self._connect() as conn,
         ):
-
             cursor = conn.execute(
                 """
                 INSERT INTO events(
@@ -2387,58 +1360,30 @@ class EventDatabase:
                 """,
                 (
                     detector_event_id,
-
                     session_id,
-
                     start_sample,
-
                     end_sample,
-
                     trigger_nodes_json,
-
                     peak_rms_dbfs,
-
                     best_node_id,
-
                     temperature,
-
                     humidity,
-
                     pressure,
-
                     speed_of_sound,
-
                     x_m,
-
                     y_m,
-
                     localization_success,
-
                     localization_residual,
-
                     event_directory,
                 ),
             )
 
-            database_event_id = (
-                cursor.lastrowid
-            )
+            database_event_id = cursor.lastrowid
 
-            if (
-                database_event_id
-                is None
-            ):
+            if database_event_id is None:
+                raise RuntimeError(("SQLite did not return an event row ID"))
 
-                raise RuntimeError(
-                    (
-                        "SQLite did not return "
-                        "an event row ID"
-                    )
-                )
-
-            return int(
-                database_event_id
-            )
+            return int(database_event_id)
 
     # ==================================================================
     # DSP FEATURE OPERATIONS
@@ -2457,35 +1402,22 @@ class EventDatabase:
         event_id refers to events.id, not detector_event_id.
         """
 
-        event_id = (
-            self._positive_id(
-                event_id,
-                name=
-                    "event_id",
-            )
+        event_id = self._positive_id(
+            event_id,
+            name="event_id",
         )
 
-        source_node_id = (
-            self._positive_id(
-                source_node_id,
-                name=
-                    "source_node_id",
-                maximum=
-                    UINT8_MAX,
-            )
+        source_node_id = self._positive_id(
+            source_node_id,
+            name="source_node_id",
+            maximum=UINT8_MAX,
         )
 
         if not isinstance(
             features,
             AcousticFeatures,
         ):
-
-            raise TypeError(
-                (
-                    "features must be an "
-                    "AcousticFeatures instance"
-                )
-            )
+            raise TypeError(("features must be an AcousticFeatures instance"))
 
         # ==============================================================
         # MFCC
@@ -2494,135 +1426,85 @@ class EventDatabase:
         mfcc_mean = [
             self._finite_float(
                 value,
-                name=
-                    "MFCC mean value",
+                name="MFCC mean value",
             )
-
-            for value
-            in features.mfcc_mean
+            for value in features.mfcc_mean
         ]
 
         mfcc_std = [
             self._finite_float(
                 value,
-                name=
-                    "MFCC std value",
+                name="MFCC std value",
             )
-
-            for value
-            in features.mfcc_std
+            for value in features.mfcc_std
         ]
 
-        mfcc_mean_json = (
-            self._json_dumps(
-                mfcc_mean
-            )
-        )
+        mfcc_mean_json = self._json_dumps(mfcc_mean)
 
-        mfcc_std_json = (
-            self._json_dumps(
-                mfcc_std
-            )
-        )
+        mfcc_std_json = self._json_dumps(mfcc_std)
 
         # ==============================================================
         # SCALAR FEATURES
         # ==============================================================
 
-        duration_s = (
-            self._finite_float(
-                features.duration_s,
-                name=
-                    "features.duration_s",
-            )
+        duration_s = self._finite_float(
+            features.duration_s,
+            name="features.duration_s",
         )
 
-        rms = (
-            self._finite_float(
-                features.rms,
-                name=
-                    "features.rms",
-            )
+        rms = self._finite_float(
+            features.rms,
+            name="features.rms",
         )
 
-        peak_amplitude = (
-            self._finite_float(
-                features.peak_amplitude,
-                name=
-                    "features.peak_amplitude",
-            )
+        peak_amplitude = self._finite_float(
+            features.peak_amplitude,
+            name="features.peak_amplitude",
         )
 
-        crest_factor = (
-            self._finite_float(
-                features.crest_factor,
-                name=
-                    "features.crest_factor",
-            )
+        crest_factor = self._finite_float(
+            features.crest_factor,
+            name="features.crest_factor",
         )
 
-        zero_crossing_rate = (
-            self._finite_float(
-                features.zero_crossing_rate,
-                name=
-                    "features.zero_crossing_rate",
-            )
+        zero_crossing_rate = self._finite_float(
+            features.zero_crossing_rate,
+            name="features.zero_crossing_rate",
         )
 
-        dominant_frequency_hz = (
-            self._finite_float(
-                features.dominant_frequency_hz,
-                name=
-                    "features.dominant_frequency_hz",
-            )
+        dominant_frequency_hz = self._finite_float(
+            features.dominant_frequency_hz,
+            name="features.dominant_frequency_hz",
         )
 
-        spectral_centroid_hz = (
-            self._finite_float(
-                features.spectral_centroid_hz,
-                name=
-                    "features.spectral_centroid_hz",
-            )
+        spectral_centroid_hz = self._finite_float(
+            features.spectral_centroid_hz,
+            name="features.spectral_centroid_hz",
         )
 
-        spectral_bandwidth_hz = (
-            self._finite_float(
-                features.spectral_bandwidth_hz,
-                name=
-                    "features.spectral_bandwidth_hz",
-            )
+        spectral_bandwidth_hz = self._finite_float(
+            features.spectral_bandwidth_hz,
+            name="features.spectral_bandwidth_hz",
         )
 
-        spectral_rolloff_hz = (
-            self._finite_float(
-                features.spectral_rolloff_hz,
-                name=
-                    "features.spectral_rolloff_hz",
-            )
+        spectral_rolloff_hz = self._finite_float(
+            features.spectral_rolloff_hz,
+            name="features.spectral_rolloff_hz",
         )
 
-        spectral_flatness = (
-            self._finite_float(
-                features.spectral_flatness,
-                name=
-                    "features.spectral_flatness",
-            )
+        spectral_flatness = self._finite_float(
+            features.spectral_flatness,
+            name="features.spectral_flatness",
         )
 
-        spectral_flux = (
-            self._finite_float(
-                features.spectral_flux,
-                name=
-                    "features.spectral_flux",
-            )
+        spectral_flux = self._finite_float(
+            features.spectral_flux,
+            name="features.spectral_flux",
         )
 
-        snr_db = (
-            self._optional_finite_float(
-                features.snr_db,
-                name=
-                    "features.snr_db",
-            )
+        snr_db = self._optional_finite_float(
+            features.snr_db,
+            name="features.snr_db",
         )
 
         # ==============================================================
@@ -2633,7 +1515,6 @@ class EventDatabase:
             self._lock,
             self._connect() as conn,
         ):
-
             conn.execute(
                 """
                 INSERT INTO event_features(
@@ -2740,35 +1621,20 @@ class EventDatabase:
                 """,
                 (
                     event_id,
-
                     source_node_id,
-
                     duration_s,
-
                     rms,
-
                     peak_amplitude,
-
                     crest_factor,
-
                     zero_crossing_rate,
-
                     dominant_frequency_hz,
-
                     spectral_centroid_hz,
-
                     spectral_bandwidth_hz,
-
                     spectral_rolloff_hz,
-
                     spectral_flatness,
-
                     spectral_flux,
-
                     snr_db,
-
                     mfcc_mean_json,
-
                     mfcc_std_json,
                 ),
             )
@@ -2793,9 +1659,7 @@ class EventDatabase:
             key,
         )
 
-        return str(
-            value
-        )
+        return str(value)
 
     # ==================================================================
     # CLASSIFICATION OPERATIONS
@@ -2811,82 +1675,48 @@ class EventDatabase:
         Store or update broad acoustic classification for one event.
         """
 
-        event_id = (
-            self._positive_id(
-                event_id,
-                name=
-                    "event_id",
-            )
+        event_id = self._positive_id(
+            event_id,
+            name="event_id",
         )
 
         if not isinstance(
             result,
             ClassificationResult,
         ):
-
-            raise TypeError(
-                (
-                    "result must be a "
-                    "ClassificationResult instance"
-                )
-            )
+            raise TypeError(("result must be a ClassificationResult instance"))
 
         # ==============================================================
         # PRIMARY RESULT
         # ==============================================================
 
-        label = str(
-            result.label.value
+        label = str(result.label.value)
+
+        confidence = self._finite_float(
+            result.confidence,
+            name="classification confidence",
         )
 
-        confidence = (
-            self._finite_float(
-                result.confidence,
-                name=
-                    "classification confidence",
-            )
-        )
-
-        margin = (
-            self._finite_float(
-                result.margin,
-                name=
-                    "classification margin",
-            )
+        margin = self._finite_float(
+            result.margin,
+            name="classification margin",
         )
 
         # ==============================================================
         # SECOND CANDIDATE
         # ==============================================================
 
-        if (
-            result.second_label
-            is None
-        ):
+        if result.second_label is None:
+            second_label = None
 
-            second_label = (
-                None
-            )
-
-            second_confidence = (
-                None
-            )
+            second_confidence = None
 
         else:
+            second_label = str(result.second_label.value)
 
-            second_label = str(
-                result.second_label.value
-            )
-
-            second_confidence = (
-                self._optional_finite_float(
-                    result.second_confidence,
-                    name=
-                        (
-                            "classification "
-                            "second_confidence"
-                        ),
-                )
+            second_confidence = self._optional_finite_float(
+                result.second_confidence,
+                name=("classification second_confidence"),
             )
 
         # ==============================================================
@@ -2894,83 +1724,40 @@ class EventDatabase:
         # ==============================================================
 
         scores = {
-            self._classification_score_key(
-                score_label
-            ):
-                self._finite_float(
-                    score,
-                    name=
-                        (
-                            "classification score "
-                            f"{score_label!r}"
-                        ),
-                )
-
+            self._classification_score_key(score_label): self._finite_float(
+                score,
+                name=(f"classification score {score_label!r}"),
+            )
             for (
                 score_label,
                 score,
-            )
-            in result.scores.items()
+            ) in result.scores.items()
         }
 
-        scores_json = (
-            self._json_dumps(
-                scores,
-                sort_keys=
-                    True,
-            )
+        scores_json = self._json_dumps(
+            scores,
+            sort_keys=True,
         )
 
         # ==============================================================
         # REASONS
         # ==============================================================
 
-        reasons_json = (
-            self._json_dumps(
-                [
-                    str(
-                        reason
-                    )
-
-                    for reason
-                    in result.reasons
-                ]
-            )
-        )
+        reasons_json = self._json_dumps([str(reason) for reason in result.reasons])
 
         # ==============================================================
         # CLASSIFIER IDENTITY
         # ==============================================================
 
-        classifier_name = str(
-            result.classifier_name
-        )
+        classifier_name = str(result.classifier_name)
 
-        classifier_version = str(
-            result.classifier_version
-        )
+        classifier_version = str(result.classifier_version)
 
-        if not (
-            classifier_name.strip()
-        ):
+        if not (classifier_name.strip()):
+            raise ValueError(("classifier_name cannot be empty"))
 
-            raise ValueError(
-                (
-                    "classifier_name "
-                    "cannot be empty"
-                )
-            )
-
-        if not (
-            classifier_version.strip()
-        ):
-
-            raise ValueError(
-                (
-                    "classifier_version "
-                    "cannot be empty"
-                )
-            )
+        if not (classifier_version.strip()):
+            raise ValueError(("classifier_version cannot be empty"))
 
         # ==============================================================
         # UPSERT
@@ -2980,7 +1767,6 @@ class EventDatabase:
             self._lock,
             self._connect() as conn,
         ):
-
             conn.execute(
                 """
                 INSERT INTO classifications(
@@ -3051,23 +1837,14 @@ class EventDatabase:
                 """,
                 (
                     event_id,
-
                     label,
-
                     confidence,
-
                     second_label,
-
                     second_confidence,
-
                     margin,
-
                     scores_json,
-
                     reasons_json,
-
                     classifier_name,
-
                     classifier_version,
                 ),
             )
@@ -3295,9 +2072,7 @@ class EventDatabase:
     def recent_events(
         self,
         limit: int = 10,
-    ) -> list[
-        sqlite3.Row
-    ]:
+    ) -> list[sqlite3.Row]:
         """
         Return newest events together with DSP and classification data.
         """
@@ -3306,29 +2081,15 @@ class EventDatabase:
             limit,
             bool,
         ):
+            raise TypeError("limit must be an integer")
 
-            raise TypeError(
-                "limit must be an integer"
-            )
+        limit = int(limit)
 
-        limit = int(
-            limit
-        )
-
-        if (
-            limit
-            <= 0
-        ):
-
-            return (
-                []
-            )
+        if limit <= 0:
+            return []
 
         with self._connect() as conn:
-
-            conn.row_factory = (
-                sqlite3.Row
-            )
+            conn.row_factory = sqlite3.Row
 
             query = (
                 self._event_select_query()
@@ -3340,19 +2101,12 @@ class EventDatabase:
                 """
             )
 
-            rows = (
-                conn.execute(
-                    query,
-                    (
-                        limit,
-                    ),
-                )
-                .fetchall()
-            )
+            rows = conn.execute(
+                query,
+                (limit,),
+            ).fetchall()
 
-            return list(
-                rows
-            )
+            return list(rows)
 
     # ==================================================================
     # ONE EVENT
@@ -3370,40 +2124,22 @@ class EventDatabase:
             event_id,
             bool,
         ):
-
-            return (
-                None
-            )
+            return None
 
         try:
-
-            event_id = int(
-                event_id
-            )
+            event_id = int(event_id)
 
         except (
             TypeError,
             ValueError,
         ):
+            return None
 
-            return (
-                None
-            )
-
-        if (
-            event_id
-            <= 0
-        ):
-
-            return (
-                None
-            )
+        if event_id <= 0:
+            return None
 
         with self._connect() as conn:
-
-            conn.row_factory = (
-                sqlite3.Row
-            )
+            conn.row_factory = sqlite3.Row
 
             query = (
                 self._event_select_query()
@@ -3415,15 +2151,10 @@ class EventDatabase:
                 """
             )
 
-            return (
-                conn.execute(
-                    query,
-                    (
-                        event_id,
-                    ),
-                )
-                .fetchone()
-            )
+            return conn.execute(
+                query,
+                (event_id,),
+            ).fetchone()
 
     # ==================================================================
     # ANALYTICS EVENT ROWS
@@ -3442,246 +2173,8 @@ class EventDatabase:
             Any,
         ]
     ]:
-        """
-        Return normalized event rows for the research analytics package.
-
-        The key addition is:
-
-            event_time
-
-        derived from:
-
-            session.started_at
-                +
-            event.start_sample / sample_rate
-
-
-        Parameters
-        ----------
-        sample_rate
-            Audio sampling frequency used by the acquisition session.
-
-        session_id
-            Optional acquisition-session filter.
-
-        start
-            Optional inclusive UTC time boundary.
-
-        end
-            Optional exclusive UTC time boundary.
-
-
-        Returns
-        -------
-        list[dict]
-            Chronologically ordered analytics rows.
-
-            Existing event/DSP/classification fields are preserved and
-            ``event_time`` is added.
-        """
-
-        sample_rate = (
-            self._positive_sample_rate(
-                sample_rate
-            )
-        )
-
-        if (
-            session_id
-            is not None
-        ):
-
-            session_id = (
-                self._positive_id(
-                    session_id,
-                    name=
-                        "session_id",
-                    maximum=
-                        UINT32_MAX,
-                )
-            )
-
-        start_dt = (
-            self._optional_query_datetime(
-                start,
-                name=
-                    "start",
-            )
-        )
-
-        end_dt = (
-            self._optional_query_datetime(
-                end,
-                name=
-                    "end",
-            )
-        )
-
-        if (
-            start_dt
-            is not None
-            and end_dt
-            is not None
-            and end_dt
-            < start_dt
-        ):
-
-            raise ValueError(
-                "end cannot be earlier than start"
-            )
-
-        with self._connect() as conn:
-
-            conn.row_factory = (
-                sqlite3.Row
-            )
-
-            query = (
-                self._analytics_event_select_query()
-            )
-
-            parameters: list[
-                Any
-            ] = []
-
-            if (
-                session_id
-                is not None
-            ):
-
-                query += """
-
-                    WHERE e.session_id = ?
-                """
-
-                parameters.append(
-                    session_id
-                )
-
-            query += """
-
-                ORDER BY
-
-                    s.started_at ASC,
-
-                    e.start_sample ASC,
-
-                    e.id ASC
-            """
-
-            raw_rows = (
-                conn.execute(
-                    query,
-                    tuple(
-                        parameters
-                    ),
-                )
-                .fetchall()
-            )
-
-        result: list[
-            dict[
-                str,
-                Any,
-            ]
-        ] = []
-
-        for raw_row in (
-            raw_rows
-        ):
-
-            row = dict(
-                raw_row
-            )
-
-            event_time = (
-                self._sample_time(
-                    session_started_at=
-                        row[
-                            "session_started_at"
-                        ],
-
-                    sample_index=
-                        int(
-                            row[
-                                "start_sample"
-                            ]
-                        ),
-
-                    sample_rate=
-                        sample_rate,
-                )
-            )
-
-            # ----------------------------------------------------------
-            # HALF-OPEN QUERY INTERVAL
-            #
-            #     [start, end)
-            # ----------------------------------------------------------
-
-            if (
-                start_dt
-                is not None
-                and event_time
-                < start_dt
-            ):
-
-                continue
-
-            if (
-                end_dt
-                is not None
-                and event_time
-                >= end_dt
-            ):
-
-                continue
-
-            row[
-                "event_time"
-            ] = (
-                self._datetime_to_iso(
-                    event_time
-                )
-            )
-
-            # ----------------------------------------------------------
-            # NORMALIZED EVENT END TIME
-            # ----------------------------------------------------------
-
-            event_end_time = (
-                self._sample_time(
-                    session_started_at=
-                        row[
-                            "session_started_at"
-                        ],
-
-                    sample_index=
-                        int(
-                            row[
-                                "end_sample"
-                            ]
-                        ),
-
-                    sample_rate=
-                        sample_rate,
-                )
-            )
-
-            row[
-                "event_end_time"
-            ] = (
-                self._datetime_to_iso(
-                    event_end_time
-                )
-            )
-
-            result.append(
-                row
-            )
-
-        return (
-            result
+        return queries.analytics_event_rows(
+            self, sample_rate=sample_rate, session_id=session_id, start=start, end=end
         )
 
     # ==================================================================
@@ -3702,261 +2195,13 @@ class EventDatabase:
             Any,
         ]
     ]:
-        """
-        Return BME280 telemetry on the reconstructed session timeline.
-
-        The returned additional key is:
-
-            telemetry_time
-
-        derived from:
-
-            session.started_at
-                +
-            telemetry.sample_index / sample_rate
-        """
-
-        sample_rate = (
-            self._positive_sample_rate(
-                sample_rate
-            )
-        )
-
-        if (
-            session_id
-            is not None
-        ):
-
-            session_id = (
-                self._positive_id(
-                    session_id,
-                    name=
-                        "session_id",
-                    maximum=
-                        UINT32_MAX,
-                )
-            )
-
-        if (
-            node_id
-            is not None
-        ):
-
-            node_id = (
-                self._positive_id(
-                    node_id,
-                    name=
-                        "node_id",
-                    maximum=
-                        UINT8_MAX,
-                )
-            )
-
-        start_dt = (
-            self._optional_query_datetime(
-                start,
-                name=
-                    "start",
-            )
-        )
-
-        end_dt = (
-            self._optional_query_datetime(
-                end,
-                name=
-                    "end",
-            )
-        )
-
-        if (
-            start_dt
-            is not None
-            and end_dt
-            is not None
-            and end_dt
-            < start_dt
-        ):
-
-            raise ValueError(
-                "end cannot be earlier than start"
-            )
-
-        where_parts: list[
-            str
-        ] = []
-
-        parameters: list[
-            Any
-        ] = []
-
-        if (
-            session_id
-            is not None
-        ):
-
-            where_parts.append(
-                "t.session_id = ?"
-            )
-
-            parameters.append(
-                session_id
-            )
-
-        if (
-            node_id
-            is not None
-        ):
-
-            where_parts.append(
-                "t.node_id = ?"
-            )
-
-            parameters.append(
-                node_id
-            )
-
-        query = """
-            SELECT
-
-                t.id,
-
-                t.session_id,
-
-                t.node_id,
-
-                t.sample_index,
-
-                t.temperature_c,
-
-                t.humidity_percent,
-
-                t.pressure_hpa,
-
-                t.created_at,
-
-                s.label
-                    AS session_label,
-
-                s.started_at
-                    AS session_started_at,
-
-                s.stopped_at
-                    AS session_stopped_at
-
-            FROM telemetry AS t
-
-            INNER JOIN sessions AS s
-
-                ON s.session_id = t.session_id
-        """
-
-        if (
-            where_parts
-        ):
-
-            query += (
-                """
-
-                WHERE
-                """
-                + " AND ".join(
-                    where_parts
-                )
-            )
-
-        query += """
-
-            ORDER BY
-
-                s.started_at ASC,
-
-                t.sample_index ASC,
-
-                t.id ASC
-        """
-
-        with self._connect() as conn:
-
-            conn.row_factory = (
-                sqlite3.Row
-            )
-
-            raw_rows = (
-                conn.execute(
-                    query,
-                    tuple(
-                        parameters
-                    ),
-                )
-                .fetchall()
-            )
-
-        result: list[
-            dict[
-                str,
-                Any,
-            ]
-        ] = []
-
-        for raw_row in (
-            raw_rows
-        ):
-
-            row = dict(
-                raw_row
-            )
-
-            telemetry_time = (
-                self._sample_time(
-                    session_started_at=
-                        row[
-                            "session_started_at"
-                        ],
-
-                    sample_index=
-                        int(
-                            row[
-                                "sample_index"
-                            ]
-                        ),
-
-                    sample_rate=
-                        sample_rate,
-                )
-            )
-
-            if (
-                start_dt
-                is not None
-                and telemetry_time
-                < start_dt
-            ):
-
-                continue
-
-            if (
-                end_dt
-                is not None
-                and telemetry_time
-                >= end_dt
-            ):
-
-                continue
-
-            row[
-                "telemetry_time"
-            ] = (
-                self._datetime_to_iso(
-                    telemetry_time
-                )
-            )
-
-            result.append(
-                row
-            )
-
-        return (
-            result
+        return queries.analytics_telemetry_rows(
+            self,
+            sample_rate=sample_rate,
+            session_id=session_id,
+            node_id=node_id,
+            start=start,
+            end=end,
         )
 
     # ==================================================================
@@ -3966,68 +2211,14 @@ class EventDatabase:
     def _session_metadata(
         self,
         session_id: int,
-    ) -> dict[
-        str,
-        Any,
-    ] | None:
-        """
-        Return one session as a plain dictionary.
-        """
-
-        session_id = (
-            self._positive_id(
-                session_id,
-                name=
-                    "session_id",
-                maximum=
-                    UINT32_MAX,
-            )
-        )
-
-        with self._connect() as conn:
-
-            conn.row_factory = (
-                sqlite3.Row
-            )
-
-            row = (
-                conn.execute(
-                    """
-                    SELECT
-
-                        session_id,
-
-                        label,
-
-                        started_at,
-
-                        stopped_at
-
-                    FROM sessions
-
-                    WHERE session_id = ?
-
-                    LIMIT 1
-                    """,
-                    (
-                        session_id,
-                    ),
-                )
-                .fetchone()
-            )
-
-        if (
-            row
-            is None
-        ):
-
-            return (
-                None
-            )
-
-        return dict(
-            row
-        )
+    ) -> (
+        dict[
+            str,
+            Any,
+        ]
+        | None
+    ):
+        return queries._session_metadata(self, session_id)
 
     # ==================================================================
     # EVENT DURATION FOR ANALYTICS
@@ -4043,77 +2234,7 @@ class EventDatabase:
         *,
         sample_rate: int,
     ) -> float:
-        """
-        Resolve event duration for temporal aggregation.
-
-        Priority
-        --------
-        1. DSP feature duration_s.
-        2. start/end sample-index difference.
-        3. 0.0.
-        """
-
-        feature_duration = (
-            cls._optional_nonnegative_float(
-                row.get(
-                    "duration_s"
-                )
-            )
-        )
-
-        if (
-            feature_duration
-            is not None
-        ):
-
-            return (
-                feature_duration
-            )
-
-        try:
-
-            start_sample = int(
-                row[
-                    "start_sample"
-                ]
-            )
-
-            end_sample = int(
-                row[
-                    "end_sample"
-                ]
-            )
-
-        except (
-            KeyError,
-            TypeError,
-            ValueError,
-        ):
-
-            return (
-                0.0
-            )
-
-        if (
-            start_sample
-            < 0
-            or end_sample
-            < start_sample
-        ):
-
-            return (
-                0.0
-            )
-
-        return (
-            (
-                end_sample
-                - start_sample
-            )
-            / float(
-                sample_rate
-            )
-        )
+        return queries._analytics_event_duration_s(cls, row, sample_rate=sample_rate)
 
     # ==================================================================
     # ENVIRONMENTAL OBSERVATION BINS
@@ -4134,955 +2255,14 @@ class EventDatabase:
             Any,
         ]
     ]:
-        """
-        Build regular within-session environmental/activity observations.
-
-        This is the database-side input expected by:
-
-            analytics.environmental
-
-
-        Why session_id is mandatory
-        ---------------------------
-        Zero-event bins are scientifically useful only while acquisition
-        is actually active.
-
-        Building one continuous timeline across several sessions would
-        incorrectly turn downtime between sessions into apparent
-        zero-activity observation periods.
-
-        Therefore environmental bins are intentionally generated one
-        acquisition session at a time.
-
-
-        Event count
-        -----------
-        An event is counted in the bin containing its ONSET.
-
-
-        Active duration
-        ---------------
-        Event duration is split across every temporal bin it overlaps.
-
-
-        Environmental variables
-        -----------------------
-        Temperature, humidity and pressure are arithmetic means of valid
-        BME280 telemetry samples inside each bin.
-
-
-        Zero-activity periods
-        ---------------------
-        Bins remain present even when:
-
-            event_count == 0
-
-        which is essential for unbiased activity-environment
-        association analysis.
-
-
-        Returns
-        -------
-        list[dict]
-
-        Example:
-
-        {
-            "session_id": 123,
-            "bucket_start": "...",
-            "bucket_end": "...",
-            "bucket_duration_s": 900.0,
-
-            "telemetry_sample_count": 30,
-
-            "temperature_c": 26.4,
-            "humidity_percent": 72.0,
-            "pressure_hpa": 1007.8,
-
-            "event_count": 4,
-            "active_duration_s": 8.2,
-            "event_rate_per_hour": 16.0,
-        }
-        """
-
-        session_id = (
-            self._positive_id(
-                session_id,
-                name=
-                    "session_id",
-                maximum=
-                    UINT32_MAX,
-            )
-        )
-
-        bucket_seconds = (
-            self._positive_bucket_seconds(
-                bucket_seconds
-            )
-        )
-
-        sample_rate = (
-            self._positive_sample_rate(
-                sample_rate
-            )
-        )
-
-        if (
-            node_id
-            is not None
-        ):
-
-            node_id = (
-                self._positive_id(
-                    node_id,
-                    name=
-                        "node_id",
-                    maximum=
-                        UINT8_MAX,
-                )
-            )
-
-        # ==============================================================
-        # SESSION
-        # ==============================================================
-
-        session = (
-            self._session_metadata(
-                session_id
-            )
-        )
-
-        if (
-            session
-            is None
-        ):
-
-            raise ValueError(
-                (
-                    "Unknown session_id: "
-                    f"0x{session_id:08X}"
-                )
-            )
-
-        session_start = (
-            self._parse_database_datetime(
-                session[
-                    "started_at"
-                ],
-                name=
-                    "session.started_at",
-            )
-        )
-
-        session_stop = (
-            None
-        )
-
-        if (
-            session[
-                "stopped_at"
-            ]
-            is not None
-        ):
-
-            session_stop = (
-                self._parse_database_datetime(
-                    session[
-                        "stopped_at"
-                    ],
-                    name=
-                        "session.stopped_at",
-                )
-            )
-
-        # ==============================================================
-        # USER REQUESTED RANGE
-        # ==============================================================
-
-        requested_start = (
-            self._optional_query_datetime(
-                start,
-                name=
-                    "start",
-            )
-        )
-
-        requested_end = (
-            self._optional_query_datetime(
-                end,
-                name=
-                    "end",
-            )
-        )
-
-        if (
-            requested_start
-            is not None
-            and requested_end
-            is not None
-            and requested_end
-            <= requested_start
-        ):
-
-            raise ValueError(
-                "end must be later than start"
-            )
-
-        # ==============================================================
-        # LOAD COMPLETE SESSION DATA
-        # ==============================================================
-        #
-        # Do not apply start/end yet.
-        #
-        # An event beginning just before the requested window may still
-        # overlap the first bin and contribute active duration.
-        # ==============================================================
-
-        event_rows = (
-            self.analytics_event_rows(
-                sample_rate=
-                    sample_rate,
-                session_id=
-                    session_id,
-            )
-        )
-
-        telemetry_rows = (
-            self.analytics_telemetry_rows(
-                sample_rate=
-                    sample_rate,
-                session_id=
-                    session_id,
-                node_id=
-                    node_id,
-            )
-        )
-
-        # ==============================================================
-        # RESOLVE OBSERVATION START
-        # ==============================================================
-
-        analysis_start = (
-            session_start
-        )
-
-        if (
-            requested_start
-            is not None
-        ):
-
-            analysis_start = max(
-                analysis_start,
-                requested_start,
-            )
-
-        # ==============================================================
-        # RESOLVE OBSERVATION END
-        # ==============================================================
-
-        if (
-            session_stop
-            is not None
-        ):
-
-            natural_end = (
-                session_stop
-            )
-
-        else:
-
-            # ----------------------------------------------------------
-            # ACTIVE / UNSTOPPED SESSION
-            #
-            # Use latest known sample-derived observation rather than
-            # inventing an unobserved future interval.
-            # ----------------------------------------------------------
-
-            candidates: list[
-                datetime
-            ] = []
-
-            for row in (
-                telemetry_rows
-            ):
-
-                candidates.append(
-                    self._parse_database_datetime(
-                        row[
-                            "telemetry_time"
-                        ],
-                        name=
-                            "telemetry_time",
-                    )
-                )
-
-            for row in (
-                event_rows
-            ):
-
-                event_end = (
-                    self._parse_database_datetime(
-                        row[
-                            "event_end_time"
-                        ],
-                        name=
-                            "event_end_time",
-                    )
-                )
-
-                candidates.append(
-                    event_end
-                )
-
-            if not (
-                candidates
-            ):
-
-                return (
-                    []
-                )
-
-            natural_end = max(
-                candidates
-            )
-
-        analysis_end = (
-            natural_end
-        )
-
-        if (
-            requested_end
-            is not None
-        ):
-
-            analysis_end = min(
-                analysis_end,
-                requested_end,
-            )
-
-        if (
-            analysis_end
-            <= analysis_start
-        ):
-
-            return (
-                []
-            )
-
-        # ==============================================================
-        # BIN COUNT
-        # ==============================================================
-
-        observation_duration_s = (
-            analysis_end
-            - analysis_start
-        ).total_seconds()
-
-        bin_count = int(
-            math.ceil(
-                observation_duration_s
-                / bucket_seconds
-            )
-        )
-
-        if (
-            bin_count
-            <= 0
-        ):
-
-            return (
-                []
-            )
-
-        # ==============================================================
-        # ACCUMULATORS
-        # ==============================================================
-
-        event_counts = [
-            0
-
-            for _ in range(
-                bin_count
-            )
-        ]
-
-        active_durations = [
-            0.0
-
-            for _ in range(
-                bin_count
-            )
-        ]
-
-        temperatures: list[
-            list[
-                float
-            ]
-        ] = [
-            []
-
-            for _ in range(
-                bin_count
-            )
-        ]
-
-        humidities: list[
-            list[
-                float
-            ]
-        ] = [
-            []
-
-            for _ in range(
-                bin_count
-            )
-        ]
-
-        pressures: list[
-            list[
-                float
-            ]
-        ] = [
-            []
-
-            for _ in range(
-                bin_count
-            )
-        ]
-
-        telemetry_counts = [
-            0
-
-            for _ in range(
-                bin_count
-            )
-        ]
-
-        # ==============================================================
-        # TELEMETRY -> BINS
-        # ==============================================================
-
-        for row in (
-            telemetry_rows
-        ):
-
-            timestamp = (
-                self._parse_database_datetime(
-                    row[
-                        "telemetry_time"
-                    ],
-                    name=
-                        "telemetry_time",
-                )
-            )
-
-            if not (
-                analysis_start
-                <= timestamp
-                < analysis_end
-            ):
-
-                continue
-
-            elapsed_s = (
-                timestamp
-                - analysis_start
-            ).total_seconds()
-
-            bin_index = int(
-                elapsed_s
-                // bucket_seconds
-            )
-
-            if not (
-                0
-                <= bin_index
-                < bin_count
-            ):
-
-                continue
-
-            temperature = (
-                self._optional_finite_float(
-                    row.get(
-                        "temperature_c"
-                    ),
-                    name=
-                        "temperature_c",
-                )
-            )
-
-            humidity = (
-                self._optional_finite_float(
-                    row.get(
-                        "humidity_percent"
-                    ),
-                    name=
-                        "humidity_percent",
-                )
-            )
-
-            pressure = (
-                self._optional_finite_float(
-                    row.get(
-                        "pressure_hpa"
-                    ),
-                    name=
-                        "pressure_hpa",
-                )
-            )
-
-            telemetry_counts[
-                bin_index
-            ] += (
-                1
-            )
-
-            if (
-                temperature
-                is not None
-            ):
-
-                temperatures[
-                    bin_index
-                ].append(
-                    temperature
-                )
-
-            if (
-                humidity
-                is not None
-            ):
-
-                humidities[
-                    bin_index
-                ].append(
-                    humidity
-                )
-
-            if (
-                pressure
-                is not None
-            ):
-
-                pressures[
-                    bin_index
-                ].append(
-                    pressure
-                )
-
-        # ==============================================================
-        # EVENTS -> BINS
-        # ==============================================================
-
-        for row in (
-            event_rows
-        ):
-
-            event_start = (
-                self._parse_database_datetime(
-                    row[
-                        "event_time"
-                    ],
-                    name=
-                        "event_time",
-                )
-            )
-
-            duration_s = (
-                self._analytics_event_duration_s(
-                    row,
-                    sample_rate=
-                        sample_rate,
-                )
-            )
-
-            event_end = (
-                event_start
-                + timedelta(
-                    seconds=
-                        duration_s
-                )
-            )
-
-            # ----------------------------------------------------------
-            # EVENT-ONSET COUNT
-            # ----------------------------------------------------------
-
-            if (
-                analysis_start
-                <= event_start
-                < analysis_end
-            ):
-
-                elapsed_s = (
-                    event_start
-                    - analysis_start
-                ).total_seconds()
-
-                onset_bin = int(
-                    elapsed_s
-                    // bucket_seconds
-                )
-
-                if (
-                    0
-                    <= onset_bin
-                    < bin_count
-                ):
-
-                    event_counts[
-                        onset_bin
-                    ] += (
-                        1
-                    )
-
-            # ----------------------------------------------------------
-            # ZERO-DURATION EVENT
-            # ----------------------------------------------------------
-
-            if (
-                duration_s
-                <= 0.0
-            ):
-
-                continue
-
-            # ----------------------------------------------------------
-            # EVENT DOES NOT OVERLAP ANALYSIS WINDOW
-            # ----------------------------------------------------------
-
-            if (
-                event_end
-                <= analysis_start
-                or event_start
-                >= analysis_end
-            ):
-
-                continue
-
-            overlap_start = max(
-                event_start,
-                analysis_start,
-            )
-
-            overlap_end = min(
-                event_end,
-                analysis_end,
-            )
-
-            if (
-                overlap_end
-                <= overlap_start
-            ):
-
-                continue
-
-            # ----------------------------------------------------------
-            # FIRST / LAST OVERLAPPED BIN
-            # ----------------------------------------------------------
-
-            first_bin = int(
-                (
-                    overlap_start
-                    - analysis_start
-                ).total_seconds()
-                // bucket_seconds
-            )
-
-            last_position_s = (
-                (
-                    overlap_end
-                    - analysis_start
-                ).total_seconds()
-            )
-
-            # ----------------------------------------------------------
-            # Subtract a tiny numerical epsilon so an event ending
-            # exactly on a bin boundary does not spill into the next bin.
-            # ----------------------------------------------------------
-
-            last_bin = int(
-                max(
-                    0.0,
-                    last_position_s
-                    - 1e-12,
-                )
-                // bucket_seconds
-            )
-
-            first_bin = max(
-                0,
-                min(
-                    first_bin,
-                    bin_count
-                    - 1,
-                ),
-            )
-
-            last_bin = max(
-                0,
-                min(
-                    last_bin,
-                    bin_count
-                    - 1,
-                ),
-            )
-
-            for bin_index in range(
-                first_bin,
-                last_bin
-                + 1,
-            ):
-
-                bin_start = (
-                    analysis_start
-                    + timedelta(
-                        seconds=
-                            (
-                                bin_index
-                                * bucket_seconds
-                            )
-                    )
-                )
-
-                bin_end = min(
-                    (
-                        bin_start
-                        + timedelta(
-                            seconds=
-                                bucket_seconds
-                        )
-                    ),
-                    analysis_end,
-                )
-
-                segment_start = max(
-                    event_start,
-                    bin_start,
-                )
-
-                segment_end = min(
-                    event_end,
-                    bin_end,
-                )
-
-                if (
-                    segment_end
-                    <= segment_start
-                ):
-
-                    continue
-
-                active_durations[
-                    bin_index
-                ] += (
-                    (
-                        segment_end
-                        - segment_start
-                    ).total_seconds()
-                )
-
-        # ==============================================================
-        # BUILD NORMALIZED OBSERVATION ROWS
-        # ==============================================================
-
-        result: list[
-            dict[
-                str,
-                Any,
-            ]
-        ] = []
-
-        for bin_index in range(
-            bin_count
-        ):
-
-            bucket_start = (
-                analysis_start
-                + timedelta(
-                    seconds=
-                        (
-                            bin_index
-                            * bucket_seconds
-                        )
-                )
-            )
-
-            bucket_end = min(
-                (
-                    bucket_start
-                    + timedelta(
-                        seconds=
-                            bucket_seconds
-                    )
-                ),
-                analysis_end,
-            )
-
-            bucket_duration_s = (
-                bucket_end
-                - bucket_start
-            ).total_seconds()
-
-            if (
-                bucket_duration_s
-                <= 0.0
-            ):
-
-                continue
-
-            # ----------------------------------------------------------
-            # ENVIRONMENTAL MEANS
-            # ----------------------------------------------------------
-
-            temperature_c = (
-                None
-            )
-
-            if (
-                temperatures[
-                    bin_index
-                ]
-            ):
-
-                temperature_c = (
-                    math.fsum(
-                        temperatures[
-                            bin_index
-                        ]
-                    )
-                    / len(
-                        temperatures[
-                            bin_index
-                        ]
-                    )
-                )
-
-            humidity_percent = (
-                None
-            )
-
-            if (
-                humidities[
-                    bin_index
-                ]
-            ):
-
-                humidity_percent = (
-                    math.fsum(
-                        humidities[
-                            bin_index
-                        ]
-                    )
-                    / len(
-                        humidities[
-                            bin_index
-                        ]
-                    )
-                )
-
-            pressure_hpa = (
-                None
-            )
-
-            if (
-                pressures[
-                    bin_index
-                ]
-            ):
-
-                pressure_hpa = (
-                    math.fsum(
-                        pressures[
-                            bin_index
-                        ]
-                    )
-                    / len(
-                        pressures[
-                            bin_index
-                        ]
-                    )
-                )
-
-            event_count = int(
-                event_counts[
-                    bin_index
-                ]
-            )
-
-            active_duration_s = float(
-                active_durations[
-                    bin_index
-                ]
-            )
-
-            event_rate_per_hour = (
-                event_count
-                / (
-                    bucket_duration_s
-                    / 3600.0
-                )
-            )
-
-            result.append(
-                {
-                    "session_id":
-                        session_id,
-
-                    "session_label":
-                        str(
-                            session[
-                                "label"
-                            ]
-                        ),
-
-                    "bucket_start":
-                        self._datetime_to_iso(
-                            bucket_start
-                        ),
-
-                    "bucket_end":
-                        self._datetime_to_iso(
-                            bucket_end
-                        ),
-
-                    "bucket_duration_s":
-                        float(
-                            bucket_duration_s
-                        ),
-
-                    "telemetry_sample_count":
-                        int(
-                            telemetry_counts[
-                                bin_index
-                            ]
-                        ),
-
-                    "temperature_c":
-                        temperature_c,
-
-                    "humidity_percent":
-                        humidity_percent,
-
-                    "pressure_hpa":
-                        pressure_hpa,
-
-                    "event_count":
-                        event_count,
-
-                    "active_duration_s":
-                        active_duration_s,
-
-                    "event_rate_per_hour":
-                        float(
-                            event_rate_per_hour
-                        ),
-                }
-            )
-
-        return (
-            result
+        return queries.analytics_environmental_bins(
+            self,
+            session_id=session_id,
+            bucket_seconds=bucket_seconds,
+            sample_rate=sample_rate,
+            node_id=node_id,
+            start=start,
+            end=end,
         )
 
     # ==================================================================
@@ -5124,51 +2304,81 @@ class EventDatabase:
         )
 
         if end_sample < start_sample:
-            raise ValueError(
-                "end_sample cannot be smaller than start_sample"
-            )
+            raise ValueError("end_sample cannot be smaller than start_sample")
 
         aci = self._finite_float(
-            getattr(result, "aci", result.get("aci") if isinstance(result, dict) else None),
+            getattr(
+                result, "aci", result.get("aci") if isinstance(result, dict) else None
+            ),
             name="aci",
         )
 
         ndsi = self._finite_float(
-            getattr(result, "ndsi", result.get("ndsi") if isinstance(result, dict) else None),
+            getattr(
+                result, "ndsi", result.get("ndsi") if isinstance(result, dict) else None
+            ),
             name="ndsi",
         )
 
         acoustic_entropy = self._finite_float(
-            getattr(result, "acoustic_entropy", result.get("acoustic_entropy") if isinstance(result, dict) else None),
+            getattr(
+                result,
+                "acoustic_entropy",
+                result.get("acoustic_entropy") if isinstance(result, dict) else None,
+            ),
             name="acoustic_entropy",
         )
 
         temporal_entropy = self._finite_float(
-            getattr(result, "temporal_entropy", result.get("temporal_entropy") if isinstance(result, dict) else None),
+            getattr(
+                result,
+                "temporal_entropy",
+                result.get("temporal_entropy") if isinstance(result, dict) else None,
+            ),
             name="temporal_entropy",
         )
 
         spectral_entropy = self._finite_float(
-            getattr(result, "spectral_entropy", result.get("spectral_entropy") if isinstance(result, dict) else None),
+            getattr(
+                result,
+                "spectral_entropy",
+                result.get("spectral_entropy") if isinstance(result, dict) else None,
+            ),
             name="spectral_entropy",
         )
 
         bioacoustic_index = self._finite_float(
-            getattr(result, "bioacoustic_index", result.get("bioacoustic_index") if isinstance(result, dict) else None),
+            getattr(
+                result,
+                "bioacoustic_index",
+                result.get("bioacoustic_index") if isinstance(result, dict) else None,
+            ),
             name="bioacoustic_index",
         )
 
         anthrophony_power = self._finite_float(
-            getattr(result, "anthrophony_power", result.get("anthrophony_power") if isinstance(result, dict) else None),
+            getattr(
+                result,
+                "anthrophony_power",
+                result.get("anthrophony_power") if isinstance(result, dict) else None,
+            ),
             name="anthrophony_power",
         )
 
         biophony_power = self._finite_float(
-            getattr(result, "biophony_power", result.get("biophony_power") if isinstance(result, dict) else None),
+            getattr(
+                result,
+                "biophony_power",
+                result.get("biophony_power") if isinstance(result, dict) else None,
+            ),
             name="biophony_power",
         )
 
-        params = getattr(result, "parameters", result.get("parameters") if isinstance(result, dict) else {})
+        params = getattr(
+            result,
+            "parameters",
+            result.get("parameters") if isinstance(result, dict) else {},
+        )
         if hasattr(params, "__dataclass_fields__"):
             params_dict = asdict(
                 cast(
@@ -5228,58 +2438,6 @@ class EventDatabase:
         node_id: int | None = None,
         limit: int = 1000,
     ) -> list[dict[str, Any]]:
-        """
-        Query persisted continuous ecoacoustic index records.
-        """
-        query_parts = ["SELECT * FROM soundscape_indices WHERE 1=1"]
-        params: list[Any] = []
-
-        if session_id is not None:
-            query_parts.append("AND session_id = ?")
-            params.append(
-                self._positive_id(
-                    session_id,
-                    name="soundscape_indices session_id",
-                    maximum=UINT32_MAX,
-                )
-            )
-
-        if node_id is not None:
-            query_parts.append("AND node_id = ?")
-            params.append(
-                self._positive_id(
-                    node_id,
-                    name="soundscape_indices node_id",
-                    maximum=UINT8_MAX,
-                )
-            )
-
-        query_parts.append("ORDER BY id ASC LIMIT ?")
-        params.append(max(1, int(limit)))
-
-        query = " ".join(query_parts)
-
-        with self._lock, self._connect() as conn:
-            conn.row_factory = sqlite3.Row
-            rows = conn.execute(query, tuple(params)).fetchall()
-
-            return [
-                {
-                    "id": int(row["id"]),
-                    "session_id": int(row["session_id"]),
-                    "node_id": int(row["node_id"]),
-                    "start_sample": int(row["start_sample"]),
-                    "end_sample": int(row["end_sample"]),
-                    "aci": float(row["aci"]),
-                    "ndsi": float(row["ndsi"]),
-                    "acoustic_entropy": float(row["acoustic_entropy"]),
-                    "temporal_entropy": float(row["temporal_entropy"]),
-                    "spectral_entropy": float(row["spectral_entropy"]),
-                    "bioacoustic_index": float(row["bioacoustic_index"]),
-                    "anthrophony_power": float(row["anthrophony_power"]),
-                    "biophony_power": float(row["biophony_power"]),
-                    "parameters": json.loads(row["parameters_json"]),
-                    "created_at": str(row["created_at"]),
-                }
-                for row in rows
-            ]
+        return queries.get_soundscape_indices(
+            self, session_id=session_id, node_id=node_id, limit=limit
+        )

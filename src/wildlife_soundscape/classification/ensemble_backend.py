@@ -170,7 +170,6 @@ Species-level predictions require independent verification before being
 used as verified ecological observations.
 """
 
-
 from __future__ import annotations
 
 
@@ -216,19 +215,13 @@ from .classifier import (
 # ======================================================================
 
 
-ENSEMBLE_VERSION = (
-    "1.1"
-)
+ENSEMBLE_VERSION = "1.1"
 
 
-DEFAULT_MEMBER_WEIGHT = (
-    1.0
-)
+DEFAULT_MEMBER_WEIGHT = 1.0
 
 
-DEFAULT_MIN_SUCCESSFUL_MEMBERS = (
-    1
-)
+DEFAULT_MIN_SUCCESSFUL_MEMBERS = 1
 
 
 # ======================================================================
@@ -245,47 +238,24 @@ def _finite_non_negative(
     Normalize one finite non-negative numerical value.
     """
 
-    if (
-        isinstance(
-            value,
-            bool,
-        )
-        or not isinstance(
-            value,
-            Real,
-        )
+    if isinstance(
+        value,
+        bool,
+    ) or not isinstance(
+        value,
+        Real,
     ):
+        raise TypeError(f"{name} must be numeric.")
 
-        raise TypeError(
-            f"{name} must be numeric."
-        )
+    result = float(value)
 
-    result = (
-        float(
-            value
-        )
-    )
+    if not math.isfinite(result):
+        raise ValueError(f"{name} must be finite.")
 
-    if not math.isfinite(
-        result
-    ):
+    if result < 0.0:
+        raise ValueError(f"{name} cannot be negative.")
 
-        raise ValueError(
-            f"{name} must be finite."
-        )
-
-    if (
-        result
-        < 0.0
-    ):
-
-        raise ValueError(
-            f"{name} cannot be negative."
-        )
-
-    return (
-        result
-    )
+    return result
 
 
 # ======================================================================
@@ -302,26 +272,15 @@ def _finite_positive(
     Normalize one finite strictly-positive numerical value.
     """
 
-    result = (
-        _finite_non_negative(
-            value,
-            name=
-                name,
-        )
+    result = _finite_non_negative(
+        value,
+        name=name,
     )
 
-    if (
-        result
-        <= 0.0
-    ):
+    if result <= 0.0:
+        raise ValueError(f"{name} must be greater than zero.")
 
-        raise ValueError(
-            f"{name} must be greater than zero."
-        )
-
-    return (
-        result
-    )
+    return result
 
 
 # ======================================================================
@@ -336,13 +295,8 @@ def _clamp01(
     Clamp finite numerical value into [0, 1].
     """
 
-    if not math.isfinite(
-        value
-    ):
-
-        raise ValueError(
-            "Classification score must be finite."
-        )
+    if not math.isfinite(value):
+        raise ValueError("Classification score must be finite.")
 
     return float(
         max(
@@ -371,36 +325,21 @@ def _score_or_none(
     """
 
     try:
-
-        result = (
-            _finite_non_negative(
-                value,
-                name=
-                    "classification score",
-            )
+        result = _finite_non_negative(
+            value,
+            name="classification score",
         )
 
     except (
         TypeError,
         ValueError,
     ):
+        return None
 
-        return (
-            None
-        )
+    if result > 1.0:
+        return None
 
-    if (
-        result
-        > 1.0
-    ):
-
-        return (
-            None
-        )
-
-    return (
-        result
-    )
+    return result
 
 
 # ======================================================================
@@ -435,13 +374,9 @@ class EnsembleMember:
 
     backend: ClassifierBackend
 
-    weight: float = (
-        DEFAULT_MEMBER_WEIGHT
-    )
+    weight: float = DEFAULT_MEMBER_WEIGHT
 
-    label: str | None = (
-        None
-    )
+    label: str | None = None
 
     # ==================================================================
     # VALIDATION
@@ -459,24 +394,15 @@ class EnsembleMember:
             self.backend,
             ClassifierBackend,
         ):
-
-            raise TypeError(
-                (
-                    "backend must be a "
-                    "ClassifierBackend instance."
-                )
-            )
+            raise TypeError(("backend must be a ClassifierBackend instance."))
 
         # ==============================================================
         # WEIGHT
         # ==============================================================
 
-        normalized_weight = (
-            _finite_positive(
-                self.weight,
-                name=
-                    "Ensemble member weight",
-            )
+        normalized_weight = _finite_positive(
+            self.weight,
+            name="Ensemble member weight",
         )
 
         object.__setattr__(
@@ -489,38 +415,17 @@ class EnsembleMember:
         # LABEL
         # ==============================================================
 
-        if (
-            self.label
-            is not None
-        ):
-
+        if self.label is not None:
             if not isinstance(
                 self.label,
                 str,
             ):
+                raise TypeError(("Ensemble member label must be a string or None."))
 
-                raise TypeError(
-                    (
-                        "Ensemble member label must "
-                        "be a string or None."
-                    )
-                )
+            normalized_label = self.label.strip()
 
-            normalized_label = (
-                self.label
-                .strip()
-            )
-
-            if not (
-                normalized_label
-            ):
-
-                raise ValueError(
-                    (
-                        "Ensemble member label "
-                        "cannot be empty."
-                    )
-                )
+            if not (normalized_label):
+                raise ValueError(("Ensemble member label cannot be empty."))
 
             object.__setattr__(
                 self,
@@ -540,20 +445,10 @@ class EnsembleMember:
         Stable human-readable member identifier.
         """
 
-        if (
-            self.label
-            is not None
-        ):
+        if self.label is not None:
+            return self.label
 
-            return (
-                self.label
-            )
-
-        return (
-            str(
-                self.backend.name
-            )
-        )
+        return str(self.backend.name)
 
 
 # ======================================================================
@@ -584,59 +479,29 @@ class EnsembleMemberResult:
         self,
     ) -> None:
 
-        if (
-            isinstance(
-                self.member_index,
-                bool,
-            )
-            or not isinstance(
-                self.member_index,
-                int,
-            )
+        if isinstance(
+            self.member_index,
+            bool,
+        ) or not isinstance(
+            self.member_index,
+            int,
         ):
+            raise TypeError(("member_index must be an integer."))
 
-            raise TypeError(
-                (
-                    "member_index must "
-                    "be an integer."
-                )
-            )
-
-        if (
-            self.member_index
-            <= 0
-        ):
-
-            raise ValueError(
-                (
-                    "member_index must "
-                    "be greater than zero."
-                )
-            )
+        if self.member_index <= 0:
+            raise ValueError(("member_index must be greater than zero."))
 
         if not isinstance(
             self.member,
             EnsembleMember,
         ):
-
-            raise TypeError(
-                (
-                    "member must be an "
-                    "EnsembleMember."
-                )
-            )
+            raise TypeError(("member must be an EnsembleMember."))
 
         if not isinstance(
             self.result,
             ClassificationResult,
         ):
-
-            raise TypeError(
-                (
-                    "result must be a "
-                    "ClassificationResult."
-                )
-            )
+            raise TypeError(("result must be a ClassificationResult."))
 
 
 # ======================================================================
@@ -709,46 +574,23 @@ def _broad_scores(
         result,
         ClassificationResult,
     ):
-
-        raise TypeError(
-            (
-                "result must be a "
-                "ClassificationResult."
-            )
-        )
+        raise TypeError(("result must be a ClassificationResult."))
 
     if not isinstance(
         result.label,
         AcousticClass,
     ):
-
-        raise TypeError(
-            (
-                "ClassificationResult.label must "
-                "be an AcousticClass."
-            )
-        )
+        raise TypeError(("ClassificationResult.label must be an AcousticClass."))
 
     # ==================================================================
     # DECLARED CONFIDENCE
     # ==================================================================
 
-    confidence = (
-        _score_or_none(
-            result.confidence
-        )
-    )
+    confidence = _score_or_none(result.confidence)
 
-    if (
-        confidence
-        is None
-    ):
-
+    if confidence is None:
         raise ValueError(
-            (
-                "ClassificationResult.confidence "
-                "must be finite and lie in [0, 1]."
-            )
+            ("ClassificationResult.confidence must be finite and lie in [0, 1].")
         )
 
     # ==================================================================
@@ -760,41 +602,18 @@ def _broad_scores(
         float,
     ] = {}
 
-    for acoustic_class in (
-        AcousticClass
-    ):
+    for acoustic_class in AcousticClass:
+        raw_value = result.scores.get(acoustic_class.value)
 
-        raw_value = (
-            result.scores.get(
-                acoustic_class.value
-            )
-        )
-
-        if (
-            raw_value
-            is None
-        ):
-
+        if raw_value is None:
             continue
 
-        score = (
-            _score_or_none(
-                raw_value
-            )
-        )
+        score = _score_or_none(raw_value)
 
-        if (
-            score
-            is None
-        ):
-
+        if score is None:
             continue
 
-        explicit_scores[
-            acoustic_class
-        ] = (
-            score
-        )
+        explicit_scores[acoustic_class] = score
 
     # ==================================================================
     # ZERO-CONFIDENCE ABSTENTION
@@ -810,61 +629,29 @@ def _broad_scores(
     # That is not positive UNKNOWN evidence.
     # ==================================================================
 
-    if (
-        confidence
-        <= 0.0
-        and not any(
-            score
-            > 0.0
-
-            for score
-            in explicit_scores.values()
-        )
-    ):
-
-        return (
-            {}
-        )
+    if confidence <= 0.0 and not any(score > 0.0 for score in explicit_scores.values()):
+        return {}
 
     # ==================================================================
     # PRIMARY RAW SCORE
     # ==================================================================
 
-    primary_raw_score = (
-        explicit_scores.get(
-            result.label
-        )
-    )
+    primary_raw_score = explicit_scores.get(result.label)
 
     # ==================================================================
     # SCALE EXPLICIT VECTOR TO DECLARED CONFIDENCE
     # ==================================================================
 
-    if (
-        primary_raw_score
-        is not None
-        and primary_raw_score
-        > 0.0
-    ):
-
-        scale = (
-            confidence
-            / primary_raw_score
-        )
+    if primary_raw_score is not None and primary_raw_score > 0.0:
+        scale = confidence / primary_raw_score
 
         calibrated: dict[
             AcousticClass,
             float,
         ] = {}
 
-        for acoustic_class, raw_score in (
-            explicit_scores.items()
-        ):
-
-            scaled_score = (
-                raw_score
-                * scale
-            )
+        for acoustic_class, raw_score in explicit_scores.items():
+            scaled_score = raw_score * scale
 
             # ----------------------------------------------------------
             # The declared primary label must remain at least tied for
@@ -875,49 +662,24 @@ def _broad_scores(
             # declared confidence after adaptation.
             # ----------------------------------------------------------
 
-            if (
-                acoustic_class
-                is not result.label
-            ):
-
+            if acoustic_class is not result.label:
                 scaled_score = min(
                     scaled_score,
                     confidence,
                 )
 
-            calibrated[
-                acoustic_class
-            ] = (
-                _clamp01(
-                    scaled_score
-                )
-            )
+            calibrated[acoustic_class] = _clamp01(scaled_score)
 
-        calibrated[
-            result.label
-        ] = (
-            confidence
-        )
+        calibrated[result.label] = confidence
 
         # --------------------------------------------------------------
         # If everything becomes zero, this remains an abstention.
         # --------------------------------------------------------------
 
-        if not any(
-            score
-            > 0.0
+        if not any(score > 0.0 for score in calibrated.values()):
+            return {}
 
-            for score
-            in calibrated.values()
-        ):
-
-            return (
-                {}
-            )
-
-        return (
-            calibrated
-        )
+        return calibrated
 
     # ==================================================================
     # FALLBACK TO DECLARED PRIMARY / SECOND RESULT
@@ -927,67 +689,36 @@ def _broad_scores(
     # do not expose broad scores.
     # ==================================================================
 
-    if (
-        confidence
-        <= 0.0
-    ):
-
-        return (
-            {}
-        )
+    if confidence <= 0.0:
+        return {}
 
     fallback_scores: dict[
         AcousticClass,
         float,
     ] = {
-        result.label:
-            confidence,
+        result.label: confidence,
     }
 
-    second_label = (
-        result.second_label
-    )
+    second_label = result.second_label
 
-    if (
-        second_label
-        is not None
-    ):
-
+    if second_label is not None:
         if not isinstance(
             second_label,
             AcousticClass,
         ):
-
             raise TypeError(
-                (
-                    "ClassificationResult.second_label "
-                    "must be AcousticClass or None."
-                )
+                ("ClassificationResult.second_label must be AcousticClass or None.")
             )
 
-        second_confidence = (
-            _score_or_none(
-                result.second_confidence
-            )
-        )
+        second_confidence = _score_or_none(result.second_confidence)
 
-        if (
-            second_confidence
-            is not None
-            and second_confidence
-            > 0.0
-        ):
-
-            fallback_scores[
-                second_label
-            ] = min(
+        if second_confidence is not None and second_confidence > 0.0:
+            fallback_scores[second_label] = min(
                 second_confidence,
                 confidence,
             )
 
-    return (
-        fallback_scores
-    )
+    return fallback_scores
 
 
 # ======================================================================
@@ -995,9 +726,7 @@ def _broad_scores(
 # ======================================================================
 
 
-class EnsembleClassifierBackend(
-    ClassifierBackend
-):
+class EnsembleClassifierBackend(ClassifierBackend):
     """
     Weighted multi-backend broad acoustic classifier.
 
@@ -1016,52 +745,36 @@ class EnsembleClassifierBackend(
 
     def __init__(
         self,
-        members: Iterable[
-            EnsembleMember
-            | ClassifierBackend
-        ],
+        members: Iterable[EnsembleMember | ClassifierBackend],
         *,
         continue_on_member_error: bool = True,
-        min_successful_members: int = (
-            DEFAULT_MIN_SUCCESSFUL_MEMBERS
-        ),
+        min_successful_members: int = (DEFAULT_MIN_SUCCESSFUL_MEMBERS),
     ) -> None:
 
         # ==============================================================
         # NORMALIZE MEMBERS
         # ==============================================================
 
-        normalized_members: list[
-            EnsembleMember
-        ] = []
+        normalized_members: list[EnsembleMember] = []
 
-        for member in (
-            members
-        ):
-
+        for member in members:
             if isinstance(
                 member,
                 EnsembleMember,
             ):
-
-                normalized_members.append(
-                    member
-                )
+                normalized_members.append(member)
 
             elif isinstance(
                 member,
                 ClassifierBackend,
             ):
-
                 normalized_members.append(
                     EnsembleMember(
-                        backend=
-                            member,
+                        backend=member,
                     )
                 )
 
             else:
-
                 raise TypeError(
                     (
                         "Ensemble members must be "
@@ -1074,47 +787,20 @@ class EnsembleClassifierBackend(
         # REQUIRE ACTUAL ENSEMBLE
         # ==============================================================
 
-        if (
-            len(
-                normalized_members
-            )
-            < 2
-        ):
-
+        if len(normalized_members) < 2:
             raise ValueError(
-                (
-                    "EnsembleClassifierBackend requires "
-                    "at least two classifier members."
-                )
+                ("EnsembleClassifierBackend requires at least two classifier members.")
             )
 
         # ==============================================================
         # MEMBER IDENTIFIER UNIQUENESS
         # ==============================================================
 
-        identifiers = [
-            member.identifier
+        identifiers = [member.identifier for member in normalized_members]
 
-            for member
-            in normalized_members
-        ]
-
-        if (
-            len(
-                set(
-                    identifiers
-                )
-            )
-            != len(
-                identifiers
-            )
-        ):
-
+        if len(set(identifiers)) != len(identifiers):
             raise ValueError(
-                (
-                    "Ensemble member identifiers must "
-                    "be unique for traceability."
-                )
+                ("Ensemble member identifiers must be unique for traceability.")
             )
 
         # ==============================================================
@@ -1125,77 +811,38 @@ class EnsembleClassifierBackend(
             continue_on_member_error,
             bool,
         ):
-
-            raise TypeError(
-                (
-                    "continue_on_member_error "
-                    "must be bool."
-                )
-            )
+            raise TypeError(("continue_on_member_error must be bool."))
 
         # ==============================================================
         # SUCCESS MINIMUM
         # ==============================================================
 
-        if (
-            isinstance(
-                min_successful_members,
-                bool,
-            )
-            or not isinstance(
-                min_successful_members,
-                int,
-            )
+        if isinstance(
+            min_successful_members,
+            bool,
+        ) or not isinstance(
+            min_successful_members,
+            int,
         ):
+            raise TypeError(("min_successful_members must be an integer."))
 
-            raise TypeError(
-                (
-                    "min_successful_members "
-                    "must be an integer."
-                )
-            )
+        if min_successful_members <= 0:
+            raise ValueError(("min_successful_members must be greater than zero."))
 
-        if (
-            min_successful_members
-            <= 0
-        ):
-
+        if min_successful_members > len(normalized_members):
             raise ValueError(
-                (
-                    "min_successful_members "
-                    "must be greater than zero."
-                )
-            )
-
-        if (
-            min_successful_members
-            > len(
-                normalized_members
-            )
-        ):
-
-            raise ValueError(
-                (
-                    "min_successful_members cannot "
-                    "exceed number of ensemble members."
-                )
+                ("min_successful_members cannot exceed number of ensemble members.")
             )
 
         # ==============================================================
         # STATE
         # ==============================================================
 
-        self.members = tuple(
-            normalized_members
-        )
+        self.members = tuple(normalized_members)
 
-        self.continue_on_member_error = (
-            continue_on_member_error
-        )
+        self.continue_on_member_error = continue_on_member_error
 
-        self.min_successful_members = (
-            min_successful_members
-        )
+        self.min_successful_members = min_successful_members
 
     # ==================================================================
     # IDENTITY
@@ -1209,9 +856,7 @@ class EnsembleClassifierBackend(
         Backend identity used by persistence.
         """
 
-        return (
-            "ensemble"
-        )
+        return "ensemble"
 
     @property
     def version(
@@ -1221,9 +866,7 @@ class EnsembleClassifierBackend(
         Ensemble-fusion implementation version.
         """
 
-        return (
-            ENSEMBLE_VERSION
-        )
+        return ENSEMBLE_VERSION
 
     # ==================================================================
     # UPSTREAM DATA REQUIREMENTS
@@ -1243,14 +886,7 @@ class EnsembleClassifierBackend(
         event before individual member execution.
         """
 
-        return any(
-            member
-            .backend
-            .requires_audio
-
-            for member
-            in self.members
-        )
+        return any(member.backend.requires_audio for member in self.members)
 
     @property
     def requires_features(
@@ -1263,14 +899,7 @@ class EnsembleClassifierBackend(
         executes.
         """
 
-        return any(
-            member
-            .backend
-            .requires_features
-
-            for member
-            in self.members
-        )
+        return any(member.backend.requires_features for member in self.members)
 
     # ==================================================================
     # RUN MEMBERS
@@ -1305,42 +934,24 @@ class EnsembleClassifierBackend(
             classification_input,
             ClassificationInput,
         ):
-
             raise TypeError(
-                (
-                    "classification_input must be a "
-                    "ClassificationInput instance."
-                )
+                ("classification_input must be a ClassificationInput instance.")
             )
 
-        successful: list[
-            EnsembleMemberResult
-        ] = []
+        successful: list[EnsembleMemberResult] = []
 
-        failures: list[
-            str
-        ] = []
+        failures: list[str] = []
 
         for member_index, member in enumerate(
             self.members,
-            start=
-                1,
+            start=1,
         ):
-
-            backend = (
-                member.backend
-            )
+            backend = member.backend
 
             try:
-
-                result: object = (
-                    backend.classify(
-                        classification_input
-                    )
-                )
+                result: object = backend.classify(classification_input)
 
             except Exception as exc:
-
                 message = (
                     "ensemble member failed "
                     f"| member={member_index} "
@@ -1350,17 +961,10 @@ class EnsembleClassifierBackend(
                     f"{exc}"
                 )
 
-                if not (
-                    self.continue_on_member_error
-                ):
+                if not (self.continue_on_member_error):
+                    raise RuntimeError(message) from exc
 
-                    raise RuntimeError(
-                        message
-                    ) from exc
-
-                failures.append(
-                    message
-                )
+                failures.append(message)
 
                 continue
 
@@ -1368,7 +972,6 @@ class EnsembleClassifierBackend(
                 result,
                 ClassificationResult,
             ):
-
                 message = (
                     "ensemble member returned invalid "
                     "result type "
@@ -1378,30 +981,18 @@ class EnsembleClassifierBackend(
                     f"| type={type(result).__name__}"
                 )
 
-                if not (
-                    self.continue_on_member_error
-                ):
+                if not (self.continue_on_member_error):
+                    raise RuntimeError(message)
 
-                    raise RuntimeError(
-                        message
-                    )
-
-                failures.append(
-                    message
-                )
+                failures.append(message)
 
                 continue
 
             successful.append(
                 EnsembleMemberResult(
-                    member_index=
-                        member_index,
-
-                    member=
-                        member,
-
-                    result=
-                        result,
+                    member_index=member_index,
+                    member=member,
+                    result=result,
                 )
             )
 
@@ -1409,24 +1000,9 @@ class EnsembleClassifierBackend(
         # EXECUTION SUCCESS REQUIREMENT
         # ==============================================================
 
-        if (
-            len(
-                successful
-            )
-            < self.min_successful_members
-        ):
-
+        if len(successful) < self.min_successful_members:
             failure_suffix = (
-                ""
-
-                if not failures
-
-                else (
-                    " Failures: "
-                    + " | ".join(
-                        failures
-                    )
-                )
+                "" if not failures else (" Failures: " + " | ".join(failures))
             )
 
             raise RuntimeError(
@@ -1439,12 +1015,8 @@ class EnsembleClassifierBackend(
             )
 
         return (
-            tuple(
-                successful
-            ),
-            tuple(
-                failures
-            ),
+            tuple(successful),
+            tuple(failures),
         )
 
     # ==================================================================
@@ -1485,12 +1057,8 @@ class EnsembleClassifierBackend(
             classification_input,
             ClassificationInput,
         ):
-
             raise TypeError(
-                (
-                    "classification_input must be a "
-                    "ClassificationInput instance."
-                )
+                ("classification_input must be a ClassificationInput instance.")
             )
 
         # ==============================================================
@@ -1500,11 +1068,7 @@ class EnsembleClassifierBackend(
         (
             successful_results,
             failures,
-        ) = (
-            self._run_members(
-                classification_input
-            )
-        )
+        ) = self._run_members(classification_input)
 
         # ==============================================================
         # ACCUMULATED EVIDENCE
@@ -1513,21 +1077,11 @@ class EnsembleClassifierBackend(
         accumulated: dict[
             AcousticClass,
             float,
-        ] = {
-            acoustic_class:
-                0.0
+        ] = {acoustic_class: 0.0 for acoustic_class in AcousticClass}
 
-            for acoustic_class
-            in AcousticClass
-        }
+        informative_weight = 0.0
 
-        informative_weight = (
-            0.0
-        )
-
-        informative_results: list[
-            EnsembleMemberResult
-        ] = []
+        informative_results: list[EnsembleMemberResult] = []
 
         # ==============================================================
         # OUTPUT TRACEABILITY
@@ -1538,67 +1092,36 @@ class EnsembleClassifierBackend(
             float,
         ] = {}
 
-        reasons: list[
-            str
-        ] = []
+        reasons: list[str] = []
 
         # ==============================================================
         # SUCCESSFUL MEMBER PROCESSING
         # ==============================================================
 
-        for member_result in (
-            successful_results
-        ):
+        for member_result in successful_results:
+            member_index = member_result.member_index
 
-            member_index = (
-                member_result.member_index
-            )
+            member = member_result.member
 
-            member = (
-                member_result.member
-            )
+            result = member_result.result
 
-            result = (
-                member_result.result
-            )
-
-            weight = (
-                member.weight
-            )
+            weight = member.weight
 
             # ==========================================================
             # PRESERVE ORIGINAL MEMBER SCORES
             # ==========================================================
 
-            for score_name, raw_score in (
-                result.scores.items()
-            ):
+            for score_name, raw_score in result.scores.items():
+                numeric_score = _score_or_none(raw_score)
 
-                numeric_score = (
-                    _score_or_none(
-                        raw_score
-                    )
-                )
-
-                if (
-                    numeric_score
-                    is None
-                ):
-
+                if numeric_score is None:
                     continue
 
                 namespaced_key = (
-                    "member:"
-                    f"{member_index}:"
-                    f"{member.identifier}:"
-                    f"{score_name}"
+                    f"member:{member_index}:{member.identifier}:{score_name}"
                 )
 
-                output_scores[
-                    namespaced_key
-                ] = (
-                    numeric_score
-                )
+                output_scores[namespaced_key] = numeric_score
 
             # ==========================================================
             # MEMBER EXECUTION TRACE
@@ -1621,36 +1144,22 @@ class EnsembleClassifierBackend(
             # PRESERVE MEMBER EXPLANATIONS
             # ==========================================================
 
-            for member_reason in (
-                result.reasons
-            ):
-
+            for member_reason in result.reasons:
                 reasons.append(
-                    (
-                        "ensemble member "
-                        f"{member_index} reason: "
-                        f"{member_reason}"
-                    )
+                    (f"ensemble member {member_index} reason: {member_reason}")
                 )
 
             # ==========================================================
             # BROAD EVIDENCE ADAPTATION
             # ==========================================================
 
-            member_scores = (
-                _broad_scores(
-                    result
-                )
-            )
+            member_scores = _broad_scores(result)
 
             # ==========================================================
             # ABSTENTION
             # ==========================================================
 
-            if not (
-                member_scores
-            ):
-
+            if not (member_scores):
                 reasons.append(
                     (
                         "ensemble member "
@@ -1664,14 +1173,7 @@ class EnsembleClassifierBackend(
 
                 continue
 
-            if not any(
-                score
-                > 0.0
-
-                for score
-                in member_scores.values()
-            ):
-
+            if not any(score > 0.0 for score in member_scores.values()):
                 reasons.append(
                     (
                         "ensemble member "
@@ -1688,28 +1190,16 @@ class EnsembleClassifierBackend(
             # INFORMATIVE VOTING WEIGHT
             # ==========================================================
 
-            informative_weight += (
-                weight
-            )
+            informative_weight += weight
 
-            informative_results.append(
-                member_result
-            )
+            informative_results.append(member_result)
 
             # ==========================================================
             # BROAD FUSION
             # ==========================================================
 
-            for acoustic_class, score in (
-                member_scores.items()
-            ):
-
-                accumulated[
-                    acoustic_class
-                ] += (
-                    weight
-                    * score
-                )
+            for acoustic_class, score in member_scores.items():
+                accumulated[acoustic_class] += weight * score
 
                 output_scores[
                     (
@@ -1718,40 +1208,22 @@ class EnsembleClassifierBackend(
                         f"{member.identifier}:"
                         f"{acoustic_class.value}"
                     )
-                ] = (
-                    score
-                )
+                ] = score
 
         # ==============================================================
         # MEMBER FAILURE TRACE
         # ==============================================================
 
-        if (
-            failures
-        ):
-
-            reasons.extend(
-                failures
-            )
+        if failures:
+            reasons.extend(failures)
 
         # ==============================================================
         # ALL SUCCESSFUL MEMBERS ABSTAINED
         # ==============================================================
 
-        if (
-            informative_weight
-            <= 0.0
-        ):
-
-            for acoustic_class in (
-                AcousticClass
-            ):
-
-                output_scores[
-                    acoustic_class.value
-                ] = (
-                    0.0
-                )
+        if informative_weight <= 0.0:
+            for acoustic_class in AcousticClass:
+                output_scores[acoustic_class.value] = 0.0
 
             reasons.append(
                 (
@@ -1769,37 +1241,16 @@ class EnsembleClassifierBackend(
                 )
             )
 
-            return (
-                ClassificationResult(
-                    label=
-                        AcousticClass.UNKNOWN,
-
-                    confidence=
-                        0.0,
-
-                    second_label=
-                        None,
-
-                    second_confidence=
-                        None,
-
-                    margin=
-                        0.0,
-
-                    scores=
-                        output_scores,
-
-                    reasons=
-                        tuple(
-                            reasons
-                        ),
-
-                    classifier_name=
-                        self.name,
-
-                    classifier_version=
-                        self.version,
-                )
+            return ClassificationResult(
+                label=AcousticClass.UNKNOWN,
+                confidence=0.0,
+                second_label=None,
+                second_confidence=None,
+                margin=0.0,
+                scores=output_scores,
+                reasons=tuple(reasons),
+                classifier_name=self.name,
+                classifier_version=self.version,
             )
 
         # ==============================================================
@@ -1819,34 +1270,14 @@ class EnsembleClassifierBackend(
             float,
         ] = {}
 
-        for acoustic_class in (
-            AcousticClass
-        ):
+        for acoustic_class in AcousticClass:
+            score = accumulated[acoustic_class] / informative_weight
 
-            score = (
-                accumulated[
-                    acoustic_class
-                ]
-                / informative_weight
-            )
+            score = _clamp01(score)
 
-            score = (
-                _clamp01(
-                    score
-                )
-            )
+            combined_scores[acoustic_class] = score
 
-            combined_scores[
-                acoustic_class
-            ] = (
-                score
-            )
-
-            output_scores[
-                acoustic_class.value
-            ] = (
-                score
-            )
+            output_scores[acoustic_class.value] = score
 
         # ==============================================================
         # RANKING
@@ -1854,128 +1285,57 @@ class EnsembleClassifierBackend(
 
         ranking = sorted(
             combined_scores.items(),
-
-            key=
-                lambda item: (
-                    -item[
-                        1
-                    ],
-                    item[
-                        0
-                    ].value,
-                ),
+            key=lambda item: (
+                -item[1],
+                item[0].value,
+            ),
         )
 
-        if not (
-            ranking
-        ):
-
-            raise RuntimeError(
-                (
-                    "Ensemble produced no "
-                    "broad classification scores."
-                )
-            )
+        if not (ranking):
+            raise RuntimeError(("Ensemble produced no broad classification scores."))
 
         (
             top_class,
             top_score,
-        ) = (
-            ranking[
-                0
-            ]
-        )
+        ) = ranking[0]
 
         # ==============================================================
         # DEFENSIVE ZERO-EVIDENCE CHECK
         # ==============================================================
 
-        if (
-            top_score
-            <= 0.0
-        ):
+        if top_score <= 0.0:
+            reasons.append(("ensemble broad scores collapsed to zero after fusion"))
 
-            reasons.append(
-                (
-                    "ensemble broad scores collapsed "
-                    "to zero after fusion"
-                )
-            )
-
-            return (
-                ClassificationResult(
-                    label=
-                        AcousticClass.UNKNOWN,
-
-                    confidence=
-                        0.0,
-
-                    second_label=
-                        None,
-
-                    second_confidence=
-                        None,
-
-                    margin=
-                        0.0,
-
-                    scores=
-                        output_scores,
-
-                    reasons=
-                        tuple(
-                            reasons
-                        ),
-
-                    classifier_name=
-                        self.name,
-
-                    classifier_version=
-                        self.version,
-                )
+            return ClassificationResult(
+                label=AcousticClass.UNKNOWN,
+                confidence=0.0,
+                second_label=None,
+                second_confidence=None,
+                margin=0.0,
+                scores=output_scores,
+                reasons=tuple(reasons),
+                classifier_name=self.name,
+                classifier_version=self.version,
             )
 
         # ==============================================================
         # SECOND BROAD CLASS
         # ==============================================================
 
-        second_class: (
-            AcousticClass
-            | None
-        ) = (
-            None
-        )
+        second_class: AcousticClass | None = None
 
-        second_score: (
-            float
-            | None
-        ) = (
-            None
-        )
+        second_score: float | None = None
 
         for (
             candidate_class,
             candidate_score,
-        ) in (
-            ranking[
-                1:
-            ]
-        ):
-
-            if (
-                candidate_score
-                <= 0.0
-            ):
-
+        ) in ranking[1:]:
+            if candidate_score <= 0.0:
                 continue
 
-            second_class = (
-                candidate_class
-            )
+            second_class = candidate_class
 
-            second_score = (
-                candidate_score
-            )
+            second_score = candidate_score
 
             break
 
@@ -1983,48 +1343,23 @@ class EnsembleClassifierBackend(
         # BROAD DECISION MARGIN
         # ==============================================================
 
-        if (
-            second_score
-            is None
-        ):
-
-            margin = (
-                top_score
-            )
+        if second_score is None:
+            margin = top_score
 
         else:
+            margin = top_score - second_score
 
-            margin = (
-                top_score
-                - second_score
-            )
-
-        margin = (
-            _clamp01(
-                margin
-            )
-        )
+        margin = _clamp01(margin)
 
         # ==============================================================
         # AGREEMENT INFORMATION
         # ==============================================================
 
         informative_primary_labels = [
-            member_result
-            .result
-            .label
-
-            for member_result
-            in informative_results
+            member_result.result.label for member_result in informative_results
         ]
 
-        if (
-            len(
-                informative_primary_labels
-            )
-            == 1
-        ):
-
+        if len(informative_primary_labels) == 1:
             reasons.append(
                 (
                     "final fusion relied on one "
@@ -2034,15 +1369,7 @@ class EnsembleClassifierBackend(
                 )
             )
 
-        elif (
-            len(
-                set(
-                    informative_primary_labels
-                )
-            )
-            == 1
-        ):
-
+        elif len(set(informative_primary_labels)) == 1:
             reasons.append(
                 (
                     "all informative ensemble members "
@@ -2052,17 +1379,9 @@ class EnsembleClassifierBackend(
             )
 
         else:
-
-            label_text = (
-                ", ".join(
-                    member_result
-                    .result
-                    .label
-                    .value
-
-                    for member_result
-                    in informative_results
-                )
+            label_text = ", ".join(
+                member_result.result.label.value
+                for member_result in informative_results
             )
 
             reasons.append(
@@ -2109,35 +1428,14 @@ class EnsembleClassifierBackend(
         # FINAL RESULT
         # ==============================================================
 
-        return (
-            ClassificationResult(
-                label=
-                    top_class,
-
-                confidence=
-                    top_score,
-
-                second_label=
-                    second_class,
-
-                second_confidence=
-                    second_score,
-
-                margin=
-                    margin,
-
-                scores=
-                    output_scores,
-
-                reasons=
-                    tuple(
-                        reasons
-                    ),
-
-                classifier_name=
-                    self.name,
-
-                classifier_version=
-                    self.version,
-            )
+        return ClassificationResult(
+            label=top_class,
+            confidence=top_score,
+            second_label=second_class,
+            second_confidence=second_score,
+            margin=margin,
+            scores=output_scores,
+            reasons=tuple(reasons),
+            classifier_name=self.name,
+            classifier_version=self.version,
         )

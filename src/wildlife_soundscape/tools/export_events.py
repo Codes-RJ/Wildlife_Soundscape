@@ -71,8 +71,12 @@ Examples:
     python -m wildlife_soundscape.tools.export_events --output data/exports/my_events.csv
 """
 
-
 from __future__ import annotations
+
+from wildlife_soundscape.storage.provenance import (
+    read_manifests,
+    write_manifest_sidecar,
+)
 
 
 # ======================================================================
@@ -131,23 +135,13 @@ from wildlife_soundscape.core.config import (
 # ======================================================================
 
 
-DEFAULT_SAMPLE_RATE = (
-    48_000
-)
+DEFAULT_SAMPLE_RATE = 48_000
 
 
-DEFAULT_EXPORT_DIRECTORY = (
-    Path(
-        "data/exports"
-    )
-)
+DEFAULT_EXPORT_DIRECTORY = Path("data/exports")
 
 
-DEFAULT_DATABASE_PATH = (
-    Path(
-        "data/database/events.db"
-    )
-)
+DEFAULT_DATABASE_PATH = Path("data/database/events.db")
 
 
 # ======================================================================
@@ -163,21 +157,13 @@ class ExportFormat(
     Supported event-dataset output formats.
     """
 
-    CSV = (
-        "csv"
-    )
+    CSV = "csv"
 
-    JSON = (
-        "json"
-    )
+    JSON = "json"
 
-    JSONL = (
-        "jsonl"
-    )
+    JSONL = "jsonl"
 
-    GEOJSON = (
-        "geojson"
-    )
+    GEOJSON = "geojson"
 
 
 # ======================================================================
@@ -202,37 +188,21 @@ class EventExportOptions:
 
     sample_rate: int
 
-    session_id: int | None = (
-        None
-    )
+    session_id: int | None = None
 
-    limit: int | None = (
-        None
-    )
+    limit: int | None = None
 
-    include_mfcc: bool = (
-        True
-    )
+    include_mfcc: bool = True
 
-    pretty_json: bool = (
-        True
-    )
+    pretty_json: bool = True
 
-    origin_latitude: float | None = (
-        None
-    )
+    origin_latitude: float | None = None
 
-    origin_longitude: float | None = (
-        None
-    )
+    origin_longitude: float | None = None
 
-    azimuth_deg: float = (
-        0.0
-    )
+    azimuth_deg: float = 0.0
 
-    coarsen_decimals: int | None = (
-        None
-    )
+    coarsen_decimals: int | None = None
 
     def __post_init__(
         self,
@@ -246,19 +216,13 @@ class EventExportOptions:
             self.database_path,
             Path,
         ):
-
-            raise TypeError(
-                "database_path must be pathlib.Path."
-            )
+            raise TypeError("database_path must be pathlib.Path.")
 
         if not isinstance(
             self.output_path,
             Path,
         ):
-
-            raise TypeError(
-                "output_path must be pathlib.Path."
-            )
+            raise TypeError("output_path must be pathlib.Path.")
 
         # ==============================================================
         # FORMAT
@@ -268,104 +232,57 @@ class EventExportOptions:
             self.export_format,
             ExportFormat,
         ):
-
-            raise TypeError(
-                "export_format must be an ExportFormat."
-            )
+            raise TypeError("export_format must be an ExportFormat.")
 
         # ==============================================================
         # SAMPLE RATE
         # ==============================================================
 
-        if (
-            isinstance(
-                self.sample_rate,
-                bool,
-            )
-            or not isinstance(
-                self.sample_rate,
-                int,
-            )
+        if isinstance(
+            self.sample_rate,
+            bool,
+        ) or not isinstance(
+            self.sample_rate,
+            int,
         ):
+            raise TypeError("sample_rate must be an integer.")
 
-            raise TypeError(
-                "sample_rate must be an integer."
-            )
-
-        if (
-            self.sample_rate
-            <= 0
-        ):
-
-            raise ValueError(
-                "sample_rate must be greater than 0."
-            )
+        if self.sample_rate <= 0:
+            raise ValueError("sample_rate must be greater than 0.")
 
         # ==============================================================
         # SESSION
         # ==============================================================
 
-        if (
-            self.session_id
-            is not None
-        ):
-
-            if (
-                isinstance(
-                    self.session_id,
-                    bool,
-                )
-                or not isinstance(
-                    self.session_id,
-                    int,
-                )
+        if self.session_id is not None:
+            if isinstance(
+                self.session_id,
+                bool,
+            ) or not isinstance(
+                self.session_id,
+                int,
             ):
+                raise TypeError("session_id must be an integer or None.")
 
-                raise TypeError(
-                    "session_id must be an integer or None."
-                )
-
-            if (
-                self.session_id
-                <= 0
-            ):
-
-                raise ValueError(
-                    "session_id must be greater than 0."
-                )
+            if self.session_id <= 0:
+                raise ValueError("session_id must be greater than 0.")
 
         # ==============================================================
         # LIMIT
         # ==============================================================
 
-        if (
-            self.limit
-            is not None
-        ):
-
-            if (
-                isinstance(
-                    self.limit,
-                    bool,
-                )
-                or not isinstance(
-                    self.limit,
-                    int,
-                )
+        if self.limit is not None:
+            if isinstance(
+                self.limit,
+                bool,
+            ) or not isinstance(
+                self.limit,
+                int,
             ):
+                raise TypeError("limit must be an integer or None.")
 
-                raise TypeError(
-                    "limit must be an integer or None."
-                )
-
-            if (
-                self.limit
-                <= 0
-            ):
-
-                raise ValueError(
-                    "limit must be greater than 0."
-                )
+            if self.limit <= 0:
+                raise ValueError("limit must be greater than 0.")
 
         # ==============================================================
         # FLAGS
@@ -375,55 +292,36 @@ class EventExportOptions:
             self.include_mfcc,
             bool,
         ):
-
-            raise TypeError(
-                "include_mfcc must be bool."
-            )
+            raise TypeError("include_mfcc must be bool.")
 
         if not isinstance(
             self.pretty_json,
             bool,
         ):
-
-            raise TypeError(
-                "pretty_json must be bool."
-            )
+            raise TypeError("pretty_json must be bool.")
 
         # ==============================================================
         # GEOJSON REQUIREMENTS
         # ==============================================================
 
         if self.export_format is ExportFormat.GEOJSON:
-
-            if (
-                self.origin_latitude is None
-                or self.origin_longitude is None
-            ):
-
+            if self.origin_latitude is None or self.origin_longitude is None:
                 raise ValueError(
                     "origin_latitude and origin_longitude are required for GeoJSON export."
                 )
 
             if not (-90.0 <= self.origin_latitude <= 90.0):
-
-                raise ValueError(
-                    "origin_latitude must be between -90 and 90 degrees."
-                )
+                raise ValueError("origin_latitude must be between -90 and 90 degrees.")
 
             if not (-180.0 <= self.origin_longitude <= 180.0):
-
                 raise ValueError(
                     "origin_longitude must be between -180 and 180 degrees."
                 )
 
-        if (
-            self.coarsen_decimals is not None
-            and (not isinstance(self.coarsen_decimals, int) or self.coarsen_decimals < 0)
+        if self.coarsen_decimals is not None and (
+            not isinstance(self.coarsen_decimals, int) or self.coarsen_decimals < 0
         ):
-
-            raise ValueError(
-                "coarsen_decimals must be a non-negative integer or None."
-            )
+            raise ValueError("coarsen_decimals must be a non-negative integer or None.")
 
 
 # ======================================================================
@@ -451,60 +349,47 @@ CSV_FIELD_ORDER = (
     # ------------------------------------------------------------------
     # DATABASE / SESSION IDENTITY
     # ------------------------------------------------------------------
-
     "event_id",
     "detector_event_id",
     "session_id",
     "session_label",
-
     # ------------------------------------------------------------------
     # SCIENTIFIC TIME
     # ------------------------------------------------------------------
-
     "event_time",
     "session_started_at",
     "session_stopped_at",
-
     # ------------------------------------------------------------------
     # SAMPLE TIMELINE
     # ------------------------------------------------------------------
-
     "start_sample",
     "end_sample",
     "duration_samples",
     "duration_s",
-
     # ------------------------------------------------------------------
     # DETECTION
     # ------------------------------------------------------------------
-
     "trigger_nodes",
     "trigger_node_count",
     "peak_rms_dbfs",
     "best_node_id",
-
     # ------------------------------------------------------------------
     # ENVIRONMENT
     # ------------------------------------------------------------------
-
     "temperature_c",
     "humidity_percent",
     "pressure_hpa",
     "speed_of_sound_mps",
-
     # ------------------------------------------------------------------
     # LOCALIZATION
     # ------------------------------------------------------------------
-
     "x_m",
     "y_m",
     "localization_success",
     "localization_residual_m",
-
     # ------------------------------------------------------------------
     # DSP
     # ------------------------------------------------------------------
-
     "feature_source_node_id",
     "feature_duration_s",
     "rms",
@@ -518,18 +403,14 @@ CSV_FIELD_ORDER = (
     "spectral_flatness",
     "spectral_flux",
     "snr_db",
-
     # ------------------------------------------------------------------
     # MFCC
     # ------------------------------------------------------------------
-
     "mfcc_mean",
     "mfcc_std",
-
     # ------------------------------------------------------------------
     # CLASSIFICATION
     # ------------------------------------------------------------------
-
     "classification_label",
     "classification_confidence",
     "classification_second_label",
@@ -539,11 +420,9 @@ CSV_FIELD_ORDER = (
     "classification_reasons",
     "classifier_name",
     "classifier_version",
-
     # ------------------------------------------------------------------
     # TRACEABILITY
     # ------------------------------------------------------------------
-
     "event_directory",
     "database_created_at",
 )
@@ -567,35 +446,17 @@ def open_readonly_database(
         path,
         Path,
     ):
+        raise TypeError("path must be pathlib.Path.")
 
-        raise TypeError(
-            "path must be pathlib.Path."
-        )
+    path = path.expanduser().resolve()
 
-    path = (
-        path.expanduser()
-        .resolve()
-    )
+    if not (path.exists()):
+        raise FileNotFoundError(f"Database does not exist: {path}")
 
-    if not (
-        path.exists()
-    ):
+    if not (path.is_file()):
+        raise ValueError(f"Database path is not a file: {path}")
 
-        raise FileNotFoundError(
-            f"Database does not exist: {path}"
-        )
-
-    if not (
-        path.is_file()
-    ):
-
-        raise ValueError(
-            f"Database path is not a file: {path}"
-        )
-
-    uri = (
-        f"{path.as_uri()}?mode=ro"
-    )
+    uri = f"{path.as_uri()}?mode=ro"
 
     connection = sqlite3.connect(
         uri,
@@ -603,21 +464,13 @@ def open_readonly_database(
         timeout=5.0,
     )
 
-    connection.row_factory = (
-        sqlite3.Row
-    )
+    connection.row_factory = sqlite3.Row
 
-    connection.execute(
-        "PRAGMA query_only = ON"
-    )
+    connection.execute("PRAGMA query_only = ON")
 
-    connection.execute(
-        "PRAGMA busy_timeout = 5000"
-    )
+    connection.execute("PRAGMA busy_timeout = 5000")
 
-    return (
-        connection
-    )
+    return connection
 
 
 # ======================================================================
@@ -640,43 +493,23 @@ def validate_database_schema(
         "classifications",
     }
 
-    rows = (
-        connection.execute(
-            """
+    rows = connection.execute(
+        """
             SELECT name
 
             FROM sqlite_master
 
             WHERE type = 'table'
             """
-        )
-        .fetchall()
-    )
+    ).fetchall()
 
-    available_tables = {
-        str(
-            row[
-                "name"
-            ]
-        )
-        for row
-        in rows
-    }
+    available_tables = {str(row["name"]) for row in rows}
 
-    missing = (
-        required_tables
-        - available_tables
-    )
+    missing = required_tables - available_tables
 
-    if (
-        missing
-    ):
-
+    if missing:
         raise RuntimeError(
-            (
-                "Database is missing required "
-                f"table(s): {sorted(missing)}"
-            )
+            (f"Database is missing required table(s): {sorted(missing)}")
         )
 
 
@@ -914,82 +747,36 @@ def parse_database_timestamp(
     project are interpreted as UTC.
     """
 
-    if (
-        value
-        is None
-    ):
-
-        return (
-            None
-        )
+    if value is None:
+        return None
 
     if not isinstance(
         value,
         str,
     ):
+        value = str(value)
 
-        value = str(
-            value
-        )
+    text = value.strip()
 
-    text = (
-        value.strip()
-    )
+    if not (text):
+        return None
 
-    if not (
-        text
-    ):
-
-        return (
-            None
-        )
-
-    if (
-        text.endswith(
-            "Z"
-        )
-    ):
-
-        text = (
-            text[
-                :-1
-            ]
-            + "+00:00"
-        )
+    if text.endswith("Z"):
+        text = text[:-1] + "+00:00"
 
     try:
-
-        result = datetime.fromisoformat(
-            text
-        )
+        result = datetime.fromisoformat(text)
 
     except ValueError as exc:
+        raise ValueError((f"Unable to parse database timestamp: {value!r}")) from exc
 
-        raise ValueError(
-            (
-                "Unable to parse database "
-                f"timestamp: {value!r}"
-            )
-        ) from exc
-
-    if (
-        result.tzinfo
-        is None
-    ):
-
-        result = result.replace(
-            tzinfo=timezone.utc
-        )
+    if result.tzinfo is None:
+        result = result.replace(tzinfo=timezone.utc)
 
     else:
+        result = result.astimezone(timezone.utc)
 
-        result = result.astimezone(
-            timezone.utc
-        )
-
-    return (
-        result
-    )
+    return result
 
 
 # ======================================================================
@@ -1013,86 +800,38 @@ def reconstruct_event_time(
     start_sample / sample_rate
     """
 
-    started = (
-        parse_database_timestamp(
-            session_started_at
-        )
-    )
+    started = parse_database_timestamp(session_started_at)
 
-    if (
-        started
-        is None
+    if started is None:
+        raise ValueError(("Session started_at is required to reconstruct event_time."))
+
+    if isinstance(
+        start_sample,
+        bool,
+    ) or not isinstance(
+        start_sample,
+        int,
     ):
+        raise TypeError("start_sample must be an integer.")
 
-        raise ValueError(
-            (
-                "Session started_at is required "
-                "to reconstruct event_time."
-            )
-        )
+    if start_sample < 0:
+        raise ValueError("start_sample cannot be negative.")
 
-    if (
-        isinstance(
-            start_sample,
-            bool,
-        )
-        or not isinstance(
-            start_sample,
-            int,
-        )
+    if isinstance(
+        sample_rate,
+        bool,
+    ) or not isinstance(
+        sample_rate,
+        int,
     ):
+        raise TypeError("sample_rate must be an integer.")
 
-        raise TypeError(
-            "start_sample must be an integer."
-        )
+    if sample_rate <= 0:
+        raise ValueError("sample_rate must be greater than 0.")
 
-    if (
-        start_sample
-        < 0
-    ):
+    event_time = started + timedelta(seconds=(start_sample / sample_rate))
 
-        raise ValueError(
-            "start_sample cannot be negative."
-        )
-
-    if (
-        isinstance(
-            sample_rate,
-            bool,
-        )
-        or not isinstance(
-            sample_rate,
-            int,
-        )
-    ):
-
-        raise TypeError(
-            "sample_rate must be an integer."
-        )
-
-    if (
-        sample_rate
-        <= 0
-    ):
-
-        raise ValueError(
-            "sample_rate must be greater than 0."
-        )
-
-    event_time = (
-        started
-        + timedelta(
-            seconds=
-                (
-                    start_sample
-                    / sample_rate
-                )
-        )
-    )
-
-    return (
-        event_time.isoformat()
-    )
+    return event_time.isoformat()
 
 
 # ======================================================================
@@ -1114,41 +853,20 @@ def decode_json_value(
     exporting corrupt scientific metadata would reduce traceability.
     """
 
-    if (
-        value
-        is None
-    ):
-
-        return (
-            None
-        )
+    if value is None:
+        return None
 
     if not isinstance(
         value,
         str,
     ):
-
-        raise TypeError(
-            (
-                f"{field_name} must contain "
-                "stored JSON text."
-            )
-        )
+        raise TypeError((f"{field_name} must contain stored JSON text."))
 
     try:
-
-        return json.loads(
-            value
-        )
+        return json.loads(value)
 
     except json.JSONDecodeError as exc:
-
-        raise ValueError(
-            (
-                "Invalid stored JSON in "
-                f"{field_name}."
-            )
-        ) from exc
+        raise ValueError((f"Invalid stored JSON in {field_name}.")) from exc
 
 
 # ======================================================================
@@ -1163,37 +881,18 @@ def sqlite_boolean(
     Convert nullable SQLite INTEGER boolean into Python bool.
     """
 
-    if (
-        value
-        is None
+    if value is None:
+        return None
+
+    numeric = int(value)
+
+    if numeric not in (
+        0,
+        1,
     ):
+        raise ValueError((f"SQLite boolean value must be 0, 1 or NULL; got {value!r}."))
 
-        return (
-            None
-        )
-
-    numeric = int(
-        value
-    )
-
-    if (
-        numeric
-        not in (
-            0,
-            1,
-        )
-    ):
-
-        raise ValueError(
-            (
-                "SQLite boolean value must "
-                f"be 0, 1 or NULL; got {value!r}."
-            )
-        )
-
-    return bool(
-        numeric
-    )
+    return bool(numeric)
 
 
 # ======================================================================
@@ -1212,33 +911,15 @@ def normalize_optional_number(
     Non-finite research values are rejected.
     """
 
-    if (
-        value
-        is None
-    ):
+    if value is None:
+        return None
 
-        return (
-            None
-        )
+    result = float(value)
 
-    result = float(
-        value
-    )
+    if not math.isfinite(result):
+        raise ValueError((f"{field_name} contains a non-finite value."))
 
-    if not math.isfinite(
-        result
-    ):
-
-        raise ValueError(
-            (
-                f"{field_name} contains "
-                "a non-finite value."
-            )
-        )
-
-    return (
-        result
-    )
+    return result
 
 
 # ======================================================================
@@ -1266,158 +947,79 @@ def normalize_event_row(
     # SAMPLE TIMELINE
     # ==================================================================
 
-    start_sample = int(
-        row[
-            "start_sample"
-        ]
-    )
+    start_sample = int(row["start_sample"])
 
-    end_sample = int(
-        row[
-            "end_sample"
-        ]
-    )
+    end_sample = int(row["end_sample"])
 
-    if (
-        start_sample
-        < 0
-    ):
+    if start_sample < 0:
+        raise ValueError("Event start_sample cannot be negative.")
 
-        raise ValueError(
-            "Event start_sample cannot be negative."
-        )
+    if end_sample < start_sample:
+        raise ValueError(("Event end_sample cannot be less than start_sample."))
 
-    if (
-        end_sample
-        < start_sample
-    ):
+    duration_samples = end_sample - start_sample
 
-        raise ValueError(
-            (
-                "Event end_sample cannot be "
-                "less than start_sample."
-            )
-        )
-
-    duration_samples = (
-        end_sample
-        - start_sample
-    )
-
-    duration_s = (
-        duration_samples
-        / sample_rate
-    )
+    duration_s = duration_samples / sample_rate
 
     # ==================================================================
     # SCIENTIFIC TIMESTAMP
     # ==================================================================
 
-    event_time = (
-        reconstruct_event_time(
-            row[
-                "session_started_at"
-            ],
-            start_sample,
-            sample_rate=
-                sample_rate,
-        )
+    event_time = reconstruct_event_time(
+        row["session_started_at"],
+        start_sample,
+        sample_rate=sample_rate,
     )
 
     # ==================================================================
     # TRIGGER NODES
     # ==================================================================
 
-    trigger_nodes = (
-        decode_json_value(
-            row[
-                "trigger_nodes"
-            ],
-            field_name=
-                "trigger_nodes",
-        )
+    trigger_nodes = decode_json_value(
+        row["trigger_nodes"],
+        field_name="trigger_nodes",
     )
 
     if not isinstance(
         trigger_nodes,
         list,
     ):
+        raise ValueError(("Stored trigger_nodes must decode to a list."))
 
-        raise ValueError(
-            (
-                "Stored trigger_nodes must "
-                "decode to a list."
-            )
-        )
-
-    normalized_trigger_nodes = [
-        int(
-            node_id
-        )
-        for node_id
-        in trigger_nodes
-    ]
+    normalized_trigger_nodes = [int(node_id) for node_id in trigger_nodes]
 
     # ==================================================================
     # MFCC
     # ==================================================================
 
-    if (
-        include_mfcc
-    ):
-
-        mfcc_mean = (
-            decode_json_value(
-                row[
-                    "mfcc_mean_json"
-                ],
-                field_name=
-                    "mfcc_mean_json",
-            )
+    if include_mfcc:
+        mfcc_mean = decode_json_value(
+            row["mfcc_mean_json"],
+            field_name="mfcc_mean_json",
         )
 
-        mfcc_std = (
-            decode_json_value(
-                row[
-                    "mfcc_std_json"
-                ],
-                field_name=
-                    "mfcc_std_json",
-            )
+        mfcc_std = decode_json_value(
+            row["mfcc_std_json"],
+            field_name="mfcc_std_json",
         )
 
     else:
+        mfcc_mean = None
 
-        mfcc_mean = (
-            None
-        )
-
-        mfcc_std = (
-            None
-        )
+        mfcc_std = None
 
     # ==================================================================
     # CLASSIFICATION EXPLAINABILITY
     # ==================================================================
 
-    classification_scores = (
-        decode_json_value(
-            row[
-                "classification_scores_json"
-            ],
-            field_name=
-                "classification_scores_json",
-        )
+    classification_scores = decode_json_value(
+        row["classification_scores_json"],
+        field_name="classification_scores_json",
     )
 
-    classification_reasons = (
-        decode_json_value(
-            row[
-                "classification_reasons_json"
-            ],
-            field_name=
-                "classification_reasons_json",
-        )
+    classification_reasons = decode_json_value(
+        row["classification_reasons_json"],
+        field_name="classification_reasons_json",
     )
 
     # ==================================================================
@@ -1428,389 +1030,157 @@ def normalize_event_row(
         # --------------------------------------------------------------
         # IDENTITY
         # --------------------------------------------------------------
-
-        "event_id":
-            int(
-                row[
-                    "event_id"
-                ]
-            ),
-
-        "detector_event_id":
-            int(
-                row[
-                    "detector_event_id"
-                ]
-            ),
-
-        "session_id":
-            int(
-                row[
-                    "session_id"
-                ]
-            ),
-
-        "session_label":
-            row[
-                "session_label"
-            ],
-
+        "event_id": int(row["event_id"]),
+        "detector_event_id": int(row["detector_event_id"]),
+        "session_id": int(row["session_id"]),
+        "session_label": row["session_label"],
         # --------------------------------------------------------------
         # TIME
         # --------------------------------------------------------------
-
-        "event_time":
-            event_time,
-
-        "session_started_at":
-            row[
-                "session_started_at"
-            ],
-
-        "session_stopped_at":
-            row[
-                "session_stopped_at"
-            ],
-
+        "event_time": event_time,
+        "session_started_at": row["session_started_at"],
+        "session_stopped_at": row["session_stopped_at"],
         # --------------------------------------------------------------
         # SHARED SAMPLE TIMELINE
         # --------------------------------------------------------------
-
-        "start_sample":
-            start_sample,
-
-        "end_sample":
-            end_sample,
-
-        "duration_samples":
-            duration_samples,
-
-        "duration_s":
-            duration_s,
-
+        "start_sample": start_sample,
+        "end_sample": end_sample,
+        "duration_samples": duration_samples,
+        "duration_s": duration_s,
         # --------------------------------------------------------------
         # DETECTOR
         # --------------------------------------------------------------
-
-        "trigger_nodes":
-            normalized_trigger_nodes,
-
-        "trigger_node_count":
-            len(
-                normalized_trigger_nodes
-            ),
-
-        "peak_rms_dbfs":
-            normalize_optional_number(
-                row[
-                    "peak_rms_dbfs"
-                ],
-                field_name=
-                    "peak_rms_dbfs",
-            ),
-
-        "best_node_id":
-            (
-                None
-
-                if row[
-                    "best_node_id"
-                ] is None
-
-                else int(
-                    row[
-                        "best_node_id"
-                    ]
-                )
-            ),
-
+        "trigger_nodes": normalized_trigger_nodes,
+        "trigger_node_count": len(normalized_trigger_nodes),
+        "peak_rms_dbfs": normalize_optional_number(
+            row["peak_rms_dbfs"],
+            field_name="peak_rms_dbfs",
+        ),
+        "best_node_id": (
+            None if row["best_node_id"] is None else int(row["best_node_id"])
+        ),
         # --------------------------------------------------------------
         # ENVIRONMENT
         # --------------------------------------------------------------
-
-        "temperature_c":
-            normalize_optional_number(
-                row[
-                    "temperature_c"
-                ],
-                field_name=
-                    "temperature_c",
-            ),
-
-        "humidity_percent":
-            normalize_optional_number(
-                row[
-                    "humidity_percent"
-                ],
-                field_name=
-                    "humidity_percent",
-            ),
-
-        "pressure_hpa":
-            normalize_optional_number(
-                row[
-                    "pressure_hpa"
-                ],
-                field_name=
-                    "pressure_hpa",
-            ),
-
-        "speed_of_sound_mps":
-            normalize_optional_number(
-                row[
-                    "speed_of_sound_mps"
-                ],
-                field_name=
-                    "speed_of_sound_mps",
-            ),
-
+        "temperature_c": normalize_optional_number(
+            row["temperature_c"],
+            field_name="temperature_c",
+        ),
+        "humidity_percent": normalize_optional_number(
+            row["humidity_percent"],
+            field_name="humidity_percent",
+        ),
+        "pressure_hpa": normalize_optional_number(
+            row["pressure_hpa"],
+            field_name="pressure_hpa",
+        ),
+        "speed_of_sound_mps": normalize_optional_number(
+            row["speed_of_sound_mps"],
+            field_name="speed_of_sound_mps",
+        ),
         # --------------------------------------------------------------
         # LOCALIZATION
         # --------------------------------------------------------------
-
-        "x_m":
-            normalize_optional_number(
-                row[
-                    "x_m"
-                ],
-                field_name=
-                    "x_m",
-            ),
-
-        "y_m":
-            normalize_optional_number(
-                row[
-                    "y_m"
-                ],
-                field_name=
-                    "y_m",
-            ),
-
-        "localization_success":
-            sqlite_boolean(
-                row[
-                    "localization_success"
-                ]
-            ),
-
-        "localization_residual_m":
-            normalize_optional_number(
-                row[
-                    "localization_residual_m"
-                ],
-                field_name=
-                    "localization_residual_m",
-            ),
-
+        "x_m": normalize_optional_number(
+            row["x_m"],
+            field_name="x_m",
+        ),
+        "y_m": normalize_optional_number(
+            row["y_m"],
+            field_name="y_m",
+        ),
+        "localization_success": sqlite_boolean(row["localization_success"]),
+        "localization_residual_m": normalize_optional_number(
+            row["localization_residual_m"],
+            field_name="localization_residual_m",
+        ),
         # --------------------------------------------------------------
         # DSP
         # --------------------------------------------------------------
-
-        "feature_source_node_id":
-            (
-                None
-
-                if row[
-                    "feature_source_node_id"
-                ] is None
-
-                else int(
-                    row[
-                        "feature_source_node_id"
-                    ]
-                )
-            ),
-
-        "feature_duration_s":
-            normalize_optional_number(
-                row[
-                    "feature_duration_s"
-                ],
-                field_name=
-                    "feature_duration_s",
-            ),
-
-        "rms":
-            normalize_optional_number(
-                row[
-                    "rms"
-                ],
-                field_name=
-                    "rms",
-            ),
-
-        "peak_amplitude":
-            normalize_optional_number(
-                row[
-                    "peak_amplitude"
-                ],
-                field_name=
-                    "peak_amplitude",
-            ),
-
-        "crest_factor":
-            normalize_optional_number(
-                row[
-                    "crest_factor"
-                ],
-                field_name=
-                    "crest_factor",
-            ),
-
-        "zero_crossing_rate":
-            normalize_optional_number(
-                row[
-                    "zero_crossing_rate"
-                ],
-                field_name=
-                    "zero_crossing_rate",
-            ),
-
-        "dominant_frequency_hz":
-            normalize_optional_number(
-                row[
-                    "dominant_frequency_hz"
-                ],
-                field_name=
-                    "dominant_frequency_hz",
-            ),
-
-        "spectral_centroid_hz":
-            normalize_optional_number(
-                row[
-                    "spectral_centroid_hz"
-                ],
-                field_name=
-                    "spectral_centroid_hz",
-            ),
-
-        "spectral_bandwidth_hz":
-            normalize_optional_number(
-                row[
-                    "spectral_bandwidth_hz"
-                ],
-                field_name=
-                    "spectral_bandwidth_hz",
-            ),
-
-        "spectral_rolloff_hz":
-            normalize_optional_number(
-                row[
-                    "spectral_rolloff_hz"
-                ],
-                field_name=
-                    "spectral_rolloff_hz",
-            ),
-
-        "spectral_flatness":
-            normalize_optional_number(
-                row[
-                    "spectral_flatness"
-                ],
-                field_name=
-                    "spectral_flatness",
-            ),
-
-        "spectral_flux":
-            normalize_optional_number(
-                row[
-                    "spectral_flux"
-                ],
-                field_name=
-                    "spectral_flux",
-            ),
-
-        "snr_db":
-            normalize_optional_number(
-                row[
-                    "snr_db"
-                ],
-                field_name=
-                    "snr_db",
-            ),
-
+        "feature_source_node_id": (
+            None
+            if row["feature_source_node_id"] is None
+            else int(row["feature_source_node_id"])
+        ),
+        "feature_duration_s": normalize_optional_number(
+            row["feature_duration_s"],
+            field_name="feature_duration_s",
+        ),
+        "rms": normalize_optional_number(
+            row["rms"],
+            field_name="rms",
+        ),
+        "peak_amplitude": normalize_optional_number(
+            row["peak_amplitude"],
+            field_name="peak_amplitude",
+        ),
+        "crest_factor": normalize_optional_number(
+            row["crest_factor"],
+            field_name="crest_factor",
+        ),
+        "zero_crossing_rate": normalize_optional_number(
+            row["zero_crossing_rate"],
+            field_name="zero_crossing_rate",
+        ),
+        "dominant_frequency_hz": normalize_optional_number(
+            row["dominant_frequency_hz"],
+            field_name="dominant_frequency_hz",
+        ),
+        "spectral_centroid_hz": normalize_optional_number(
+            row["spectral_centroid_hz"],
+            field_name="spectral_centroid_hz",
+        ),
+        "spectral_bandwidth_hz": normalize_optional_number(
+            row["spectral_bandwidth_hz"],
+            field_name="spectral_bandwidth_hz",
+        ),
+        "spectral_rolloff_hz": normalize_optional_number(
+            row["spectral_rolloff_hz"],
+            field_name="spectral_rolloff_hz",
+        ),
+        "spectral_flatness": normalize_optional_number(
+            row["spectral_flatness"],
+            field_name="spectral_flatness",
+        ),
+        "spectral_flux": normalize_optional_number(
+            row["spectral_flux"],
+            field_name="spectral_flux",
+        ),
+        "snr_db": normalize_optional_number(
+            row["snr_db"],
+            field_name="snr_db",
+        ),
         # --------------------------------------------------------------
         # MFCC
         # --------------------------------------------------------------
-
-        "mfcc_mean":
-            mfcc_mean,
-
-        "mfcc_std":
-            mfcc_std,
-
+        "mfcc_mean": mfcc_mean,
+        "mfcc_std": mfcc_std,
         # --------------------------------------------------------------
         # CLASSIFICATION
         # --------------------------------------------------------------
-
-        "classification_label":
-            row[
-                "classification_label"
-            ],
-
-        "classification_confidence":
-            normalize_optional_number(
-                row[
-                    "classification_confidence"
-                ],
-                field_name=
-                    "classification_confidence",
-            ),
-
-        "classification_second_label":
-            row[
-                "classification_second_label"
-            ],
-
-        "classification_second_confidence":
-            normalize_optional_number(
-                row[
-                    "classification_second_confidence"
-                ],
-                field_name=
-                    (
-                        "classification_second_confidence"
-                    ),
-            ),
-
-        "classification_margin":
-            normalize_optional_number(
-                row[
-                    "classification_margin"
-                ],
-                field_name=
-                    "classification_margin",
-            ),
-
-        "classification_scores":
-            classification_scores,
-
-        "classification_reasons":
-            classification_reasons,
-
-        "classifier_name":
-            row[
-                "classifier_name"
-            ],
-
-        "classifier_version":
-            row[
-                "classifier_version"
-            ],
-
+        "classification_label": row["classification_label"],
+        "classification_confidence": normalize_optional_number(
+            row["classification_confidence"],
+            field_name="classification_confidence",
+        ),
+        "classification_second_label": row["classification_second_label"],
+        "classification_second_confidence": normalize_optional_number(
+            row["classification_second_confidence"],
+            field_name=("classification_second_confidence"),
+        ),
+        "classification_margin": normalize_optional_number(
+            row["classification_margin"],
+            field_name="classification_margin",
+        ),
+        "classification_scores": classification_scores,
+        "classification_reasons": classification_reasons,
+        "classifier_name": row["classifier_name"],
+        "classifier_version": row["classifier_version"],
         # --------------------------------------------------------------
         # TRACEABILITY
         # --------------------------------------------------------------
-
-        "event_directory":
-            row[
-                "event_directory"
-            ],
-
-        "database_created_at":
-            row[
-                "database_created_at"
-            ],
+        "event_directory": row["event_directory"],
+        "database_created_at": row["database_created_at"],
     }
 
 
@@ -1842,88 +1212,51 @@ def load_event_rows(
         database event ID
     """
 
-    if (
-        isinstance(
-            sample_rate,
-            bool,
-        )
-        or not isinstance(
-            sample_rate,
-            int,
-        )
+    if isinstance(
+        sample_rate,
+        bool,
+    ) or not isinstance(
+        sample_rate,
+        int,
     ):
+        raise TypeError("sample_rate must be an integer.")
 
-        raise TypeError(
-            "sample_rate must be an integer."
-        )
+    if sample_rate <= 0:
+        raise ValueError("sample_rate must be greater than 0.")
 
-    if (
-        sample_rate
-        <= 0
-    ):
+    query = event_export_query()
 
-        raise ValueError(
-            "sample_rate must be greater than 0."
-        )
-
-    query = (
-        event_export_query()
-    )
-
-    parameters: list[
-        Any
-    ] = []
+    parameters: list[Any] = []
 
     # ==================================================================
     # SESSION FILTER
     # ==================================================================
 
-    if (
-        session_id
-        is not None
-    ):
-
-        if (
-            isinstance(
-                session_id,
-                bool,
-            )
-            or not isinstance(
-                session_id,
-                int,
-            )
+    if session_id is not None:
+        if isinstance(
+            session_id,
+            bool,
+        ) or not isinstance(
+            session_id,
+            int,
         ):
+            raise TypeError("session_id must be an integer.")
 
-            raise TypeError(
-                "session_id must be an integer."
-            )
+        if session_id <= 0:
+            raise ValueError("session_id must be greater than 0.")
 
-        if (
-            session_id
-            <= 0
-        ):
-
-            raise ValueError(
-                "session_id must be greater than 0."
-            )
-
-        query += (
-            """
+        query += """
 
             WHERE e.session_id = ?
             """
-        )
 
-        parameters.append(
-            session_id
-        )
+        parameters.append(session_id)
 
     # ==================================================================
     # ORDER
     # ==================================================================
 
-    query += (
-        """
+    query += """
 
         ORDER BY
 
@@ -1933,86 +1266,54 @@ def load_event_rows(
 
             e.id ASC
         """
-    )
 
     # ==================================================================
     # LIMIT
     # ==================================================================
 
-    if (
-        limit
-        is not None
-    ):
-
-        if (
-            isinstance(
-                limit,
-                bool,
-            )
-            or not isinstance(
-                limit,
-                int,
-            )
+    if limit is not None:
+        if isinstance(
+            limit,
+            bool,
+        ) or not isinstance(
+            limit,
+            int,
         ):
+            raise TypeError("limit must be an integer.")
 
-            raise TypeError(
-                "limit must be an integer."
-            )
+        if limit <= 0:
+            raise ValueError("limit must be greater than 0.")
 
-        if (
-            limit
-            <= 0
-        ):
-
-            raise ValueError(
-                "limit must be greater than 0."
-            )
-
-        query += (
-            """
+        query += """
 
             LIMIT ?
             """
-        )
 
-        parameters.append(
-            limit
-        )
+        parameters.append(limit)
 
     # ==================================================================
     # EXECUTE READ-ONLY QUERY
     # ==================================================================
 
-    with closing(
-        open_readonly_database(
-            database_path
-        )
-    ) as connection:
+    with closing(open_readonly_database(database_path)) as connection:
+        validate_database_schema(connection)
 
-        validate_database_schema(
-            connection
-        )
+        database_rows = connection.execute(
+            query,
+            tuple(parameters),
+        ).fetchall()
 
-        database_rows = (
-            connection.execute(
-                query,
-                tuple(
-                    parameters
-                ),
-            )
-            .fetchall()
-        )
-
+    manifests = read_manifests(database_path)
     return [
         normalize_event_row(
             row,
-            sample_rate=
-                sample_rate,
-            include_mfcc=
-                include_mfcc,
+            sample_rate=manifests.get(row["session_id"], {})
+            .get("config", {})
+            .get("audio", {})
+            .get("sample_rate", sample_rate),
+            include_mfcc=include_mfcc,
         )
-        for row
-        in database_rows
+        for row in database_rows
     ]
 
 
@@ -2038,7 +1339,6 @@ def csv_value(
             dict,
         ),
     ):
-
         return json.dumps(
             value,
             ensure_ascii=False,
@@ -2047,27 +1347,19 @@ def csv_value(
                 ",",
                 ":",
             ),
-            sort_keys=
-                isinstance(
-                    value,
-                    dict,
-                ),
+            sort_keys=isinstance(
+                value,
+                dict,
+            ),
         )
 
     if isinstance(
         value,
         bool,
     ):
+        return 1 if value else 0
 
-        return (
-            1
-            if value
-            else 0
-        )
-
-    return (
-        value
-    )
+    return value
 
 
 # ======================================================================
@@ -2098,31 +1390,17 @@ def write_csv(
         encoding="utf-8",
         newline="",
     ) as handle:
-
         writer = csv.DictWriter(
             handle,
-            fieldnames=
-                CSV_FIELD_ORDER,
-            extrasaction=
-                "ignore",
+            fieldnames=CSV_FIELD_ORDER,
+            extrasaction="ignore",
         )
 
         writer.writeheader()
 
         for row in rows:
-
             writer.writerow(
-                {
-                    field:
-                        csv_value(
-                            row.get(
-                                field
-                            )
-                        )
-
-                    for field
-                    in CSV_FIELD_ORDER
-                }
+                {field: csv_value(row.get(field)) for field in CSV_FIELD_ORDER}
             )
 
 
@@ -2155,34 +1433,23 @@ def write_json(
         "w",
         encoding="utf-8",
     ) as handle:
-
         json.dump(
-            list(
-                rows
-            ),
+            list(rows),
             handle,
             ensure_ascii=False,
             allow_nan=False,
-            indent=
-                (
-                    2
-                    if pretty
-                    else None
-                ),
-            separators=
-                (
-                    None
-                    if pretty
-                    else (
-                        ",",
-                        ":",
-                    )
-                ),
+            indent=(2 if pretty else None),
+            separators=(
+                None
+                if pretty
+                else (
+                    ",",
+                    ":",
+                )
+            ),
         )
 
-        handle.write(
-            "\n"
-        )
+        handle.write("\n")
 
 
 # ======================================================================
@@ -2214,13 +1481,9 @@ def write_jsonl(
         "w",
         encoding="utf-8",
     ) as handle:
-
         for row in rows:
-
             serialized = json.dumps(
-                dict(
-                    row
-                ),
+                dict(row),
                 ensure_ascii=False,
                 allow_nan=False,
                 separators=(
@@ -2229,13 +1492,9 @@ def write_jsonl(
                 ),
             )
 
-            handle.write(
-                serialized
-            )
+            handle.write(serialized)
 
-            handle.write(
-                "\n"
-            )
+            handle.write("\n")
 
 
 # ======================================================================
@@ -2293,10 +1552,7 @@ def local_to_geodetic(
             - 559.822 * math.cos(2.0 * lat0_rad)
             + 1.175 * math.cos(4.0 * lat0_rad)
         )
-        m_per_deg_lon = (
-            111412.84 * math.cos(lat0_rad)
-            - 93.5 * math.cos(3.0 * lat0_rad)
-        )
+        m_per_deg_lon = 111412.84 * math.cos(lat0_rad) - 93.5 * math.cos(3.0 * lat0_rad)
         lat = origin_latitude + (delta_n / m_per_deg_lat)
         lon = origin_longitude + (delta_e / (m_per_deg_lon + 1e-12))
         return float(lon), float(lat)
@@ -2334,8 +1590,7 @@ def write_geojson(
 
     for row in rows:
         is_localized = bool(
-            row.get("localization_success")
-            or row.get("has_localization")
+            row.get("localization_success") or row.get("has_localization")
         )
         if not is_localized:
             continue
@@ -2426,63 +1681,48 @@ def export_events(
         options,
         EventExportOptions,
     ):
-
-        raise TypeError(
-            "options must be EventExportOptions."
-        )
+        raise TypeError("options must be EventExportOptions.")
 
     rows = load_event_rows(
         options.database_path,
-        sample_rate=
-            options.sample_rate,
-        session_id=
-            options.session_id,
-        limit=
-            options.limit,
-        include_mfcc=
-            options.include_mfcc,
+        sample_rate=options.sample_rate,
+        session_id=options.session_id,
+        limit=options.limit,
+        include_mfcc=options.include_mfcc,
     )
 
-    if (
-        options.export_format
-        is ExportFormat.CSV
-    ):
+    manifests = read_manifests(options.database_path, options.session_id)
+    selected_ids = {int(row["session_id"]) for row in rows}
+    if options.session_id is not None:
+        selected_ids.add(options.session_id)
+    write_manifest_sidecar(
+        options.output_path,
+        {sid: manifest for sid, manifest in manifests.items() if sid in selected_ids},
+    )
 
+    if options.export_format is ExportFormat.CSV:
         write_csv(
             rows,
             options.output_path,
         )
         return len(rows)
 
-    elif (
-        options.export_format
-        is ExportFormat.JSON
-    ):
-
+    elif options.export_format is ExportFormat.JSON:
         write_json(
             rows,
             options.output_path,
-            pretty=
-                options.pretty_json,
+            pretty=options.pretty_json,
         )
         return len(rows)
 
-    elif (
-        options.export_format
-        is ExportFormat.JSONL
-    ):
-
+    elif options.export_format is ExportFormat.JSONL:
         write_jsonl(
             rows,
             options.output_path,
         )
         return len(rows)
 
-    elif (
-        options.export_format
-        is ExportFormat.GEOJSON
-    ):
-
+    elif options.export_format is ExportFormat.GEOJSON:
         assert options.origin_latitude is not None
         assert options.origin_longitude is not None
 
@@ -2497,13 +1737,7 @@ def export_events(
         )
 
     else:
-
-        raise ValueError(
-            (
-                "Unsupported export format: "
-                f"{options.export_format}"
-            )
-        )
+        raise ValueError((f"Unsupported export format: {options.export_format}"))
 
 
 # ======================================================================
@@ -2520,25 +1754,13 @@ def default_output_path(
     Build deterministic default export filename.
     """
 
-    if (
-        session_id
-        is None
-    ):
-
-        stem = (
-            "acoustic_events"
-        )
+    if session_id is None:
+        stem = "acoustic_events"
 
     else:
+        stem = f"acoustic_events_session_{session_id}"
 
-        stem = (
-            f"acoustic_events_session_{session_id}"
-        )
-
-    return (
-        DEFAULT_EXPORT_DIRECTORY
-        / f"{stem}.{export_format.value}"
-    )
+    return DEFAULT_EXPORT_DIRECTORY / f"{stem}.{export_format.value}"
 
 
 # ======================================================================
@@ -2561,100 +1783,70 @@ def build_argument_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--database",
         type=Path,
-        default=
-            CONFIG.persistence.database_path,
-        help=(
-            "SQLite database path. "
-            "Default: configured persistence database."
-        ),
+        default=CONFIG.persistence.database_path,
+        help=("SQLite database path. Default: configured persistence database."),
     )
 
     parser.add_argument(
         "--output",
         type=Path,
         default=None,
-        help=(
-            "Output dataset path. "
-            "If omitted, data/exports is used."
-        ),
+        help=("Output dataset path. If omitted, data/exports is used."),
     )
 
     parser.add_argument(
         "--format",
         dest="export_format",
-        choices=[
-            item.value
-            for item
-            in ExportFormat
-        ],
-        default=
-            ExportFormat.CSV.value,
-        help=(
-            "Output format: csv, json or jsonl."
-        ),
+        choices=[item.value for item in ExportFormat],
+        default=ExportFormat.CSV.value,
+        help=("Output format: csv, json or jsonl."),
     )
 
     parser.add_argument(
         "--session-id",
         type=int,
         default=None,
-        help=(
-            "Export only one acquisition session."
-        ),
+        help=("Export only one acquisition session."),
     )
 
     parser.add_argument(
         "--limit",
         type=int,
         default=None,
-        help=(
-            "Optional maximum number of events."
-        ),
+        help=("Optional maximum number of events."),
     )
 
     parser.add_argument(
         "--sample-rate",
         type=int,
-        default=
-            CONFIG.audio.sample_rate,
-        help=(
-            "Acquisition sample rate used for "
-            "event timestamp reconstruction."
-        ),
+        default=CONFIG.audio.sample_rate,
+        help=("Acquisition sample rate used for event timestamp reconstruction."),
     )
 
     parser.add_argument(
         "--exclude-mfcc",
         action="store_true",
-        help=(
-            "Do not include MFCC vectors in the exported dataset."
-        ),
+        help=("Do not include MFCC vectors in the exported dataset."),
     )
 
     parser.add_argument(
         "--compact-json",
         action="store_true",
-        help=(
-            "Disable pretty indentation for JSON-array output."
-        ),
+        help=("Disable pretty indentation for JSON-array output."),
     )
 
     parser.add_argument(
         "--origin-latitude",
         type=float,
         default=None,
-        help=(
-            "Array origin latitude in decimal degrees (required for GeoJSON)."
-        ),
+        help=("Array origin latitude in decimal degrees (required for GeoJSON)."),
     )
 
     parser.add_argument(
         "--origin-longitude",
         type=float,
         default=None,
-        help=(
-            "Array origin longitude in decimal degrees (required for GeoJSON)."
-        ),
+        help=("Array origin longitude in decimal degrees (required for GeoJSON)."),
     )
 
     parser.add_argument(
@@ -2675,9 +1867,7 @@ def build_argument_parser() -> argparse.ArgumentParser:
         ),
     )
 
-    return (
-        parser
-    )
+    return parser
 
 
 # ======================================================================
@@ -2690,48 +1880,27 @@ def main() -> int:
     Command-line entry point.
     """
 
-    parser = (
-        build_argument_parser()
-    )
+    parser = build_argument_parser()
 
-    arguments = (
-        parser.parse_args()
-    )
+    arguments = parser.parse_args()
 
-    export_format = ExportFormat(
-        arguments.export_format
-    )
+    export_format = ExportFormat(arguments.export_format)
 
-    output_path = (
-        arguments.output
-    )
+    output_path = arguments.output
 
-    if (
-        output_path
-        is None
-    ):
-
-        output_path = (
-            default_output_path(
-                export_format,
-                session_id=
-                    arguments.session_id,
-            )
+    if output_path is None:
+        output_path = default_output_path(
+            export_format,
+            session_id=arguments.session_id,
         )
 
     # ==================================================================
     # EXTENSION CHECK
     # ==================================================================
 
-    expected_suffix = (
-        f".{export_format.value}"
-    )
+    expected_suffix = f".{export_format.value}"
 
-    if (
-        output_path.suffix.lower()
-        != expected_suffix
-    ):
-
+    if output_path.suffix.lower() != expected_suffix:
         parser.error(
             (
                 f"--output extension must be "
@@ -2745,50 +1914,22 @@ def main() -> int:
     # ==================================================================
 
     try:
-
         options = EventExportOptions(
-            database_path=
-                arguments.database,
-
-            output_path=
-                output_path,
-
-            export_format=
-                export_format,
-
-            sample_rate=
-                arguments.sample_rate,
-
-            session_id=
-                arguments.session_id,
-
-            limit=
-                arguments.limit,
-
-            include_mfcc=
-                not arguments.exclude_mfcc,
-
-            pretty_json=
-                not arguments.compact_json,
-
-            origin_latitude=
-                arguments.origin_latitude,
-
-            origin_longitude=
-                arguments.origin_longitude,
-
-            azimuth_deg=
-                arguments.azimuth_deg,
-
-            coarsen_decimals=
-                arguments.coarsen_decimals,
+            database_path=arguments.database,
+            output_path=output_path,
+            export_format=export_format,
+            sample_rate=arguments.sample_rate,
+            session_id=arguments.session_id,
+            limit=arguments.limit,
+            include_mfcc=not arguments.exclude_mfcc,
+            pretty_json=not arguments.compact_json,
+            origin_latitude=arguments.origin_latitude,
+            origin_longitude=arguments.origin_longitude,
+            azimuth_deg=arguments.azimuth_deg,
+            coarsen_decimals=arguments.coarsen_decimals,
         )
 
-        exported_count = (
-            export_events(
-                options
-            )
-        )
+        exported_count = export_events(options)
 
     except (
         FileNotFoundError,
@@ -2797,46 +1938,23 @@ def main() -> int:
         ValueError,
         sqlite3.DatabaseError,
     ) as exc:
-
         parser.exit(
             status=1,
-            message=
-                f"Export failed: {exc}\n",
+            message=f"Export failed: {exc}\n",
         )
 
     # ==================================================================
     # STATUS
     # ==================================================================
 
-    print(
-        (
-            f"Exported {exported_count} event(s) "
-            f"to {options.output_path}"
-        )
-    )
+    print((f"Exported {exported_count} event(s) to {options.output_path}"))
 
-    if (
-        options.session_id
-        is not None
-    ):
+    if options.session_id is not None:
+        print((f"Session filter: {options.session_id}"))
 
-        print(
-            (
-                "Session filter: "
-                f"{options.session_id}"
-            )
-        )
+    print(("Event timestamp authority: session.started_at + start_sample/sample_rate"))
 
-    print(
-        (
-            "Event timestamp authority: "
-            "session.started_at + start_sample/sample_rate"
-        )
-    )
-
-    return (
-        0
-    )
+    return 0
 
 
 # ======================================================================
@@ -2844,11 +1962,5 @@ def main() -> int:
 # ======================================================================
 
 
-if (
-    __name__
-    == "__main__"
-):
-
-    raise SystemExit(
-        main()
-    )
+if __name__ == "__main__":
+    raise SystemExit(main())

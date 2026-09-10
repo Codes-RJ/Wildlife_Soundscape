@@ -36,7 +36,6 @@ Kept inside individual test modules:
     GCC-PHAT edge cases
 """
 
-
 from __future__ import annotations
 
 
@@ -83,29 +82,13 @@ import pytest
 # ======================================================================
 
 
-PROJECT_ROOT = (
-    Path(
-        __file__
-    )
-    .resolve()
-    .parents[
-        1
-    ]
-)
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 
-if (
-    str(
-        PROJECT_ROOT
-    )
-    not in sys.path
-):
-
+if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(
         0,
-        str(
-            PROJECT_ROOT
-        ),
+        str(PROJECT_ROOT),
     )
 
 
@@ -136,24 +119,16 @@ from wildlife_soundscape.acquisition.stream_manager import (
 # ======================================================================
 
 
-TEST_SAMPLE_RATE = (
-    48_000
-)
+TEST_SAMPLE_RATE = 48_000
 
 
-TEST_FRAMES_PER_BLOCK = (
-    1024
-)
+TEST_FRAMES_PER_BLOCK = 1024
 
 
-TEST_SESSION_ID = (
-    0x12345678
-)
+TEST_SESSION_ID = 0x12345678
 
 
-TEST_SECOND_SESSION_ID = (
-    0x87654321
-)
+TEST_SECOND_SESSION_ID = 0x87654321
 
 
 TEST_NODE_IDS = (
@@ -180,26 +155,13 @@ def audio_config() -> AudioConfig:
     """
 
     return AudioConfig(
-        sample_rate=
-            TEST_SAMPLE_RATE,
-
-        frames_per_block=
-            TEST_FRAMES_PER_BLOCK,
-
-        channels=
-            1,
-
-        sample_width_bytes=
-            2,
-
-        buffer_seconds=
-            10,
-
-        sync_tolerance_samples=
-            10,
-
-        record_wav=
-            False,
+        sample_rate=TEST_SAMPLE_RATE,
+        frames_per_block=TEST_FRAMES_PER_BLOCK,
+        channels=1,
+        sample_width_bytes=2,
+        buffer_seconds=10,
+        sync_tolerance_samples=10,
+        record_wav=False,
     )
 
 
@@ -214,9 +176,7 @@ def session_id() -> int:
     Stable non-zero Protocol-v4 acquisition session ID.
     """
 
-    return (
-        TEST_SESSION_ID
-    )
+    return TEST_SESSION_ID
 
 
 @pytest.fixture
@@ -231,9 +191,7 @@ def second_session_id() -> int:
         cross-session isolation tests
     """
 
-    return (
-        TEST_SECOND_SESSION_ID
-    )
+    return TEST_SECOND_SESSION_ID
 
 
 # ======================================================================
@@ -249,9 +207,7 @@ def rng() -> np.random.Generator:
     Tests using this shared RNG remain reproducible across executions.
     """
 
-    return np.random.default_rng(
-        20260830
-    )
+    return np.random.default_rng(20260830)
 
 
 # ======================================================================
@@ -312,69 +268,33 @@ def make_pcm16() -> Callable[..., np.ndarray]:
         # LENGTH
         # ==============================================================
 
-        if (
-            isinstance(
-                length,
-                bool,
-            )
-            or not isinstance(
-                length,
-                int,
-            )
+        if isinstance(
+            length,
+            bool,
+        ) or not isinstance(
+            length,
+            int,
         ):
+            raise TypeError(("length must be an integer"))
 
-            raise TypeError(
-                (
-                    "length must be "
-                    "an integer"
-                )
-            )
-
-        if (
-            length
-            <= 0
-        ):
-
-            raise ValueError(
-                (
-                    "length must be "
-                    "greater than zero"
-                )
-            )
+        if length <= 0:
+            raise ValueError(("length must be greater than zero"))
 
         # ==============================================================
         # SAMPLE RATE
         # ==============================================================
 
-        if (
-            isinstance(
-                sample_rate,
-                bool,
-            )
-            or not isinstance(
-                sample_rate,
-                int,
-            )
+        if isinstance(
+            sample_rate,
+            bool,
+        ) or not isinstance(
+            sample_rate,
+            int,
         ):
+            raise TypeError(("sample_rate must be an integer"))
 
-            raise TypeError(
-                (
-                    "sample_rate must be "
-                    "an integer"
-                )
-            )
-
-        if (
-            sample_rate
-            <= 0
-        ):
-
-            raise ValueError(
-                (
-                    "sample_rate must be "
-                    "greater than zero"
-                )
-            )
+        if sample_rate <= 0:
+            raise ValueError(("sample_rate must be greater than zero"))
 
         # ==============================================================
         # TIME AXIS
@@ -385,65 +305,27 @@ def make_pcm16() -> Callable[..., np.ndarray]:
             dtype=np.float64,
         )
 
-        time_s = (
-            sample_indices
-            / float(
-                sample_rate
-            )
-        )
+        time_s = sample_indices / float(sample_rate)
 
         # ==============================================================
         # SINUSOID
         # ==============================================================
 
-        waveform = (
-            float(
-                amplitude
-            )
-            * np.sin(
-                (
-                    2.0
-                    * np.pi
-                    * float(
-                        frequency_hz
-                    )
-                    * time_s
-                )
-                + float(
-                    phase_rad
-                )
-            )
+        waveform = float(amplitude) * np.sin(
+            (2.0 * np.pi * float(frequency_hz) * time_s) + float(phase_rad)
         )
 
         # ==============================================================
         # OPTIONAL NOISE
         # ==============================================================
 
-        if (
-            noise_std
-            > 0.0
-        ):
+        if noise_std > 0.0:
+            local_rng = np.random.default_rng(seed)
 
-            local_rng = (
-                np.random.default_rng(
-                    seed
-                )
-            )
-
-            waveform = (
-                waveform
-                + local_rng.normal(
-                    loc=
-                        0.0,
-
-                    scale=
-                        float(
-                            noise_std
-                        ),
-
-                    size=
-                        length,
-                )
+            waveform = waveform + local_rng.normal(
+                loc=0.0,
+                scale=float(noise_std),
+                size=length,
             )
 
         # ==============================================================
@@ -460,15 +342,9 @@ def make_pcm16() -> Callable[..., np.ndarray]:
         # OUTPUT
         # ==============================================================
 
-        return np.ascontiguousarray(
-            waveform.astype(
-                np.int16
-            )
-        )
+        return np.ascontiguousarray(waveform.astype(np.int16))
 
-    return (
-        _make_pcm16
-    )
+    return _make_pcm16
 
 
 # ======================================================================
@@ -517,17 +393,10 @@ def make_audio_block(
         # DEFAULT PCM
         # ==============================================================
 
-        if (
-            samples
-            is None
-        ):
-
-            pcm = (
-                make_pcm16()
-            )
+        if samples is None:
+            pcm = make_pcm16()
 
         else:
-
             # ----------------------------------------------------------
             # Shared fixture output must always represent a valid mono
             # PCM16 waveform.
@@ -538,29 +407,11 @@ def make_audio_block(
                 dtype=np.int16,
             )
 
-            if (
-                pcm.ndim
-                != 1
-            ):
+            if pcm.ndim != 1:
+                raise ValueError(("make_audio_block samples must be mono 1-D audio"))
 
-                raise ValueError(
-                    (
-                        "make_audio_block samples "
-                        "must be mono 1-D audio"
-                    )
-                )
-
-            if (
-                pcm.size
-                == 0
-            ):
-
-                raise ValueError(
-                    (
-                        "make_audio_block samples "
-                        "cannot be empty"
-                    )
-                )
+            if pcm.size == 0:
+                raise ValueError(("make_audio_block samples cannot be empty"))
 
             pcm = np.ascontiguousarray(
                 pcm,
@@ -572,34 +423,17 @@ def make_audio_block(
         # ==============================================================
 
         return AudioBlock(
-            node_id=
-                node_id,
-
-            sequence=
-                sequence,
-
-            session_id=
-                session_id,
-
-            sample_index=
-                sample_index,
-
-            local_micros=
-                local_micros,
-
-            i2s_error_count=
-                i2s_error_count,
-
-            flags=
-                flags,
-
-            samples=
-                pcm,
+            node_id=node_id,
+            sequence=sequence,
+            session_id=session_id,
+            sample_index=sample_index,
+            local_micros=local_micros,
+            i2s_error_count=i2s_error_count,
+            flags=flags,
+            samples=pcm,
         )
 
-    return (
-        _make_audio_block
-    )
+    return _make_audio_block
 
 
 # ======================================================================
@@ -629,16 +463,11 @@ def make_node_state(
     ) -> NodeState:
 
         return NodeState(
-            node_id=
-                node_id,
-
-            audio_config=
-                audio_config,
+            node_id=node_id,
+            audio_config=audio_config,
         )
 
-    return (
-        _make_node_state
-    )
+    return _make_node_state
 
 
 # ======================================================================
@@ -661,16 +490,7 @@ def node_states(
     This avoids hiding session-management behaviour from tests.
     """
 
-    return {
-        node_id:
-            make_node_state(
-                node_id=
-                    node_id
-            )
-
-        for node_id
-        in TEST_NODE_IDS
-    }
+    return {node_id: make_node_state(node_id=node_id) for node_id in TEST_NODE_IDS}
 
 
 # ======================================================================
@@ -695,23 +515,12 @@ def stream_manager(
     setup from masking session-transition bugs.
     """
 
-    manager = (
-        StreamManager(
-            audio_config
-        )
-    )
+    manager = StreamManager(audio_config)
 
-    for state in (
-        node_states.values()
-    ):
+    for state in node_states.values():
+        manager.register_state(state)
 
-        manager.register_state(
-            state
-        )
-
-    return (
-        manager
-    )
+    return manager
 
 
 # ======================================================================
@@ -737,18 +546,10 @@ def active_node_states(
     session without testing session establishment itself.
     """
 
-    for state in (
-        node_states.values()
-    ):
+    for state in node_states.values():
+        state.reset_stream_tracking(session_id=session_id)
 
-        state.reset_stream_tracking(
-            session_id=
-                session_id
-        )
-
-    return (
-        node_states
-    )
+    return node_states
 
 
 # ======================================================================
@@ -777,23 +578,12 @@ def active_stream_manager(
     when session establishment itself is not under test.
     """
 
-    manager = (
-        StreamManager(
-            audio_config
-        )
-    )
+    manager = StreamManager(audio_config)
 
-    for state in (
-        active_node_states.values()
-    ):
+    for state in active_node_states.values():
+        manager.register_state(state)
 
-        manager.register_state(
-            state
-        )
-
-    return (
-        manager
-    )
+    return manager
 
 
 # ======================================================================
@@ -828,12 +618,10 @@ def node_positions() -> dict[
             0.0,
             0.0,
         ),
-
         2: (
             0.5,
             0.8660254037844386,
         ),
-
         3: (
             1.0,
             0.0,
@@ -877,6 +665,4 @@ def speed_of_sound_mps() -> float:
         meters / second
     """
 
-    return (
-        343.0
-    )
+    return 343.0

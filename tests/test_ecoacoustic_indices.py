@@ -48,7 +48,9 @@ def test_soundscape_indices_config_defaults_and_validation() -> None:
 
     # Inverted band
     with pytest.raises(ValueError):
-        SoundscapeIndicesConfig(ndsi_anthrophony_min_hz=3000.0, ndsi_anthrophony_max_hz=2000.0)
+        SoundscapeIndicesConfig(
+            ndsi_anthrophony_min_hz=3000.0, ndsi_anthrophony_max_hz=2000.0
+        )
 
     # Exceeding Nyquist
     with pytest.raises(ValueError):
@@ -186,8 +188,7 @@ def test_unified_indices_and_database_persistence(tmp_path: Path) -> None:
     # Generate synthetic soundscape audio
     t = np.linspace(0, 1.0, sr, endpoint=False, dtype=np.float32)
     audio = (
-        0.5 * np.sin(2 * np.pi * 3000 * t)
-        + 0.2 * np.sin(2 * np.pi * 1200 * t)
+        0.5 * np.sin(2 * np.pi * 3000 * t) + 0.2 * np.sin(2 * np.pi * 1200 * t)
     ).astype(np.float32)
 
     result = calculate_soundscape_indices(audio, sr)
@@ -238,10 +239,14 @@ def test_soundscape_service_streaming_buffer(tmp_path: Path) -> None:
     chunk1 = np.ones(sr // 2, dtype=np.float32) * 0.1
     chunk2 = np.ones(sr // 2, dtype=np.float32) * 0.2
 
-    res1 = service.append_audio(node_id=1, audio_chunk=chunk1, session_id=session_id, start_sample=0)
+    res1 = service.append_audio(
+        node_id=1, audio_chunk=chunk1, session_id=session_id, start_sample=0
+    )
     assert res1 is None  # not enough audio yet
 
-    res2 = service.append_audio(node_id=1, audio_chunk=chunk2, session_id=session_id, start_sample=sr // 2)
+    res2 = service.append_audio(
+        node_id=1, audio_chunk=chunk2, session_id=session_id, start_sample=sr // 2
+    )
     assert res2 is not None  # window completed
     assert isinstance(res2, SoundscapeIndicesResult)
 
@@ -262,20 +267,26 @@ def test_soundscape_service_does_not_join_across_gap(tmp_path: Path) -> None:
     first = np.ones(window_samples // 2, dtype=np.float32)
     second = np.ones(window_samples // 2, dtype=np.float32)
 
-    assert service.append_audio(
-        1,
-        first,
-        session_id=session_id,
-        start_sample=0,
-    ) is None
+    assert (
+        service.append_audio(
+            1,
+            first,
+            session_id=session_id,
+            start_sample=0,
+        )
+        is None
+    )
 
     # The missing region resets the partial window instead of compressing it.
-    assert service.append_audio(
-        1,
-        second,
-        session_id=session_id,
-        start_sample=window_samples,
-    ) is None
+    assert (
+        service.append_audio(
+            1,
+            second,
+            session_id=session_id,
+            start_sample=window_samples,
+        )
+        is None
+    )
     assert db.get_soundscape_indices(session_id=session_id) == []
 
     result = service.append_audio(
@@ -304,28 +315,37 @@ def test_soundscape_service_isolates_sessions_and_trims_duplicates(
     half_window = service.window_samples // 2
     chunk = np.ones(half_window, dtype=np.float32)
 
-    assert service.append_audio(
-        1,
-        chunk,
-        session_id=first_session,
-        start_sample=0,
-    ) is None
+    assert (
+        service.append_audio(
+            1,
+            chunk,
+            session_id=first_session,
+            start_sample=0,
+        )
+        is None
+    )
 
     # A session change clears the half-window from the previous session.
-    assert service.append_audio(
-        1,
-        chunk,
-        session_id=second_session,
-        start_sample=0,
-    ) is None
+    assert (
+        service.append_audio(
+            1,
+            chunk,
+            session_id=second_session,
+            start_sample=0,
+        )
+        is None
+    )
 
     # A fully duplicated chunk is ignored rather than double-counted.
-    assert service.append_audio(
-        1,
-        chunk,
-        session_id=second_session,
-        start_sample=0,
-    ) is None
+    assert (
+        service.append_audio(
+            1,
+            chunk,
+            session_id=second_session,
+            start_sample=0,
+        )
+        is None
+    )
 
     result = service.append_audio(
         1,

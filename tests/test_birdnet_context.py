@@ -24,7 +24,10 @@ from wildlife_soundscape.classification.birdnet_context import (
     TAXON_GROUP_UNKNOWN,
     TAXON_TO_ACOUSTIC_CLASS,
 )
-from wildlife_soundscape.classification.classifier import AcousticClass, ClassificationResult
+from wildlife_soundscape.classification.classifier import (
+    AcousticClass,
+    ClassificationResult,
+)
 
 
 # ======================================================================
@@ -44,7 +47,9 @@ def test_taxonomy_group_mapping_constants() -> None:
 def test_birdnet_taxonomy_lookup_and_registration() -> None:
     taxonomy = BirdNETTaxonomy()
     assert len(taxonomy) == 0
-    assert taxonomy.get_broad_class("Corvus splendens_House Crow") == AcousticClass.UNKNOWN
+    assert (
+        taxonomy.get_broad_class("Corvus splendens_House Crow") == AcousticClass.UNKNOWN
+    )
     assert taxonomy.get_taxon_group("Corvus splendens_House Crow") is None
 
     taxonomy.register_species("Corvus splendens_House Crow", TAXON_GROUP_AVES)
@@ -56,7 +61,10 @@ def test_birdnet_taxonomy_lookup_and_registration() -> None:
     assert len(taxonomy) >= 5
     assert taxonomy.get_broad_class("Corvus splendens_House Crow") == AcousticClass.BIRD
     assert taxonomy.get_broad_class("Gryllus bimaculatus") == AcousticClass.INSECT
-    assert taxonomy.get_broad_class("Rana temporaria_Common Frog") == AcousticClass.AMPHIBIAN
+    assert (
+        taxonomy.get_broad_class("Rana temporaria_Common Frog")
+        == AcousticClass.AMPHIBIAN
+    )
     assert taxonomy.get_broad_class("Canis lupus_Grey Wolf") == AcousticClass.MAMMAL
     assert taxonomy.get_broad_class("Engine_Noise") == AcousticClass.NOISE
 
@@ -77,7 +85,10 @@ def test_birdnet_taxonomy_csv_loading(tmp_path: Path) -> None:
 
     taxonomy = BirdNETTaxonomy.from_csv(csv_file)
     assert len(taxonomy) >= 3
-    assert taxonomy.get_broad_class("Turdus merula_Eurasian Blackbird") == AcousticClass.BIRD
+    assert (
+        taxonomy.get_broad_class("Turdus merula_Eurasian Blackbird")
+        == AcousticClass.BIRD
+    )
     assert taxonomy.get_broad_class("Cicada orni") == AcousticClass.INSECT
     assert taxonomy.get_broad_class("Bufo bufo") == AcousticClass.AMPHIBIAN
 
@@ -127,7 +138,9 @@ def test_birdnet_geo_context_validation() -> None:
 
     # Invalid confidence
     with pytest.raises(ValueError):
-        BirdNETGeoContext(enabled=True, latitude=0.0, longitude=0.0, min_confidence=-0.1)
+        BirdNETGeoContext(
+            enabled=True, latitude=0.0, longitude=0.0, min_confidence=-0.1
+        )
 
 
 def test_birdnet_geo_context_query_mock_model() -> None:
@@ -227,7 +240,9 @@ def test_birdnet_backend_taxonomy_mapping_and_abstention() -> None:
         min_confidence=0.2,
     )
     audio = np.zeros(48000, dtype=np.float32)
-    res_bird = backend_bird.classify(ClassificationInput(features=None, sample_rate=48000, model_audio=audio))
+    res_bird = backend_bird.classify(
+        ClassificationInput(features=None, sample_rate=48000, model_audio=audio)
+    )
     assert isinstance(res_bird, ClassificationResult)
     assert res_bird.label == AcousticClass.BIRD
     assert res_bird.confidence == 0.92
@@ -243,7 +258,9 @@ def test_birdnet_backend_taxonomy_mapping_and_abstention() -> None:
         model=FakeBirdNETModel([("Gryllus bimaculatus", 0.88)]),
         min_confidence=0.2,
     )
-    res_insect = backend_insect.classify(ClassificationInput(features=None, sample_rate=48000, model_audio=audio))
+    res_insect = backend_insect.classify(
+        ClassificationInput(features=None, sample_rate=48000, model_audio=audio)
+    )
     assert res_insect.label == AcousticClass.INSECT
     assert res_insect.confidence == 0.88
     assert res_insect.second_label is None
@@ -255,7 +272,9 @@ def test_birdnet_backend_taxonomy_mapping_and_abstention() -> None:
         model=FakeBirdNETModel([("Uncataloged_Mystery_Critter", 0.95)]),
         min_confidence=0.2,
     )
-    res_unknown = backend_unknown.classify(ClassificationInput(features=None, sample_rate=48000, model_audio=audio))
+    res_unknown = backend_unknown.classify(
+        ClassificationInput(features=None, sample_rate=48000, model_audio=audio)
+    )
     assert res_unknown.label == AcousticClass.UNKNOWN
     assert res_unknown.confidence == 0.0
     assert res_unknown.second_label is None
@@ -315,7 +334,9 @@ def test_birdnet_backend_lazily_loads_and_traces_geo_model(monkeypatch) -> None:
     assert "did not alter acoustic confidence" in " ".join(result.reasons)
 
 
-def test_birdnet_backend_geo_load_failure_preserves_acoustic_result(monkeypatch) -> None:
+def test_birdnet_backend_geo_load_failure_preserves_acoustic_result(
+    monkeypatch,
+) -> None:
     taxonomy = BirdNETTaxonomy({"Corvus splendens_House Crow": TAXON_GROUP_AVES})
 
     class FakeDataFrame:

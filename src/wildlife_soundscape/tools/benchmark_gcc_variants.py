@@ -94,7 +94,9 @@ def run_benchmark(
 
     results: list[BenchmarkResultRow] = []
     duration_s = 0.5
-    t = np.linspace(0, duration_s, int(sample_rate * duration_s), endpoint=False, dtype=np.float64)
+    t = np.linspace(
+        0, duration_s, int(sample_rate * duration_s), endpoint=False, dtype=np.float64
+    )
 
     # Base source signal: modulated bioacoustic chirp (2.5 kHz to 4.5 kHz)
     chirp_freq = 2500.0 + 2000.0 * (t / duration_s)
@@ -107,7 +109,7 @@ def run_benchmark(
 
     for snr in snr_levels_db:
         # Scale clean signal vs white noise
-        sig_power = float(np.mean(clean_signal ** 2))
+        sig_power = float(np.mean(clean_signal**2))
         noise_power = sig_power / (10.0 ** (snr / 10.0))
         noise_sigma = math.sqrt(noise_power)
 
@@ -134,10 +136,13 @@ def run_benchmark(
                 measured_tdoas: dict[tuple[int, int], float] = {}
 
                 for na, nb, true_delay in pairs:
-                    max_pair_delay = math.hypot(
-                        node_positions[na][0] - node_positions[nb][0],
-                        node_positions[na][1] - node_positions[nb][1],
-                    ) / speed_of_sound_mps
+                    max_pair_delay = (
+                        math.hypot(
+                            node_positions[na][0] - node_positions[nb][0],
+                            node_positions[na][1] - node_positions[nb][1],
+                        )
+                        / speed_of_sound_mps
+                    )
 
                     res = gcc_phat(
                         signal=node_audio[nb],
@@ -207,7 +212,9 @@ def run_benchmark(
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Benchmark GCC-PHAT variants.")
-    parser.add_argument("--output-csv", type=Path, default=Path("benchmark_gcc_results.csv"))
+    parser.add_argument(
+        "--output-csv", type=Path, default=Path("benchmark_gcc_results.csv")
+    )
     parser.add_argument("--output-json", type=Path, default=None)
     args = parser.parse_args()
 
@@ -216,7 +223,9 @@ def main() -> None:
 
     # Export CSV
     with args.output_csv.open("w", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=[k for k in BenchmarkResultRow.__annotations__])
+        writer = csv.DictWriter(
+            f, fieldnames=[k for k in BenchmarkResultRow.__annotations__]
+        )
         writer.writeheader()
         for r in results:
             writer.writerow(asdict(r))
