@@ -106,6 +106,7 @@ before reporting experimental performance.
 
 ## Documentation
 
+- [Advanced development pathway](docs/ADVANCED_PATHWAY.md)
 - [Operations guide](docs/OPERATIONS.md)
 - [Development, data and release guide](docs/DEVELOPMENT_DATA.md)
 - [Technical system reference](docs/TECHNICAL_REFERENCE.md)

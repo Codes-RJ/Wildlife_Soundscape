@@ -6,6 +6,11 @@ Use these three documents by purpose:
 - [Development, data and release guide](DEVELOPMENT_DATA.md): package map, quality gates, dataset policy and roadmap.
 - [Technical reference](TECHNICAL_REFERENCE.md): full architecture, protocol, DSP, localization, firmware and analytics reference.
 
+For the next development stage, use the
+[advanced development pathway](ADVANCED_PATHWAY.md). It defines the ordered
+audio, dataset, annotation, model-training, hybrid-inference, calibration, and
+field-release gates.
+
 Also see the [dataset manifest example](dataset-manifest.example.json) and the
 firmware [board setup](../firmware/README.md).
 
