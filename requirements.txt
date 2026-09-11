@@ -54,7 +54,7 @@ librosa>=0.11,<2.0
 #
 # Minimum version is intentionally above the introduction of
 # Streamlit fragment-based reruns used by the live dashboard.
-streamlit>=1.37,<2.0
+streamlit>=1.62,<2.0
 
 
 # Interactive scientific visualizations.

@@ -821,6 +821,75 @@ class EventDatabase:
                 )
             ]
 
+    def save_event_review(
+        self,
+        event_id: int,
+        *,
+        reviewed_label: str,
+        reviewer: str,
+        notes: str = "",
+    ) -> None:
+        """Save human review separately from the immutable model prediction."""
+
+        event_id = self._positive_id(event_id, name="event_id", maximum=SQLITE_INT64_MAX)
+        values: list[str] = []
+        for name, value in (("reviewed_label", reviewed_label), ("reviewer", reviewer), ("notes", notes)):
+            if not isinstance(value, str):
+                raise TypeError(f"{name} must be a string")
+            values.append(value.strip())
+        if not values[0] or not values[1]:
+            raise ValueError("reviewed_label and reviewer cannot be empty")
+        with self._lock, self._connect() as conn:
+            if conn.execute("SELECT 1 FROM events WHERE id = ?", (event_id,)).fetchone() is None:
+                raise ValueError(f"Event {event_id} does not exist")
+            conn.execute(
+                """
+                INSERT INTO event_reviews(event_id, reviewed_label, reviewer, notes)
+                VALUES (?, ?, ?, ?)
+                ON CONFLICT(event_id) DO UPDATE SET
+                    reviewed_label=excluded.reviewed_label,
+                    reviewer=excluded.reviewer,
+                    notes=excluded.notes,
+                    reviewed_at=CURRENT_TIMESTAMP
+                """,
+                (event_id, *values),
+            )
+
+    def get_event_review(self, event_id: int) -> dict[str, Any] | None:
+        """Return the current human review for an event, if one exists."""
+
+        event_id = self._positive_id(event_id, name="event_id", maximum=SQLITE_INT64_MAX)
+        with self._connect() as conn:
+            conn.row_factory = sqlite3.Row
+            row = conn.execute(
+                "SELECT event_id, reviewed_label, reviewer, notes, reviewed_at FROM event_reviews WHERE event_id = ?",
+                (event_id,),
+            ).fetchone()
+        return None if row is None else dict(row)
+
+    def list_event_reviews(self, *, session_id: int) -> list[dict[str, Any]]:
+        """Return human annotations for one session in event order."""
+
+        session_id = self._positive_id(
+            session_id,
+            name="session_id",
+            maximum=UINT32_MAX,
+        )
+        with self._connect() as conn:
+            conn.row_factory = sqlite3.Row
+            rows = conn.execute(
+                """
+                SELECT r.event_id, r.reviewed_label, r.reviewer, r.notes,
+                       r.reviewed_at
+                FROM event_reviews AS r
+                INNER JOIN events AS e ON e.id = r.event_id
+                WHERE e.session_id = ?
+                ORDER BY e.start_sample, e.id
+                """,
+                (session_id,),
+            ).fetchall()
+        return [dict(row) for row in rows]
+
     def update_event_analysis(
         self,
         event_id: int,

@@ -51,6 +51,22 @@ wildlife-validate-dataset docs/dataset-manifest.example.json --skip-audio
 streamlit run src/wildlife_soundscape/dashboard/app.py
 ```
 
+The dashboard is organized into three areas:
+
+- **Monitor** shows the latest session, detections, event audio, and locations.
+- **Sessions** defaults to the newest completed session and groups event review,
+  soundscape analysis, spatial analysis, and exports into tabs. Event review
+  includes the short detector clip plus adjustable surrounding context from the
+  full continuous WAV when one was recorded.
+- **Setup** shows acquisition/classifier configuration, hardware preflight,
+  interrupted-session recovery, storage use, and an additive balanced demo-data
+  generator.
+
+The pipeline simulator exercises real detection and the heuristic classifier,
+so its natural output may legitimately contain mostly `bird` and `unknown`.
+Use **Setup → Demo data** when you need a clearly marked six-class interface
+demonstration; those illustrative labels are never presented as model results.
+
 Use `scripts\run_live.bat` with configured ESP32 nodes. Set deployment
 credentials and the receiver address in each firmware sketch without committing
 real credentials.

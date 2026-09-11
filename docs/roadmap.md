@@ -23,6 +23,22 @@
   classification, localization, telemetry, and audio references afterward.
 - Keep synthetic/demo sessions clearly separated from field observations.
 
+## Dashboard workflow — completed
+
+- Primary navigation is reduced to Monitor, Sessions, and Setup.
+- Session analysis defaults to the newest completed acquisition and uses focused
+  Overview, Events, Soundscape, Spatial, and Export tabs.
+- Event review exposes model identity, confidence, runner-up, margin, reasons,
+  synchronized microphone clips, adjustable continuous-audio context, and full
+  session WAVs when available.
+- Human reviews are stored and exported separately from model predictions.
+- Old unclosed sessions are displayed as interrupted and can be explicitly
+  closed without deleting their evidence.
+- A balanced six-class synthetic fixture can be generated additively from the
+  Setup page; live heuristic results remain clearly distinct.
+- Storage usage, deployment settings, classifier fallback, and physical
+  preflight limitations are visible under Setup.
+
 ## Priority 1 — physical array validation
 
 - Compile all three sketches using the pinned Arduino-ESP32 toolchain.

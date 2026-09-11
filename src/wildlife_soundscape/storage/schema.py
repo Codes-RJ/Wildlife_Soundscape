@@ -73,6 +73,14 @@ def _initialize(
                 PRIMARY KEY(event_id, stage)
             );
 
+            CREATE TABLE IF NOT EXISTS event_reviews (
+                event_id INTEGER PRIMARY KEY REFERENCES events(id) ON DELETE CASCADE,
+                reviewed_label TEXT NOT NULL,
+                reviewer TEXT NOT NULL,
+                notes TEXT NOT NULL DEFAULT '',
+                reviewed_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
+
             CREATE TABLE IF NOT EXISTS telemetry (
 
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -439,6 +447,13 @@ def _initialize(
 
             ON classifications(
                 label
+            );
+
+            CREATE INDEX IF NOT EXISTS
+                idx_event_reviews_label
+
+            ON event_reviews(
+                reviewed_label
             );
 
 

@@ -73,7 +73,7 @@ def render_review_view(data_access: DashboardDataAccess) -> None:
             return
         statuses = database.get_event_processing_status(event_id)
         if statuses:
-            st.dataframe(statuses, hide_index=True, use_container_width=True)
+            st.dataframe(statuses, hide_index=True, width="stretch")
         st.json(dict(event), expanded=False)
         files = discover_event_audio_files(event, project_root=Path.cwd())
         if not files:

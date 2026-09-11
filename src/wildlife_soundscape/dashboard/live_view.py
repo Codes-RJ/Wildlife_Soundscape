@@ -804,7 +804,7 @@ def _render_recent_event_visualizations(
         st.plotly_chart(
             timeline,
             theme=None,
-            use_container_width=True,
+            width="stretch",
         )
 
     # ==================================================================
@@ -823,7 +823,7 @@ def _render_recent_event_visualizations(
         st.plotly_chart(
             scatter,
             theme=None,
-            use_container_width=True,
+            width="stretch",
         )
 
 
@@ -855,7 +855,7 @@ def _render_recent_event_table(
 
     st.dataframe(
         rows,
-        use_container_width=True,
+        width="stretch",
         hide_index=True,
     )
 
@@ -1094,7 +1094,7 @@ def _render_manual_refresh_control(
         if st.button(
             "Refresh",
             key="live_view_manual_refresh",
-            use_container_width=True,
+            width="stretch",
         ):
             st.rerun()
 

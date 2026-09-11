@@ -539,10 +539,10 @@ def _render_activity_section(
     if st.session_state.get("student_mode_active", True):
         render_student_explainer(
             topic_title="Temporal Activity & Calling Distribution",
-            what_is_it="Graphs showing what hours of the day animals are vocalizing and what percentage belongs to birds, insects, frogs, or mammals.",
-            why_it_matters="Detects natural circadian rhythms like the dawn chorus. If animals suddenly stop calling during their normal hour, an intruder or storm is nearby.",
-            how_to_read="The left line chart shows calling rate over time. The right pie/bar chart breaks down detected species groups.",
-            real_world_example="In the Western Ghats, songbirds dominate 05:30-08:00 AM, while cicadas and tree frogs dominate evening twilight.",
+            what_is_it="Graphs showing when acoustic events were detected and how broad classifier outputs are distributed.",
+            why_it_matters="Repeated schedules can suggest patterns worth testing, such as a dawn chorus, while accounting for detector effort and uncertainty.",
+            how_to_read="The timeline shows detections over time. The class chart summarizes model outputs, not verified species counts.",
+            real_world_example="A reviewed field dataset may show more bird detections near dawn and more insect-like detections after dusk.",
         )
 
     activity = _report_activity(report)
@@ -579,7 +579,7 @@ def _render_activity_section(
         st.plotly_chart(
             figure,
             theme=None,
-            use_container_width=True,
+            width="stretch",
         )
 
     # ==================================================================
@@ -602,7 +602,7 @@ def _render_activity_section(
             st.plotly_chart(
                 figure,
                 theme=None,
-                use_container_width=True,
+                width="stretch",
             )
 
     # ==================================================================
@@ -625,7 +625,7 @@ def _render_activity_section(
 
         st.dataframe(
             rows,
-            use_container_width=True,
+            width="stretch",
             hide_index=True,
         )
 
@@ -663,10 +663,10 @@ def _render_environment_section(
     if st.session_state.get("student_mode_active", True):
         render_student_explainer(
             topic_title="Environmental Correlation & Microclimate",
-            what_is_it="Measures how temperature, humidity, and atmospheric pressure influence animal vocalization rates using Spearman correlation (rho).",
-            why_it_matters="Animals respond to weather cues. Frogs only mate and chorus when humidity is high to protect their permeable skin.",
+            what_is_it="Measures associations between recorded weather variables and acoustic-event rates using Spearman correlation (rho).",
+            why_it_matters="Weather may coincide with changing acoustic activity, recorder conditions, or detection performance and is useful context for further testing.",
             how_to_read="Values near +1.0 mean calls increase as the weather factor rises. Values near -1.0 mean calls decrease.",
-            real_world_example="Tree frogs in Kerala increase calling rates sharply above 75% relative humidity.",
+            real_world_example="A study could test whether reviewed amphibian calls are more frequent during humid recording periods.",
         )
 
     if not (environmental_rows):
@@ -687,7 +687,7 @@ def _render_environment_section(
     st.plotly_chart(
         figure,
         theme=None,
-        use_container_width=True,
+        width="stretch",
     )
 
     # ==================================================================
@@ -709,7 +709,7 @@ def _render_environment_section(
     st.plotly_chart(
         figure,
         theme=None,
-        use_container_width=True,
+        width="stretch",
     )
 
     # ==================================================================
@@ -734,7 +734,7 @@ def _render_environment_section(
 
         st.dataframe(
             rows,
-            use_container_width=True,
+            width="stretch",
             hide_index=True,
         )
 
@@ -772,10 +772,10 @@ def _render_soundscape_indices_section(
     if st.session_state.get("student_mode_active", True):
         render_student_explainer(
             topic_title="Continuous Ecoacoustic Indices (ACI & NDSI)",
-            what_is_it="Overall ecosystem acoustic health indicators. ACI measures complexity of birdsong; NDSI measures nature sounds vs machine noise.",
-            why_it_matters="Allows park authorities to measure whole forest health without needing to identify individual species.",
-            how_to_read="NDSI > +0.5 means a clean, healthy natural soundscape. NDSI < 0.0 indicates human noise pollution.",
-            real_world_example="In Kaziranga, NDSI drops near the national highway due to truck traffic, but reaches +0.8 inside the core rhino habitat.",
+            what_is_it="Parameter-dependent summaries of acoustic variation and energy in configured frequency bands.",
+            why_it_matters="They support like-for-like comparison of recording periods after equipment, schedule, weather, and site effects are controlled.",
+            how_to_read="Compare values only across compatible recordings. No universal ACI or NDSI threshold proves ecosystem health.",
+            real_world_example="A study may compare NDSI across matched sites and then inspect audio to identify what drove the difference.",
         )
 
     indices_records = data_access.soundscape_indices(session_id=session_id)
@@ -800,7 +800,7 @@ def _render_soundscape_indices_section(
         display_records = indices_records
 
     fig = build_soundscape_indices_timeline(display_records, sample_rate=config.audio.sample_rate)
-    st.plotly_chart(fig, use_container_width=True, theme=None)
+    st.plotly_chart(fig, width="stretch", theme=None)
 
     with st.expander(
         "Ecoacoustic Parameter Traceability & Scientific Disclaimers", expanded=False
@@ -854,10 +854,10 @@ def _render_spatial_section(
     if st.session_state.get("student_mode_active", True):
         render_student_explainer(
             topic_title="2D TDOA Acoustic Multilateration & Territory Mapping",
-            what_is_it="Pinpoints the exact (x, y) location in meters where the animal called, using the time delay between the 3 microphones.",
-            why_it_matters="Tracks animal movements, territorial boundaries, and nesting perches without setting foot into dangerous thick jungle.",
+            what_is_it="Estimates an acoustic source position from measured arrival-time differences between synchronized microphones.",
+            why_it_matters="Repeated, calibrated estimates can describe where detected sounds tend to originate and guide cautious follow-up study.",
             how_to_read="The triangle vertices are the 3 microphone nodes. The dots and heatmap show where sounds occurred.",
-            real_world_example="Tracking a Bengal tiger moving through the mangrove marsh by triangulating its low-frequency territorial growls.",
+            real_world_example="A controlled speaker test at known positions can quantify array error before field locations are interpreted.",
         )
 
     spatial = _report_spatial(report)
@@ -878,7 +878,7 @@ def _render_spatial_section(
         st.plotly_chart(
             figure,
             theme=None,
-            use_container_width=True,
+            width="stretch",
         )
 
     # ==================================================================
@@ -900,7 +900,7 @@ def _render_spatial_section(
             st.plotly_chart(
                 figure,
                 theme=None,
-                use_container_width=True,
+                width="stretch",
             )
 
     # ==================================================================
@@ -931,7 +931,7 @@ def _render_spatial_section(
 
     st.dataframe(
         transition_rows,
-        use_container_width=True,
+        width="stretch",
         hide_index=True,
     )
 
@@ -964,7 +964,7 @@ def _render_behavior_section(
     st.plotly_chart(
         figure,
         theme=None,
-        use_container_width=True,
+        width="stretch",
     )
 
     if report.behavior_indicators:
@@ -981,7 +981,7 @@ def _render_behavior_section(
 
         st.dataframe(
             rows,
-            use_container_width=True,
+            width="stretch",
             hide_index=True,
         )
 
@@ -1211,7 +1211,7 @@ def _render_audio_inspector(
             st.plotly_chart(
                 waveform,
                 theme=None,
-                use_container_width=True,
+                width="stretch",
             )
 
         except Exception as exc:
@@ -1229,7 +1229,7 @@ def _render_audio_inspector(
             st.plotly_chart(
                 spectrogram,
                 theme=None,
-                use_container_width=True,
+                width="stretch",
             )
 
         except Exception as exc:

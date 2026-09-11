@@ -184,6 +184,17 @@ class EventAudioFile:
         }
 
 
+@dataclass(frozen=True, slots=True)
+class AudioContext:
+    """Browser-ready continuous audio surrounding one detected event."""
+
+    wav_bytes: bytes
+    start_s: float
+    duration_s: float
+    clipped_at_start: bool
+    clipped_at_end: bool
+
+
 # ======================================================================
 # ROW ACCESS
 # ======================================================================
@@ -573,6 +584,109 @@ def discover_event_audio_files(
     discovered.sort(key=lambda item: item.node_id)
 
     return tuple(discovered)
+
+
+def discover_session_recordings(
+    session: Any,
+    *,
+    recordings_root: str | Path,
+    expected_nodes: Iterable[int] | None = None,
+) -> tuple[EventAudioFile, ...]:
+    """Find continuous node WAVs for a persisted acquisition session.
+
+    Receiver sessions use ``<label>_sid_<8-digit hex id>``.  Matching by the
+    immutable suffix also keeps this working when labels contain spaces.
+    """
+
+    raw_id = _row_value(session, "session_id")
+    if isinstance(raw_id, bool):
+        return ()
+    try:
+        session_id = int(raw_id)
+    except (TypeError, ValueError):
+        return ()
+    if not 0 < session_id <= 0xFFFFFFFF:
+        return ()
+
+    root = Path(recordings_root).expanduser().resolve(strict=False)
+    if not root.is_dir():
+        return ()
+
+    suffix = f"_sid_{session_id:08X}".casefold()
+    candidates = sorted(
+        path for path in root.iterdir()
+        if path.is_dir() and path.name.casefold().endswith(suffix)
+    )
+    if not candidates:
+        return ()
+
+    expected = None if expected_nodes is None else {int(node) for node in expected_nodes}
+    recordings: list[EventAudioFile] = []
+    for path in sorted(candidates[-1].glob("*.wav")):
+        node_id = node_id_from_wav_filename(path)
+        if node_id is None or (expected is not None and node_id not in expected):
+            continue
+        try:
+            recordings.append(read_wav_metadata(path, node_id=node_id))
+        except (FileNotFoundError, ValueError):
+            continue
+    return tuple(sorted(recordings, key=lambda item: item.node_id))
+
+
+def build_context_wav_bytes(
+    audio_file: EventAudioFile | str | Path,
+    *,
+    event_start_sample: int,
+    event_end_sample: int,
+    context_before_s: float = 5.0,
+    context_after_s: float = 5.0,
+) -> AudioContext:
+    """Extract a bounded context clip from a continuous session WAV.
+
+    The original recording is opened read-only.  Returned timing fields make
+    truncation at either edge explicit to reviewers.
+    """
+
+    metadata = audio_file if isinstance(audio_file, EventAudioFile) else read_wav_metadata(audio_file)
+    if isinstance(event_start_sample, bool) or isinstance(event_end_sample, bool):
+        raise TypeError("event sample positions must be integers")
+    start_sample = int(event_start_sample)
+    end_sample = int(event_end_sample)
+    if start_sample < 0 or end_sample <= start_sample:
+        raise ValueError("event sample interval must be positive and ordered")
+    before = float(context_before_s)
+    after = float(context_after_s)
+    if not math.isfinite(before) or before < 0 or not math.isfinite(after) or after < 0:
+        raise ValueError("context durations must be finite and non-negative")
+
+    requested_start = start_sample - round(before * metadata.sample_rate)
+    requested_end = end_sample + round(after * metadata.sample_rate)
+    first_frame = max(0, requested_start)
+    last_frame = min(metadata.frame_count, requested_end)
+    frame_count = max(0, last_frame - first_frame)
+
+    try:
+        with wave.open(str(metadata.path), "rb") as wav_file:
+            wav_file.setpos(first_frame)
+            raw_bytes = wav_file.readframes(frame_count)
+    except (wave.Error, EOFError) as exc:
+        raise ValueError(f"Unable to decode continuous WAV: {metadata.path}") from exc
+
+    buffer = io.BytesIO()
+    with wave.open(buffer, "wb") as wav_file:
+        wav_file.setnchannels(metadata.channels)
+        wav_file.setsampwidth(metadata.sample_width_bytes)
+        wav_file.setframerate(metadata.sample_rate)
+        wav_file.writeframes(raw_bytes)
+
+    actual_frames = len(raw_bytes) // (metadata.channels * metadata.sample_width_bytes)
+    return AudioContext(
+        wav_bytes=buffer.getvalue(),
+        start_s=first_frame / metadata.sample_rate,
+        duration_s=actual_frames / metadata.sample_rate,
+        clipped_at_start=requested_start < 0,
+        clipped_at_end=requested_end > metadata.frame_count,
+    )
 
 
 # ======================================================================
